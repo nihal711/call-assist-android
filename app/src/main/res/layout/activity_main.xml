@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <include
+            android:id="@+id/pageKeypad"
+            layout="@layout/page_keypad" />
+
+        <include
+            android:id="@+id/pageRecents"
+            layout="@layout/page_recents"
+            android:visibility="gone" />
+
+        <include
+            android:id="@+id/pageContacts"
+            layout="@layout/page_contacts"
+            android:visibility="gone" />
+
+        <include
+            android:id="@+id/pageGate"
+            layout="@layout/page_gate"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNav"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/bg"
+        app:itemActiveIndicatorStyle="@style/NavIndicator"
+        app:itemIconTint="@color/nav_item"
+        app:itemTextColor="@color/nav_item"
+        app:labelVisibilityMode="labeled"
+        app:menu="@menu/bottom_nav" />
+</LinearLayout>

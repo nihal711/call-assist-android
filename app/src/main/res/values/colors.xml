@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_bg">#0381FE</color>
+
+    <!-- Dark palette -->
+    <color name="bg">#050505</color>
+    <color name="card">#1C1C1F</color>
+    <color name="card2">#2C2C2E</color>
+    <color name="textPrimary">#F2F2F2</color>
+    <color name="textSecondary">#96969B</color>
+    <color name="accent">#3B7EFF</color>
+    <color name="accentSoft">#1A2A47</color>
+    <color name="green">#26B858</color>
+    <color name="red">#F4523B</color>
+    <color name="amber">#FFC107</color>
+</resources>
