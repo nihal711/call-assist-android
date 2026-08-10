@@ -33,6 +33,12 @@ object Prefs {
     fun confirmCall(ctx: Context): Boolean = sp(ctx).getBoolean("confirmCall", true)
     fun setConfirmCall(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("confirmCall", v).apply()
 
+    fun keyTones(ctx: Context): Boolean = sp(ctx).getBoolean("keyTones", true)
+    fun setKeyTones(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("keyTones", v).apply()
+
+    fun keyHaptics(ctx: Context): Boolean = sp(ctx).getBoolean("keyHaptics", true)
+    fun setKeyHaptics(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("keyHaptics", v).apply()
+
     private val DEFAULT_REPLIES = arrayOf(
         "Can't talk right now — I'll call you back.",
         "I'm on my way.",

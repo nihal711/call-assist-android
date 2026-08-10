@@ -34,6 +34,14 @@ class SettingsActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btnReplies).setOnClickListener { showReplies() }
 
+        val switchTones = findViewById<Switch>(R.id.switchTones)
+        switchTones.isChecked = Prefs.keyTones(this)
+        switchTones.setOnCheckedChangeListener { _, checked -> Prefs.setKeyTones(this, checked) }
+
+        val switchHaptics = findViewById<Switch>(R.id.switchHaptics)
+        switchHaptics.isChecked = Prefs.keyHaptics(this)
+        switchHaptics.setOnCheckedChangeListener { _, checked -> Prefs.setKeyHaptics(this, checked) }
+
         findViewById<Button>(R.id.btnBlocked).setOnClickListener {
             startActivity(Intent(this, BlockedNumbersActivity::class.java))
         }

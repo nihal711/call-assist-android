@@ -188,7 +188,7 @@ class MainActivity : AppCompatActivity() {
                 gravity = Gravity.CENTER
             })
             cell.setOnClickListener {
-                it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                if (Prefs.keyHaptics(this)) it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 playKeyTone(k.digit)
                 dialInput.append(k.digit)
                 renderDialInput()
@@ -252,6 +252,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun playKeyTone(digit: Char) {
+        if (!Prefs.keyTones(this)) return
+        // Respect vibrate/silent mode — the DTMF stream would otherwise beep anyway.
+        val am = getSystemService(AudioManager::class.java)
+        if (am.ringerMode != AudioManager.RINGER_MODE_NORMAL) return
         try {
             if (toneGen == null) toneGen = ToneGenerator(AudioManager.STREAM_DTMF, 60)
             val tone = when (digit) {

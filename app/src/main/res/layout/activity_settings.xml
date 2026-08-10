@@ -89,6 +89,43 @@
                 style="@style/SectionTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:text="SOUNDS AND HAPTICS" />
+
+            <Switch
+                android:id="@+id/switchTones"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="44dp"
+                android:text="Dial pad tones" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Tones are always silenced in vibrate and mute mode."
+                android:textColor="@color/textSecondary"
+                android:textSize="12sp" />
+
+            <Switch
+                android:id="@+id/switchHaptics"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:minHeight="44dp"
+                android:text="Dial pad vibration" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/bg_card"
+            android:orientation="vertical"
+            android:padding="18dp">
+
+            <TextView
+                style="@style/SectionTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
                 android:text="CALL PROTECTION" />
 
             <Button
