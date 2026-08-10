@@ -104,6 +104,7 @@ class InCallActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnMessageLocked).setOnClickListener { showQuickReplies() }
         findViewById<Button>(R.id.btnMessageSlide).setOnClickListener { showQuickReplies() }
         findViewById<ImageButton>(R.id.btnHangup).setOnClickListener { boundCall?.disconnect() }
+        findViewById<Button>(R.id.btnResume).setOnClickListener { boundCall?.unhold() }
 
         btnMute.setOnClickListener {
             muted = !muted
@@ -279,6 +280,8 @@ class InCallActivity : AppCompatActivity() {
             ringingButtons.visibility = if (ringing && !locked) View.VISIBLE else View.GONE
             ringingSlide.visibility = if (ringing && locked) View.VISIBLE else View.GONE
             activeBar.visibility = if (ringing) View.GONE else View.VISIBLE
+            findViewById<Button>(R.id.btnResume).visibility =
+                if (state == Call.STATE_HOLDING) View.VISIBLE else View.GONE
 
             if (state == Call.STATE_ACTIVE && !timerRunning) {
                 timerRunning = true

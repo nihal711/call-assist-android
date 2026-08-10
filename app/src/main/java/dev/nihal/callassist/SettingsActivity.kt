@@ -1,7 +1,10 @@
 package dev.nihal.callassist
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import android.text.InputType
 import android.widget.Button
 import android.widget.EditText
@@ -46,11 +49,33 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(Intent(this, BlockedNumbersActivity::class.java))
         }
 
+        findViewById<Button>(R.id.btnBattery).setOnClickListener {
+            try {
+                @Suppress("BatteryLife")
+                startActivity(
+                    Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                        .setData(Uri.parse("package:$packageName"))
+                )
+            } catch (_: Exception) {
+                startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+            }
+        }
+
         findViewById<TextView>(R.id.versionText).text = try {
             "Call Assist v${packageManager.getPackageInfo(packageName, 0).versionName}"
         } catch (_: Exception) {
             "Call Assist"
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val ignoring = getSystemService(PowerManager::class.java)
+            .isIgnoringBatteryOptimizations(packageName)
+        findViewById<Button>(R.id.btnBattery).isEnabled = !ignoring
+        findViewById<TextView>(R.id.batteryHint).text =
+            if (ignoring) "✓ Already exempt — Samsung's battery manager won't interfere."
+            else "Keeps Samsung's battery manager from ever interfering with gate automation."
     }
 
     private fun themeLabel(): String = when (Prefs.themeMode(this)) {

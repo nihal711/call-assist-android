@@ -444,6 +444,13 @@ class MainActivity : AppCompatActivity() {
             if (fsi) "Full-screen call alerts"
             else "Full-screen call alerts blocked — calls show as a banner only"
         )
+        val battery = getSystemService(android.os.PowerManager::class.java)
+            .isIgnoringBatteryOptimizations(packageName)
+        line(
+            battery,
+            if (battery) "Battery optimization exempt"
+            else "Battery optimization active — exempt it in Settings → System"
+        )
         findViewById<Button>(R.id.btnFsi).visibility = if (fsi) View.GONE else View.VISIBLE
         val on = Prefs.enabled(this)
         line(

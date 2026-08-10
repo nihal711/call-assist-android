@@ -9,31 +9,41 @@ import android.telephony.PhoneNumberUtils
 
 /**
  * Automation for the intercom contact:
- *   answer -> mute mic -> ~1.2s settle -> send gate code (e.g. 6#) -> wait 5s ->
- *   if the intercom hasn't hung up, resend the code one digit per second ->
- *   hang up ~3.5s later. Failsafe hangup at 30s no matter what.
+ *   answer -> save mute state, mute mic -> ~1.2s settle ->
+ *   send gate code, digits 1s apart -> wait 5s ->
+ *   retry up to 3 attempts total -> hang up ~3.5s after the last wait ->
+ *   40s failsafe hangup no matter what.
+ * On disconnect: restore the previous mute state and resume any call that was
+ * put on hold when the intercom barged in. If WE had to hang up (intercom never
+ * disconnected), warn that the gate may not have opened — when the code works,
+ * the intercom normally ends the call itself.
  * Muting doesn't affect DTMF — tones are injected by the modem, not the mic.
  */
 object AutomationEngine {
     private val handler = Handler(Looper.getMainLooper())
 
     private const val FIRST_TONE_DELAY_MS = 1200L   // let the audio path settle after answering
-    private const val FIRST_GAP_MS = 1000L          // digit starts 1s apart (~750ms silence between tones)
+    private const val DIGIT_GAP_MS = 1000L          // digit starts 1s apart (~750ms silence between tones)
     private const val TONE_MS = 250L                // how long each DTMF tone is held
-    private const val RETRY_WAIT_MS = 5000L         // wait after first attempt before checking
-    private const val RETRY_GAP_MS = 1000L          // gap between digits on the retry
-    private const val HANGUP_AFTER_RETRY_MS = 3500L
-    private const val FAILSAFE_HANGUP_MS = 30000L
+    private const val RETRY_WAIT_MS = 5000L         // wait after each attempt before checking
+    private const val MAX_ATTEMPTS = 3
+    private const val HANGUP_AFTER_LAST_MS = 3500L
+    private const val FAILSAFE_HANGUP_MS = 40000L
 
-    fun shouldHandle(ctx: Context, contactName: String?, number: String?): Boolean {
+    /** Cheap check usable on the main thread — no contacts query. */
+    fun numberMatches(ctx: Context, number: String?): Boolean {
         if (!Prefs.enabled(ctx)) return false
         val target = Prefs.contactName(ctx).trim()
-        if (target.isEmpty()) return false
-        if (contactName != null && contactName.trim().equals(target, ignoreCase = true)) return true
-        // Also allow the setting to be a phone number instead of a contact name.
+        if (target.isEmpty() || number.isNullOrBlank()) return false
         val digits = target.filter { it.isDigit() }
-        if (digits.length >= 5 && number != null && PhoneNumberUtils.compare(number, target)) return true
-        return false
+        return digits.length >= 5 && PhoneNumberUtils.compare(number, target)
+    }
+
+    fun nameMatches(ctx: Context, contactName: String?): Boolean {
+        if (!Prefs.enabled(ctx)) return false
+        val target = Prefs.contactName(ctx).trim()
+        return target.isNotEmpty() && contactName != null &&
+            contactName.trim().equals(target, ignoreCase = true)
     }
 
     fun start(ctx: Context, call: Call, label: String) {
@@ -43,23 +53,57 @@ object AutomationEngine {
 
         val token = Any()
         var sequenceStarted = false
+        var wasMuted = false
+        var weHungUp = false
+
+        // A call that was active (or already held) before the intercom barged in.
+        // Telecom holds it when we answer; we resume it when the intercom is done.
+        val heldCall = CallService.instance?.calls?.firstOrNull {
+            it != call && (it.stateCompat() == Call.STATE_ACTIVE || it.stateCompat() == Call.STATE_HOLDING)
+        }
+        if (heldCall != null) Prefs.log(appCtx, "Another call is in progress — it will be held and resumed after")
 
         val callback = object : Call.Callback() {
             override fun onStateChanged(c: Call, state: Int) {
                 when (state) {
                     Call.STATE_ACTIVE -> if (!sequenceStarted) {
                         sequenceStarted = true
-                        runSequence(appCtx, c, token)
+                        wasMuted = CallService.instance?.callAudioState?.isMuted ?: false
+                        try {
+                            CallService.instance?.setMuted(true)
+                            Prefs.log(appCtx, "Call active — mic muted, sending code shortly")
+                        } catch (e: Exception) {
+                            Prefs.log(appCtx, "Call active — could not mute mic (${e.message})")
+                        }
+                        handler.postDelayed(
+                            { attempt(appCtx, c, token, 1) { weHungUp = true } },
+                            token, FIRST_TONE_DELAY_MS
+                        )
                     }
                     Call.STATE_DISCONNECTED -> {
                         handler.removeCallbacksAndMessages(token)
                         c.unregisterCallback(this)
                         try {
-                            CallService.instance?.setMuted(false)
+                            CallService.instance?.setMuted(wasMuted)
                         } catch (_: Exception) {
                         }
-                        Prefs.log(appCtx, "Call with \"$label\" ended — mic unmuted")
-                        Notifications.automation(appCtx, "Done — gate code sent to \"$label\"")
+                        if (heldCall != null && heldCall.stateCompat() == Call.STATE_HOLDING) {
+                            try {
+                                heldCall.unhold()
+                                Prefs.log(appCtx, "Resumed the held call")
+                            } catch (_: Exception) {
+                            }
+                        }
+                        if (weHungUp) {
+                            Prefs.log(appCtx, "We hung up after $MAX_ATTEMPTS attempts — gate may NOT have opened")
+                            Notifications.automation(
+                                appCtx,
+                                "⚠ Sent the gate code ${MAX_ATTEMPTS}× but \"$label\" never hung up — the gate may not have opened"
+                            )
+                        } else {
+                            Prefs.log(appCtx, "\"$label\" hung up — done")
+                            Notifications.automation(appCtx, "Done — gate code sent to \"$label\"")
+                        }
                     }
                 }
             }
@@ -67,51 +111,43 @@ object AutomationEngine {
         call.registerCallback(callback)
 
         if (call.stateCompat() == Call.STATE_ACTIVE) {
-            sequenceStarted = true
-            runSequence(appCtx, call, token)
+            callback.onStateChanged(call, Call.STATE_ACTIVE)
         } else {
             call.answer(VideoProfile.STATE_AUDIO_ONLY)
         }
 
         handler.postDelayed({
             if (call.stateCompat() != Call.STATE_DISCONNECTED) {
-                Prefs.log(appCtx, "Failsafe: hanging up after 30s")
+                weHungUp = true
+                Prefs.log(appCtx, "Failsafe: hanging up after ${FAILSAFE_HANGUP_MS / 1000}s")
                 call.disconnect()
             }
         }, token, FAILSAFE_HANGUP_MS)
     }
 
-    private fun runSequence(ctx: Context, call: Call, token: Any) {
+    private fun attempt(ctx: Context, call: Call, token: Any, n: Int, markWeHungUp: () -> Unit) {
         val code = Prefs.gateCode(ctx).trim().ifEmpty { Prefs.DEFAULT_CODE }
-        try {
-            CallService.instance?.setMuted(true)
-            Prefs.log(ctx, "Call active — mic muted, sending \"$code\" after a moment")
-        } catch (e: Exception) {
-            Prefs.log(ctx, "Call active — could not mute mic (${e.message}), sending \"$code\"")
-        }
-
-        var t = FIRST_TONE_DELAY_MS
+        Prefs.log(ctx, "Attempt $n/$MAX_ATTEMPTS — sending \"$code\"")
+        var t = 0L
         for (ch in code) {
             scheduleTone(call, token, ch, t)
-            t += FIRST_GAP_MS
+            t += DIGIT_GAP_MS
         }
-        val firstDone = t - FIRST_GAP_MS + TONE_MS
-
+        val seqEnd = t - DIGIT_GAP_MS + TONE_MS
         handler.postDelayed({
             if (call.stateCompat() == Call.STATE_DISCONNECTED) return@postDelayed
-            Prefs.log(ctx, "Still connected after 5s — sending \"$code\" again")
-            var rt = 0L
-            for (ch in code) {
-                scheduleTone(call, token, ch, rt)
-                rt += RETRY_GAP_MS
+            if (n < MAX_ATTEMPTS) {
+                Prefs.log(ctx, "Still connected ${RETRY_WAIT_MS / 1000}s after attempt $n — retrying")
+                attempt(ctx, call, token, n + 1, markWeHungUp)
+            } else {
+                handler.postDelayed({
+                    if (call.stateCompat() != Call.STATE_DISCONNECTED) {
+                        markWeHungUp()
+                        call.disconnect()
+                    }
+                }, token, HANGUP_AFTER_LAST_MS)
             }
-            handler.postDelayed({
-                if (call.stateCompat() != Call.STATE_DISCONNECTED) {
-                    Prefs.log(ctx, "Hanging up")
-                    call.disconnect()
-                }
-            }, token, rt - RETRY_GAP_MS + HANGUP_AFTER_RETRY_MS)
-        }, token, firstDone + RETRY_WAIT_MS)
+        }, token, seqEnd + RETRY_WAIT_MS)
     }
 
     private fun scheduleTone(call: Call, token: Any, ch: Char, at: Long) {

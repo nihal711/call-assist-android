@@ -62,6 +62,23 @@ object Notifications {
         notifySafe(ctx, ID_AUTOMATION, n)
     }
 
+    fun roleLost(ctx: Context) {
+        ensureChannels(ctx)
+        val pi = PendingIntent.getActivity(
+            ctx, 1,
+            Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val n = Notification.Builder(ctx, CH_GATE)
+            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setContentTitle("Gate automation is OFF")
+            .setContentText("Call Assist is no longer the default phone app. Tap to fix.")
+            .setContentIntent(pi)
+            .setAutoCancel(true)
+            .build()
+        notifySafe(ctx, 3, n)
+    }
+
     fun cancelCall(ctx: Context) {
         ctx.getSystemService(NotificationManager::class.java).cancel(ID_CALL)
     }
