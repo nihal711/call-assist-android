@@ -13,13 +13,31 @@
         android:paddingEnd="16dp"
         android:paddingBottom="24dp">
 
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:text="Gate &amp; settings"
-            android:textSize="26sp"
-            android:textStyle="bold" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="8dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Gate"
+                android:textSize="26sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/gearGate"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Settings"
+                android:src="@drawable/ic_settings"
+                app:tint="@color/textSecondary"
+                xmlns:app="http://schemas.android.com/apk/res-auto" />
+        </LinearLayout>
 
         <!-- Status card -->
         <LinearLayout
@@ -132,36 +150,6 @@
                 android:layout_marginTop="10dp"
                 android:backgroundTint="@color/accent"
                 android:text="Save" />
-        </LinearLayout>
-
-        <!-- Calling card -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/bg_card"
-            android:orientation="vertical"
-            android:padding="18dp">
-
-            <TextView
-                style="@style/SectionTitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="CALLING" />
-
-            <Button
-                android:id="@+id/btnSim"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Default SIM: System default" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Which SIM outgoing calls use. Choose a SIM, the system default, or ask on every call."
-                android:textColor="@color/textSecondary"
-                android:textSize="12sp" />
         </LinearLayout>
 
         <!-- Log card -->

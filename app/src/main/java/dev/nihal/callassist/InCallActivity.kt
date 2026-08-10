@@ -55,12 +55,6 @@ class InCallActivity : AppCompatActivity() {
     private lateinit var btnSpeaker: Button
     private lateinit var slideAnswer: SeekBar
 
-    private val quickReplies = arrayOf(
-        "Can't talk right now — I'll call you back.",
-        "I'm on my way.",
-        "Text me?"
-    )
-
     private val callback = object : Call.Callback() {
         override fun onStateChanged(call: Call, state: Int) = render()
     }
@@ -172,11 +166,12 @@ class InCallActivity : AppCompatActivity() {
     }
 
     private fun showQuickReplies() {
+        val replies = Prefs.quickReplies(this)
         AlertDialog.Builder(this)
             .setTitle("Decline with message")
-            .setItems(quickReplies) { _, i ->
+            .setItems(replies) { _, i ->
                 try {
-                    boundCall?.reject(true, quickReplies[i])
+                    boundCall?.reject(true, replies[i])
                 } catch (_: Exception) {
                     boundCall?.reject(false, null)
                 }
@@ -240,6 +235,9 @@ class InCallActivity : AppCompatActivity() {
                 }
                 bgPhoto.visibility = View.VISIBLE
                 scrim.visibility = View.VISIBLE
+                // Over the photo + scrim the text must be light regardless of theme.
+                callerName.setTextColor(0xFFFFFFFF.toInt())
+                callState.setTextColor(0xD9FFFFFF.toInt())
             }
         } catch (_: Exception) {
         }

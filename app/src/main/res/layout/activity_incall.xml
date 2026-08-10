@@ -60,7 +60,7 @@
             android:gravity="center"
             android:shadowColor="#80000000"
             android:shadowRadius="8"
-            android:textColor="#FFFFFF"
+            android:textColor="@color/textPrimary"
             android:textSize="32sp"
             android:textStyle="bold" />
 
@@ -72,7 +72,7 @@
             android:layout_marginTop="8dp"
             android:shadowColor="#80000000"
             android:shadowRadius="8"
-            android:textColor="#D9FFFFFF"
+            android:textColor="@color/textSecondary"
             android:textSize="16sp" />
 
         <Chronometer
@@ -189,7 +189,7 @@
                     android:layout_gravity="center"
                     android:clickable="false"
                     android:text="slide to answer"
-                    android:textColor="#B3FFFFFF"
+                    android:textColor="@color/textSecondary"
                     android:textSize="15sp" />
             </FrameLayout>
         </LinearLayout>

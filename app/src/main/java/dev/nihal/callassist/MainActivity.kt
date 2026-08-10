@@ -3,14 +3,17 @@ package dev.nihal.callassist
 import android.Manifest
 import android.app.NotificationManager
 import android.app.role.RoleManager
+import android.content.ContentUris
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.ColorStateList
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.CallLog
+import android.provider.ContactsContract
 import android.provider.Settings
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
@@ -38,6 +41,7 @@ import androidx.core.widget.doAfterTextChanged
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import java.util.Locale
 import java.util.concurrent.Executors
 
@@ -100,6 +104,12 @@ class MainActivity : AppCompatActivity() {
         setupRecents()
         setupContacts()
         setupGate()
+
+        for (id in intArrayOf(R.id.gearRecents, R.id.gearContacts, R.id.gearGate)) {
+            findViewById<ImageButton>(id).setOnClickListener {
+                startActivity(Intent(this, SettingsActivity::class.java))
+            }
+        }
 
         // First run: take the user to setup until the app is the default dialer.
         val rm = getSystemService(RoleManager::class.java)
@@ -299,16 +309,7 @@ class MainActivity : AppCompatActivity() {
         contactsEmpty = findViewById(R.id.contactsEmpty)
         contactSearch = findViewById(R.id.contactSearch)
         contactsAdapter = RowAdapter { row ->
-            val contact = row.payload as ContactsRepo.Contact
-            if (contact.numbers.size == 1) {
-                confirmCall(contact.numbers[0].number, contact.name)
-            } else {
-                val items = contact.numbers.map { "${it.label}: ${fmt(it.number)}" }.toTypedArray()
-                AlertDialog.Builder(this)
-                    .setTitle(contact.name)
-                    .setItems(items) { _, i -> confirmCall(contact.numbers[i].number, contact.name) }
-                    .show()
-            }
+            showContactSheet(row.payload as ContactsRepo.Contact)
         }
         findViewById<RecyclerView>(R.id.contactsList).apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
@@ -393,6 +394,7 @@ class MainActivity : AppCompatActivity() {
             if (Build.VERSION.SDK_INT >= 33) perms.add(Manifest.permission.POST_NOTIFICATIONS)
             permLauncher.launch(perms.toTypedArray())
         }
+        // btnFsi opens the Android 14+ full-screen-intent permission page
         findViewById<Button>(R.id.btnFsi).setOnClickListener {
             try {
                 startActivity(
@@ -403,7 +405,6 @@ class MainActivity : AppCompatActivity() {
                 Toast.makeText(this, "Open Settings → Apps → Call Assist → Notifications", Toast.LENGTH_LONG).show()
             }
         }
-        findViewById<Button>(R.id.btnSim).setOnClickListener { showSimPicker() }
         findViewById<Button>(R.id.btnRefreshLog).setOnClickListener { refreshGate() }
         findViewById<Button>(R.id.btnClearLog).setOnClickListener {
             Prefs.clearLog(this)
@@ -449,46 +450,7 @@ class MainActivity : AppCompatActivity() {
         if (sb.isNotEmpty()) sb.delete(sb.length - 1, sb.length)
         statusText.text = sb
 
-        findViewById<Button>(R.id.btnSim).text = "Default SIM: ${Prefs.simLabel(this)}"
         logText.text = Prefs.readLog(this)
-    }
-
-    private fun callAccounts(tm: TelecomManager): List<PhoneAccountHandle> =
-        try {
-            tm.callCapablePhoneAccounts
-        } catch (_: SecurityException) {
-            emptyList()
-        }
-
-    private fun accountLabel(tm: TelecomManager, h: PhoneAccountHandle, i: Int): String =
-        try {
-            val acct = tm.getPhoneAccount(h)
-            val label = acct?.label?.toString()?.takeIf { it.isNotBlank() } ?: "SIM ${i + 1}"
-            val addr = acct?.address?.schemeSpecificPart
-            if (!addr.isNullOrBlank() && !label.contains(addr)) "$label (${fmt(addr)})" else label
-        } catch (_: Exception) {
-            "SIM ${i + 1}"
-        }
-
-    private fun showSimPicker() {
-        val tm = getSystemService(TelecomManager::class.java)
-        val accounts = callAccounts(tm)
-        val labels = mutableListOf("System default", "Ask every time")
-        accounts.forEachIndexed { i, h -> labels.add(accountLabel(tm, h, i)) }
-        AlertDialog.Builder(this)
-            .setTitle("Default SIM for calls")
-            .setItems(labels.toTypedArray()) { _, which ->
-                when (which) {
-                    0 -> Prefs.setSim(this, Prefs.SIM_SYSTEM, "", "System default")
-                    1 -> Prefs.setSim(this, Prefs.SIM_ASK, "", "Ask every time")
-                    else -> {
-                        val h = accounts[which - 2]
-                        Prefs.setSim(this, Prefs.SIM_FIXED, h.id, labels[which])
-                    }
-                }
-                refreshGate()
-            }
-            .show()
     }
 
     // ---------------- Shared ----------------
@@ -508,6 +470,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun confirmCall(number: String, name: String? = null) {
+        if (!Prefs.confirmCall(this)) {
+            placeCall(number)
+            return
+        }
         val display = name?.takeIf { it.isNotBlank() }
             ?: ContactsRepo.lookupNameCached(number)
             ?: fmt(number)
@@ -525,12 +491,12 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val tm = getSystemService(TelecomManager::class.java)
-        val accounts = callAccounts(tm)
+        val accounts = SimUtil.accounts(this)
         val chosen = account ?: when (Prefs.simMode(this)) {
             Prefs.SIM_FIXED -> accounts.firstOrNull { it.id == Prefs.simId(this) }
             Prefs.SIM_ASK -> {
                 if (accounts.size > 1) {
-                    val labels = accounts.mapIndexed { i, h -> accountLabel(tm, h, i) }.toTypedArray()
+                    val labels = accounts.mapIndexed { i, h -> SimUtil.label(this, h, i) }.toTypedArray()
                     AlertDialog.Builder(this)
                         .setTitle("Call with")
                         .setItems(labels) { _, i -> placeCall(number, accounts[i]) }
@@ -548,6 +514,88 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Toast.makeText(this, "Could not place call: ${e.message}", Toast.LENGTH_LONG).show()
         }
+    }
+
+    private fun showContactSheet(contact: ContactsRepo.Contact) {
+        val dialog = BottomSheetDialog(this)
+        val v = layoutInflater.inflate(R.layout.sheet_contact, null)
+        dialog.setContentView(v)
+
+        v.findViewById<TextView>(R.id.sheetName).text = contact.name
+        v.findViewById<TextView>(R.id.sheetStar).text = if (contact.starred) "★" else ""
+        val av = v.findViewById<TextView>(R.id.sheetAvatar)
+        av.text = Ui.initial(contact.name)
+        av.backgroundTintList = ColorStateList.valueOf(Ui.avatarColor(contact.name))
+
+        val container = v.findViewById<LinearLayout>(R.id.numbersContainer)
+        for (n in contact.numbers) {
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+            }
+            row.addView(TextView(this).apply {
+                text = "${n.label}\n${fmt(n.number)}"
+                textSize = 14f
+            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+            row.addView(Button(this).apply {
+                text = "Text"
+                minWidth = 0
+                setOnClickListener {
+                    dialog.dismiss()
+                    try {
+                        startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:${n.number}")))
+                    } catch (_: Exception) {
+                        Toast.makeText(this@MainActivity, "No messaging app found", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            })
+            row.addView(Button(this).apply {
+                text = "Call"
+                minWidth = 0
+                backgroundTintList = ColorStateList.valueOf(0xFF26B858.toInt())
+                setTextColor(0xFFFFFFFF.toInt())
+                setOnClickListener {
+                    dialog.dismiss()
+                    confirmCall(n.number, contact.name)
+                }
+            })
+            container.addView(row)
+        }
+
+        v.findViewById<Button>(R.id.btnEditContact).setOnClickListener {
+            dialog.dismiss()
+            try {
+                startActivity(
+                    Intent(Intent.ACTION_EDIT).setData(
+                        ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contact.id)
+                    )
+                )
+            } catch (_: Exception) {
+                Toast.makeText(this, "Could not open contact editor", Toast.LENGTH_SHORT).show()
+            }
+        }
+        v.findViewById<Button>(R.id.btnBlockContact).setOnClickListener {
+            dialog.dismiss()
+            if (contact.numbers.size == 1) {
+                confirmBlock(contact.numbers[0].number)
+            } else {
+                val items = contact.numbers.map { fmt(it.number) }.toTypedArray()
+                AlertDialog.Builder(this)
+                    .setTitle("Block which number?")
+                    .setItems(items) { _, i -> confirmBlock(contact.numbers[i].number) }
+                    .show()
+            }
+        }
+        dialog.show()
+    }
+
+    private fun confirmBlock(number: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Block ${fmt(number)}?")
+            .setMessage("Calls from this number will be rejected system-wide. You can unblock it in Settings → Blocked numbers.")
+            .setPositiveButton("Block") { _, _ -> BlockedNumbersActivity.block(this, number) }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun fmt(number: String): String =

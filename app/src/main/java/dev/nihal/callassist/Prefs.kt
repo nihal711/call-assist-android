@@ -26,6 +26,25 @@ object Prefs {
     fun notifyGate(ctx: Context): Boolean = sp(ctx).getBoolean("notifyGate", true)
     fun setNotifyGate(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("notifyGate", v).apply()
 
+    // "dark" (default), "light", "system"
+    fun themeMode(ctx: Context): String = sp(ctx).getString("themeMode", "dark")!!
+    fun setThemeMode(ctx: Context, v: String) = sp(ctx).edit().putString("themeMode", v).apply()
+
+    fun confirmCall(ctx: Context): Boolean = sp(ctx).getBoolean("confirmCall", true)
+    fun setConfirmCall(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("confirmCall", v).apply()
+
+    private val DEFAULT_REPLIES = arrayOf(
+        "Can't talk right now — I'll call you back.",
+        "I'm on my way.",
+        "Text me?"
+    )
+
+    fun quickReplies(ctx: Context): Array<String> =
+        Array(3) { i -> sp(ctx).getString("reply$i", DEFAULT_REPLIES[i])!! }
+
+    fun setQuickReply(ctx: Context, i: Int, v: String) =
+        sp(ctx).edit().putString("reply$i", v.ifBlank { DEFAULT_REPLIES[i] }).apply()
+
     const val SIM_SYSTEM = "system"
     const val SIM_ASK = "ask"
     const val SIM_FIXED = "fixed"
