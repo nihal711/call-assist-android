@@ -66,20 +66,16 @@
         android:paddingTop="8dp"
         android:paddingBottom="16dp">
 
-        <com.google.android.material.button.MaterialButton
+        <ImageButton
             android:id="@+id/btnDial"
-            style="@style/Widget.Material3.Button.IconButton.Filled"
             android:layout_width="76dp"
             android:layout_height="76dp"
             android:layout_gravity="center"
+            android:background="@drawable/bg_circle"
             android:backgroundTint="@color/green"
             android:contentDescription="Call"
-            android:insetTop="0dp"
-            android:insetBottom="0dp"
-            app:icon="@drawable/ic_phone"
-            app:iconGravity="textStart"
-            app:iconSize="34dp"
-            app:iconTint="#FFFFFF"
-            app:shapeAppearanceOverlay="@style/CircleButton" />
+            android:scaleType="center"
+            android:src="@drawable/ic_phone"
+            app:tint="#FFFFFF" />
     </FrameLayout>
 </LinearLayout>

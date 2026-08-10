@@ -531,33 +531,30 @@ class MainActivity : AppCompatActivity() {
         for (n in contact.numbers) {
             val row = LinearLayout(this).apply {
                 orientation = LinearLayout.HORIZONTAL
-                gravity = android.view.Gravity.CENTER_VERTICAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            (row.layoutParams ?: LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            )).also { lp ->
+                (lp as LinearLayout.LayoutParams).topMargin = dp(6)
+                row.layoutParams = lp
             }
             row.addView(TextView(this).apply {
                 text = "${n.label}\n${fmt(n.number)}"
                 textSize = 14f
+                setLineSpacing(0f, 1.15f)
             }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            row.addView(Button(this).apply {
-                text = "Text"
-                minWidth = 0
-                setOnClickListener {
-                    dialog.dismiss()
-                    try {
-                        startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:${n.number}")))
-                    } catch (_: Exception) {
-                        Toast.makeText(this@MainActivity, "No messaging app found", Toast.LENGTH_SHORT).show()
-                    }
+            row.addView(roundIconButton(R.drawable.ic_message, getColor(R.color.card2), getColor(R.color.accent)) {
+                dialog.dismiss()
+                try {
+                    startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:${n.number}")))
+                } catch (_: Exception) {
+                    Toast.makeText(this@MainActivity, "No messaging app found", Toast.LENGTH_SHORT).show()
                 }
             })
-            row.addView(Button(this).apply {
-                text = "Call"
-                minWidth = 0
-                backgroundTintList = ColorStateList.valueOf(0xFF26B858.toInt())
-                setTextColor(0xFFFFFFFF.toInt())
-                setOnClickListener {
-                    dialog.dismiss()
-                    confirmCall(n.number, contact.name)
-                }
+            row.addView(roundIconButton(R.drawable.ic_phone, getColor(R.color.green), 0xFFFFFFFF.toInt()) {
+                dialog.dismiss()
+                confirmCall(n.number, contact.name)
             })
             container.addView(row)
         }
@@ -587,6 +584,21 @@ class MainActivity : AppCompatActivity() {
             }
         }
         dialog.show()
+    }
+
+    private fun roundIconButton(
+        iconRes: Int,
+        bgColor: Int,
+        iconColor: Int,
+        onClick: () -> Unit
+    ): ImageButton = ImageButton(this).apply {
+        setImageResource(iconRes)
+        setBackgroundResource(R.drawable.bg_circle)
+        backgroundTintList = ColorStateList.valueOf(bgColor)
+        imageTintList = ColorStateList.valueOf(iconColor)
+        scaleType = android.widget.ImageView.ScaleType.CENTER
+        layoutParams = LinearLayout.LayoutParams(dp(46), dp(46)).apply { marginStart = dp(12) }
+        setOnClickListener { onClick() }
     }
 
     private fun confirmBlock(number: String) {

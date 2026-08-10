@@ -22,9 +22,11 @@ import android.view.KeyEvent
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.view.WindowManager
+import android.util.TypedValue
 import android.widget.Button
 import android.widget.Chronometer
 import android.widget.GridLayout
+import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
@@ -51,8 +53,8 @@ class InCallActivity : AppCompatActivity() {
     private lateinit var ringingSlide: View
     private lateinit var activeBar: View
     private lateinit var keypad: GridLayout
-    private lateinit var btnMute: Button
-    private lateinit var btnSpeaker: Button
+    private lateinit var btnMute: ImageButton
+    private lateinit var btnSpeaker: ImageButton
     private lateinit var slideAnswer: SeekBar
 
     private val callback = object : Call.Callback() {
@@ -101,21 +103,21 @@ class InCallActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnDecline).setOnClickListener { boundCall?.reject(false, null) }
         findViewById<Button>(R.id.btnMessageLocked).setOnClickListener { showQuickReplies() }
         findViewById<Button>(R.id.btnMessageSlide).setOnClickListener { showQuickReplies() }
-        findViewById<Button>(R.id.btnHangup).setOnClickListener { boundCall?.disconnect() }
+        findViewById<ImageButton>(R.id.btnHangup).setOnClickListener { boundCall?.disconnect() }
 
         btnMute.setOnClickListener {
             muted = !muted
             CallService.instance?.setMuted(muted)
-            btnMute.text = if (muted) "Unmute" else "Mute"
+            setToggle(btnMute, muted)
         }
         btnSpeaker.setOnClickListener {
             speaker = !speaker
             CallService.instance?.setAudioRoute(
                 if (speaker) CallAudioState.ROUTE_SPEAKER else CallAudioState.ROUTE_WIRED_OR_EARPIECE
             )
-            btnSpeaker.text = if (speaker) "Earpiece" else "Speaker"
+            setToggle(btnSpeaker, speaker)
         }
-        findViewById<Button>(R.id.btnKeypad).setOnClickListener {
+        findViewById<ImageButton>(R.id.btnKeypad).setOnClickListener {
             keypad.visibility = if (keypad.visibility == View.VISIBLE) View.GONE else View.VISIBLE
         }
 
@@ -165,6 +167,15 @@ class InCallActivity : AppCompatActivity() {
         boundCall?.answer(VideoProfile.STATE_AUDIO_ONLY)
     }
 
+    private fun setToggle(btn: ImageButton, active: Boolean) {
+        btn.backgroundTintList = ColorStateList.valueOf(
+            getColor(if (active) R.color.accent else R.color.card2)
+        )
+        btn.imageTintList = ColorStateList.valueOf(
+            if (active) 0xFFFFFFFF.toInt() else getColor(R.color.textPrimary)
+        )
+    }
+
     private fun showQuickReplies() {
         val replies = Prefs.quickReplies(this)
         AlertDialog.Builder(this)
@@ -181,16 +192,21 @@ class InCallActivity : AppCompatActivity() {
     }
 
     private fun buildKeypad() {
+        val ripple = TypedValue().also {
+            theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, it, true)
+        }
         val keys = "123456789*0#"
         for (k in keys) {
             val b = Button(this)
             b.text = k.toString()
-            b.textSize = 20f
+            b.textSize = 24f
+            b.setBackgroundResource(ripple.resourceId)
             val lp = GridLayout.LayoutParams(
                 GridLayout.spec(GridLayout.UNDEFINED, 1f),
                 GridLayout.spec(GridLayout.UNDEFINED, 1f)
             )
             lp.width = 0
+            lp.height = (52 * resources.displayMetrics.density).toInt()
             b.layoutParams = lp
             b.setOnClickListener {
                 val c = boundCall ?: return@setOnClickListener
