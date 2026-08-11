@@ -7,6 +7,7 @@ import android.content.ContentUris
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
+import android.graphics.Typeface
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.net.Uri
@@ -18,10 +19,11 @@ import android.provider.Settings
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import android.telephony.PhoneNumberUtils
+import android.text.SpannableString
 import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
-import android.text.format.DateUtils
+import android.text.style.StyleSpan
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
@@ -34,14 +36,17 @@ import android.widget.LinearLayout
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.doAfterTextChanged
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
 
@@ -59,7 +64,7 @@ class MainActivity : AppCompatActivity() {
     private var toneGen: ToneGenerator? = null
 
     // Recents / contacts
-    private lateinit var recentsAdapter: RowAdapter
+    private lateinit var recentsAdapter: RecentsAdapter
     private lateinit var recentsEmpty: TextView
     private lateinit var contactsAdapter: RowAdapter
     private lateinit var contactsEmpty: TextView
@@ -71,7 +76,21 @@ class MainActivity : AppCompatActivity() {
     private lateinit var logText: TextView
 
     private lateinit var pages: Map<Int, View>
-    private lateinit var bottomNav: BottomNavigationView
+    private lateinit var navBar: GlassNavBar
+    private var currentTab = 0
+    private var keypadCollapsed = false
+
+    private val backCallback = object : OnBackPressedCallback(false) {
+        override fun handleOnBackPressed() {
+            when {
+                keypadCollapsed -> setKeypadCollapsed(false)
+                dialInput.isNotEmpty() -> {
+                    dialInput.clear()
+                    renderDialInput()
+                }
+            }
+        }
+    }
 
     private val roleLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { refreshGate() }
@@ -87,18 +106,29 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         Notifications.ensureChannels(this)
 
-        bottomNav = findViewById(R.id.bottomNav)
+        navBar = findViewById(R.id.navBar)
         pages = mapOf(
-            R.id.navKeypad to findViewById(R.id.pageKeypad),
-            R.id.navRecents to findViewById(R.id.pageRecents),
-            R.id.navContacts to findViewById(R.id.pageContacts),
-            R.id.navGate to findViewById(R.id.pageGate)
+            0 to findViewById(R.id.pageKeypad),
+            1 to findViewById(R.id.pageRecents),
+            2 to findViewById(R.id.pageContacts),
+            3 to findViewById(R.id.pageGate)
         )
-        bottomNav.setOnItemSelectedListener { item ->
-            pages.forEach { (id, v) -> v.visibility = if (id == item.itemId) View.VISIBLE else View.GONE }
-            if (item.itemId == R.id.navRecents) reloadData()
-            true
+        navBar.setTabs(
+            listOf(
+                GlassNavBar.TabSpec(R.drawable.ic_dialpad, "Keypad"),
+                GlassNavBar.TabSpec(R.drawable.ic_history, "Recents"),
+                GlassNavBar.TabSpec(R.drawable.ic_person, "Contacts"),
+                GlassNavBar.TabSpec(R.drawable.ic_shield, "Gate")
+            )
+        )
+        navBar.onTabSelected = { idx ->
+            currentTab = idx
+            pages.forEach { (i, v) -> v.visibility = if (i == idx) View.VISIBLE else View.GONE }
+            if (idx == 1) reloadData()
+            if (idx == 0) setKeypadCollapsed(false)
+            updateBackState()
         }
+        onBackPressedDispatcher.addCallback(this, backCallback)
 
         setupKeypad()
         setupRecents()
@@ -113,7 +143,7 @@ class MainActivity : AppCompatActivity() {
 
         // First run: take the user to setup until the app is the default dialer.
         val rm = getSystemService(RoleManager::class.java)
-        if (!rm.isRoleHeld(RoleManager.ROLE_DIALER)) bottomNav.selectedItemId = R.id.navGate
+        navBar.select(if (rm.isRoleHeld(RoleManager.ROLE_DIALER)) 0 else 3)
         handleDialIntent(intent)
     }
 
@@ -126,7 +156,8 @@ class MainActivity : AppCompatActivity() {
         val number = intent?.data?.takeIf { it.scheme == "tel" }?.schemeSpecificPart ?: return
         dialInput.clear()
         dialInput.append(number)
-        bottomNav.selectedItemId = R.id.navKeypad
+        navBar.select(0)
+        setKeypadCollapsed(false)
         renderDialInput()
     }
 
@@ -152,9 +183,17 @@ class MainActivity : AppCompatActivity() {
         suggestionsList = findViewById(R.id.suggestionsList)
         suggestionsEmpty = findViewById(R.id.suggestionsEmpty)
 
-        suggestionsAdapter = RowAdapter { row -> confirmCall(row.payload as String, row.title) }
+        suggestionsAdapter = RowAdapter { row -> confirmCall(row.payload as String, row.title.toString()) }
         suggestionsList.layoutManager = LinearLayoutManager(this)
         suggestionsList.adapter = suggestionsAdapter
+        suggestionsList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(rv: RecyclerView, dx: Int, dy: Int) {
+                if (kotlin.math.abs(dy) > 6 && !keypadCollapsed && currentTab == 0) {
+                    setKeypadCollapsed(true)
+                }
+            }
+        })
+        findViewById<View>(R.id.fabKeypad).setOnClickListener { setKeypadCollapsed(false) }
 
         val grid = findViewById<GridLayout>(R.id.keypadGrid)
         val keys = listOf(
@@ -234,14 +273,22 @@ class MainActivity : AppCompatActivity() {
             else raw
         btnBackspace.visibility = if (raw.isEmpty()) View.INVISIBLE else View.VISIBLE
 
+        val accent = getColor(R.color.accent)
         val matches = ContactsRepo.search(raw)
-        suggestionsAdapter.rows = matches.map {
+        suggestionsAdapter.rows = matches.map { m ->
+            val title: CharSequence = m.nameSpan?.let { span ->
+                SpannableString(m.contact.name).apply {
+                    val end = (span.last + 1).coerceAtMost(m.contact.name.length)
+                    setSpan(ForegroundColorSpan(accent), span.first, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    setSpan(StyleSpan(Typeface.BOLD), span.first, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+            } ?: m.contact.name
             RowAdapter.Row(
-                title = it.contact.name,
-                subtitle = "${it.number.label} · ${fmt(it.number.number)}",
-                meta = "",
-                avatarSeed = it.contact.name,
-                payload = it.number.number
+                title = title,
+                subtitle = "",
+                meta = highlightNumber(fmt(m.number.number), m.digitSpan, accent),
+                avatarSeed = m.contact.name,
+                payload = m.number.number
             )
         }
         val showList = matches.isNotEmpty()
@@ -249,6 +296,50 @@ class MainActivity : AppCompatActivity() {
         suggestionsEmpty.visibility = if (showList) View.GONE else View.VISIBLE
         if (raw.isNotEmpty() && matches.isEmpty()) suggestionsEmpty.text = "No matches"
         else if (raw.isEmpty()) suggestionsEmpty.text = "Type a number or a name (T9)"
+        if (raw.isEmpty() && keypadCollapsed) setKeypadCollapsed(false)
+        updateBackState()
+    }
+
+    /** Colors the digits of a formatted number whose digit-indices fall in span. */
+    private fun highlightNumber(formatted: String, digitSpan: IntRange?, accent: Int): CharSequence {
+        if (digitSpan == null) return formatted
+        val sp = SpannableString(formatted)
+        var d = 0
+        for (i in formatted.indices) {
+            if (formatted[i].isDigit()) {
+                if (d in digitSpan) {
+                    sp.setSpan(ForegroundColorSpan(accent), i, i + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    sp.setSpan(StyleSpan(Typeface.BOLD), i, i + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+                d++
+            }
+        }
+        return sp
+    }
+
+    private fun setKeypadCollapsed(collapsed: Boolean) {
+        if (keypadCollapsed == collapsed) return
+        keypadCollapsed = collapsed
+        val panel = findViewById<View>(R.id.keypadPanel)
+        val fab = findViewById<View>(R.id.fabKeypad)
+        if (collapsed) {
+            panel.animate().translationY(panel.height.toFloat()).alpha(0f).setDuration(180)
+                .withEndAction { panel.visibility = View.GONE }.start()
+            fab.alpha = 0f
+            fab.visibility = View.VISIBLE
+            fab.animate().alpha(1f).setDuration(180).start()
+        } else {
+            panel.visibility = View.VISIBLE
+            panel.animate().translationY(0f).alpha(1f).setDuration(180).start()
+            fab.animate().alpha(0f).setDuration(150)
+                .withEndAction { fab.visibility = View.GONE }.start()
+        }
+        updateBackState()
+    }
+
+    private fun updateBackState() {
+        backCallback.isEnabled =
+            currentTab == 0 && (keypadCollapsed || dialInput.isNotEmpty())
     }
 
     private fun playKeyTone(digit: Char) {
@@ -273,35 +364,77 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupRecents() {
         recentsEmpty = findViewById(R.id.recentsEmpty)
-        recentsAdapter = RowAdapter { row -> confirmCall(row.payload as String, row.title) }
+        recentsAdapter = RecentsAdapter { number -> confirmCall(number) }
         findViewById<RecyclerView>(R.id.recentsList).apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = recentsAdapter
         }
     }
 
-    private fun renderRecents() {
-        val red = 0xFFE05353.toInt()
-        val green = 0xFF4CAF50.toInt()
-        val blue = 0xFF64A5F5.toInt()
-        recentsAdapter.rows = callLog.map { e ->
-            val name = e.name?.takeIf { it.isNotBlank() }
-                ?: ContactsRepo.lookupNameCached(e.number)
-            val (arrow, color) = when (e.type) {
-                CallLog.Calls.MISSED_TYPE, CallLog.Calls.REJECTED_TYPE,
-                CallLog.Calls.BLOCKED_TYPE -> "✕ missed" to red
-                CallLog.Calls.OUTGOING_TYPE -> "↗ out" to blue
-                else -> "↙ in" to green
-            }
-            RowAdapter.Row(
-                title = name ?: fmt(e.number),
-                subtitle = if (name != null) fmt(e.number) else "",
-                meta = "$arrow · ${DateUtils.getRelativeTimeSpanString(e.date, System.currentTimeMillis(), DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE)}",
-                avatarSeed = name ?: e.number,
-                payload = e.number,
-                metaColor = color
-            )
+    private fun dayLabel(ts: Long): String {
+        val now = Calendar.getInstance()
+        val c = Calendar.getInstance().apply { timeInMillis = ts }
+        val sameYear = c.get(Calendar.YEAR) == now.get(Calendar.YEAR)
+        val dayDiff = now.get(Calendar.DAY_OF_YEAR) - c.get(Calendar.DAY_OF_YEAR)
+        return when {
+            sameYear && dayDiff == 0 -> "Today"
+            sameYear && dayDiff == 1 -> "Yesterday"
+            else -> SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(ts))
         }
+    }
+
+    private fun renderRecents() {
+        val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+        // Merge consecutive entries with the same number, type, and day.
+        class Group(val e: ContactsRepo.CallEntry, var count: Int)
+
+        val merged = ArrayList<Group>()
+        for (e in callLog) {
+            val last = merged.lastOrNull()
+            if (last != null && last.e.type == e.type &&
+                last.e.number.filter { it.isDigit() } == e.number.filter { it.isDigit() } &&
+                dayLabel(last.e.date) == dayLabel(e.date)
+            ) {
+                last.count++
+            } else {
+                merged.add(Group(e, 1))
+            }
+        }
+
+        val items = ArrayList<RecentsAdapter.Item>()
+        var i = 0
+        while (i < merged.size) {
+            val label = dayLabel(merged[i].e.date)
+            var j = i
+            while (j < merged.size && dayLabel(merged[j].e.date) == label) j++
+            items.add(RecentsAdapter.Item.Header(label))
+            for (k in i until j) {
+                val g = merged[k]
+                val name = g.e.name?.takeIf { it.isNotBlank() }
+                    ?: ContactsRepo.lookupNameCached(g.e.number)
+                    ?: fmt(g.e.number)
+                val bg = when {
+                    j - i == 1 -> R.drawable.bg_group_single
+                    k == i -> R.drawable.bg_group_top
+                    k == j - 1 -> R.drawable.bg_group_bottom
+                    else -> R.drawable.bg_group_mid
+                }
+                items.add(
+                    RecentsAdapter.Item.Entry(
+                        title = name,
+                        count = g.count,
+                        time = timeFmt.format(Date(g.e.date)),
+                        type = g.e.type,
+                        number = g.e.number,
+                        bg = bg,
+                        divider = k < j - 1
+                    )
+                )
+            }
+            i = j
+        }
+        recentsAdapter.items = items
+
         val hasPerm = checkSelfPermission(Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED
         recentsEmpty.visibility = if (callLog.isEmpty()) View.VISIBLE else View.GONE
         recentsEmpty.text = if (hasPerm) "No calls yet" else "Call log permission needed — grant it in the Gate tab"

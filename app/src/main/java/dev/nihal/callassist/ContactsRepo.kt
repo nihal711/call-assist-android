@@ -14,10 +14,17 @@ object ContactsRepo {
         val name: String,
         val starred: Boolean,
         val numbers: MutableList<PhoneEntry>,
-        var t9: String
+        var t9: String,
+        var t9Map: IntArray
     )
 
-    data class Match(val contact: Contact, val number: PhoneEntry, val rank: Int)
+    data class Match(
+        val contact: Contact,
+        val number: PhoneEntry,
+        val rank: Int,
+        val nameSpan: IntRange? = null,   // char range in contact.name that matched
+        val digitSpan: IntRange? = null   // digit-index range in number.digits that matched
+    )
 
     data class CallEntry(
         val number: String,
@@ -42,14 +49,20 @@ object ContactsRepo {
         "wxyz".forEach { put(it, '9') }
     }
 
-    fun t9encode(name: String): String = buildString {
-        for (c in name.lowercase()) {
+    /** Returns the T9 encoding plus a map from each T9 char to its index in the name. */
+    fun t9encode(name: String): Pair<String, IntArray> {
+        val sb = StringBuilder()
+        val map = ArrayList<Int>()
+        val lower = name.lowercase()
+        for (i in lower.indices) {
+            val c = lower[i]
             when {
-                c.isDigit() -> append(c)
-                t9map.containsKey(c) -> append(t9map[c])
-                c == ' ' || c == '.' || c == '-' || c == '_' -> append(' ')
+                c.isDigit() -> { sb.append(c); map.add(i) }
+                t9map.containsKey(c) -> { sb.append(t9map[c]!!); map.add(i) }
+                c == ' ' || c == '.' || c == '-' || c == '_' -> { sb.append(' '); map.add(i) }
             }
         }
+        return sb.toString() to map.toIntArray()
     }
 
     private fun has(ctx: Context, perm: String) =
@@ -78,7 +91,8 @@ object ContactsRepo {
                     val starred = c.getInt(5) == 1
                     val digits = number.filter { it.isDigit() }
                     val contact = byId.getOrPut(id) {
-                        Contact(id, name, starred, mutableListOf(), t9encode(name))
+                        val (t9, map) = t9encode(name)
+                        Contact(id, name, starred, mutableListOf(), t9, map)
                     }
                     if (contact.numbers.none { it.digits == digits && digits.isNotEmpty() }) {
                         contact.numbers.add(PhoneEntry(number, label, digits))
@@ -103,28 +117,52 @@ object ContactsRepo {
         for (contact in contacts) {
             var best = Int.MAX_VALUE
             var matched = contact.numbers.first()
-            if (nameSearch) {
+            var nameSpan: IntRange? = null
+            var digitSpan: IntRange? = null
+            if (nameSearch && q.length <= contact.t9.length) {
                 val t9 = contact.t9
-                if (t9.startsWith(q)) best = 0
+                var hit = -1
+                if (t9.startsWith(q)) hit = 0
                 else {
                     var i = t9.indexOf(' ')
-                    while (i >= 0 && best > 0) {
-                        if (t9.startsWith(q, i + 1)) best = 0
+                    while (i >= 0 && hit < 0) {
+                        if (t9.startsWith(q, i + 1)) hit = i + 1
                         i = t9.indexOf(' ', i + 1)
                     }
-                    if (best == Int.MAX_VALUE && t9.replace(" ", "").contains(q)) best = 1
+                }
+                if (hit >= 0) {
+                    best = 0
+                } else {
+                    // substring match that doesn't cross a word boundary
+                    var i = t9.indexOf(q)
+                    while (i >= 0) {
+                        if (!t9.substring(i, i + q.length).contains(' ')) {
+                            hit = i
+                            best = 1
+                            break
+                        }
+                        i = t9.indexOf(q, i + 1)
+                    }
+                }
+                if (hit >= 0) {
+                    nameSpan = contact.t9Map[hit]..contact.t9Map[hit + q.length - 1]
                 }
             }
             if (best > 1) {
                 for (n in contact.numbers) {
                     if (n.digits.startsWith(q)) {
-                        if (best > 2) { best = 2; matched = n }
-                    } else if (n.digits.contains(q)) {
-                        if (best > 3) { best = 3; matched = n }
+                        if (best > 2) {
+                            best = 2; matched = n; digitSpan = 0 until q.length
+                        }
+                    } else {
+                        val i = n.digits.indexOf(q)
+                        if (i >= 0 && best > 3) {
+                            best = 3; matched = n; digitSpan = i until i + q.length
+                        }
                     }
                 }
             }
-            if (best != Int.MAX_VALUE) out.add(Match(contact, matched, best))
+            if (best != Int.MAX_VALUE) out.add(Match(contact, matched, best, nameSpan, digitSpan))
             if (out.size >= 200) break
         }
         return out.sortedWith(compareBy({ it.rank }, { it.contact.name.lowercase() })).take(limit)

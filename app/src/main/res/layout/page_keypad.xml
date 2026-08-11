@@ -1,81 +1,113 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical">
-
-    <TextView
-        android:id="@+id/suggestionsEmpty"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:gravity="center"
-        android:text="Type a number or a name (T9)"
-        android:textColor="@color/textSecondary"
-        android:textSize="15sp" />
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/suggestionsList"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:visibility="gone" />
+    android:layout_height="match_parent">
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingStart="56dp"
-        android:paddingEnd="12dp">
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingBottom="92dp">
 
         <TextView
-            android:id="@+id/numberDisplay"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:id="@+id/suggestionsEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
             android:layout_weight="1"
-            android:ellipsize="start"
             android:gravity="center"
-            android:maxLines="1"
-            android:minHeight="60dp"
-            android:textSize="34sp" />
+            android:text="Type a number or a name (T9)"
+            android:textColor="@color/textSecondary"
+            android:textSize="15sp" />
 
-        <ImageButton
-            android:id="@+id/btnBackspace"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Backspace"
-            android:src="@drawable/ic_backspace"
-            android:visibility="invisible"
-            app:tint="@color/textSecondary" />
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/suggestionsList"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:paddingTop="40dp"
+            android:scrollbars="none"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/keypadPanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="56dp"
+                android:paddingEnd="12dp">
+
+                <TextView
+                    android:id="@+id/numberDisplay"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:ellipsize="start"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:minHeight="60dp"
+                    android:textSize="34sp" />
+
+                <ImageButton
+                    android:id="@+id/btnBackspace"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Backspace"
+                    android:src="@drawable/ic_backspace"
+                    android:visibility="invisible"
+                    app:tint="@color/textSecondary" />
+            </LinearLayout>
+
+            <GridLayout
+                android:id="@+id/keypadGrid"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:columnCount="3"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp" />
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="8dp"
+                android:paddingBottom="4dp">
+
+                <ImageButton
+                    android:id="@+id/btnDial"
+                    android:layout_width="76dp"
+                    android:layout_height="76dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_circle"
+                    android:backgroundTint="@color/green"
+                    android:contentDescription="Call"
+                    android:scaleType="center"
+                    android:src="@drawable/ic_phone"
+                    app:tint="#FFFFFF" />
+            </FrameLayout>
+        </LinearLayout>
     </LinearLayout>
 
-    <GridLayout
-        android:id="@+id/keypadGrid"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:columnCount="3"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp" />
-
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingTop="8dp"
-        android:paddingBottom="16dp">
-
-        <ImageButton
-            android:id="@+id/btnDial"
-            android:layout_width="76dp"
-            android:layout_height="76dp"
-            android:layout_gravity="center"
-            android:background="@drawable/bg_circle"
-            android:backgroundTint="@color/green"
-            android:contentDescription="Call"
-            android:scaleType="center"
-            android:src="@drawable/ic_phone"
-            app:tint="#FFFFFF" />
-    </FrameLayout>
-</LinearLayout>
+    <ImageButton
+        android:id="@+id/fabKeypad"
+        android:layout_width="62dp"
+        android:layout_height="62dp"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="104dp"
+        android:background="@drawable/bg_circle"
+        android:backgroundTint="@color/green"
+        android:contentDescription="Show keypad"
+        android:elevation="8dp"
+        android:scaleType="center"
+        android:src="@drawable/ic_dialpad"
+        android:visibility="gone"
+        app:tint="#FFFFFF" />
+</FrameLayout>

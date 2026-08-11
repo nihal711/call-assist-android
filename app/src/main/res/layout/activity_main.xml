@@ -1,14 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:layout_height="match_parent">
 
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_height="match_parent">
 
         <include
             android:id="@+id/pageKeypad"
@@ -30,14 +27,13 @@
             android:visibility="gone" />
     </FrameLayout>
 
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottomNav"
+    <dev.nihal.callassist.GlassNavBar
+        android:id="@+id/navBar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/bg"
-        app:itemActiveIndicatorStyle="@style/NavIndicator"
-        app:itemIconTint="@color/nav_item"
-        app:itemTextColor="@color/nav_item"
-        app:labelVisibilityMode="labeled"
-        app:menu="@menu/bottom_nav" />
-</LinearLayout>
+        android:layout_height="70dp"
+        android:layout_gravity="bottom"
+        android:layout_marginStart="36dp"
+        android:layout_marginEnd="36dp"
+        android:layout_marginBottom="14dp"
+        android:elevation="10dp" />
+</FrameLayout>

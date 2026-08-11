@@ -31,9 +31,9 @@ class RowAdapter(private val onClick: (Row) -> Unit) :
     RecyclerView.Adapter<RowAdapter.VH>() {
 
     data class Row(
-        val title: String,
-        val subtitle: String,
-        val meta: String,
+        val title: CharSequence,
+        val subtitle: CharSequence,
+        val meta: CharSequence,
         val avatarSeed: String,
         val payload: Any?,
         val metaColor: Int? = null

@@ -11,6 +11,8 @@
     <color name="accent">#2E6FE8</color>
     <color name="accentSoft">#DCE8FF</color>
     <color name="trackBg">#14000000</color>
+    <color name="navBg">#F2F4F4F8</color>
+    <color name="navBubble">#E8E4E4EA</color>
     <color name="green">#26B858</color>
     <color name="red">#F4523B</color>
     <color name="amber">#FFC107</color>
