@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
+    <!-- Collapsed row -->
     <LinearLayout
         android:id="@+id/recentRow"
         android:layout_width="match_parent"
@@ -39,6 +41,148 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="10dp"
             android:textSize="13sp" />
+    </LinearLayout>
+
+    <!-- Expanded card -->
+    <LinearLayout
+        android:id="@+id/expandedBlock"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="24dp"
+        android:paddingTop="18dp"
+        android:paddingEnd="24dp"
+        android:paddingBottom="18dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:id="@+id/expandedHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="?android:attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/expName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/textPrimary"
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/expNumber"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/expAvatar"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:layout_marginStart="12dp"
+                android:background="@drawable/bg_circle"
+                android:gravity="center"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/expStatusIcon"
+                android:layout_width="15dp"
+                android:layout_height="15dp"
+                android:contentDescription="@null" />
+
+            <TextView
+                android:id="@+id/expStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/expTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="@color/textSecondary"
+            android:textSize="13sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btnExpCall"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:background="@drawable/bg_circle"
+                android:backgroundTint="@color/card2"
+                android:contentDescription="Call"
+                android:scaleType="center"
+                android:src="@drawable/ic_phone"
+                app:tint="@color/green" />
+
+            <ImageButton
+                android:id="@+id/btnExpMsg"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:layout_marginStart="20dp"
+                android:background="@drawable/bg_circle"
+                android:backgroundTint="@color/card2"
+                android:contentDescription="Message"
+                android:scaleType="center"
+                android:src="@drawable/ic_message"
+                app:tint="@color/accent" />
+
+            <ImageButton
+                android:id="@+id/btnExpContact"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:layout_marginStart="20dp"
+                android:background="@drawable/bg_circle"
+                android:backgroundTint="@color/card2"
+                android:contentDescription="Contact"
+                android:scaleType="center"
+                android:src="@drawable/ic_person"
+                app:tint="@color/textPrimary" />
+
+            <ImageButton
+                android:id="@+id/btnExpHistory"
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:layout_marginStart="20dp"
+                android:background="@drawable/bg_circle"
+                android:backgroundTint="@color/card2"
+                android:contentDescription="Call history"
+                android:scaleType="center"
+                android:src="@drawable/ic_list"
+                app:tint="@color/textPrimary" />
+        </LinearLayout>
     </LinearLayout>
 
     <View

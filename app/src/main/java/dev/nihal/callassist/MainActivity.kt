@@ -213,16 +213,16 @@ class MainActivity : AppCompatActivity() {
                 layoutParams = GridLayout.LayoutParams(
                     GridLayout.spec(GridLayout.UNDEFINED, 1f),
                     GridLayout.spec(GridLayout.UNDEFINED, 1f)
-                ).apply { width = 0; height = dp(64) }
+                ).apply { width = 0; height = dp(84) }
             }
             cell.addView(TextView(this).apply {
                 text = k.digit.toString()
-                textSize = 26f
+                textSize = 34f
                 gravity = Gravity.CENTER
             })
             if (k.letters.isNotEmpty()) cell.addView(TextView(this).apply {
                 text = k.letters
-                textSize = 10f
+                textSize = 11f
                 alpha = 0.6f
                 gravity = Gravity.CENTER
             })
@@ -294,8 +294,6 @@ class MainActivity : AppCompatActivity() {
         val showList = matches.isNotEmpty()
         suggestionsList.visibility = if (showList) View.VISIBLE else View.GONE
         suggestionsEmpty.visibility = if (showList) View.GONE else View.VISIBLE
-        if (raw.isNotEmpty() && matches.isEmpty()) suggestionsEmpty.text = "No matches"
-        else if (raw.isEmpty()) suggestionsEmpty.text = "Type a number or a name (T9)"
         if (raw.isEmpty() && keypadCollapsed) setKeypadCollapsed(false)
         updateBackState()
     }
@@ -364,11 +362,70 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupRecents() {
         recentsEmpty = findViewById(R.id.recentsEmpty)
-        recentsAdapter = RecentsAdapter { number -> confirmCall(number) }
+        recentsAdapter = RecentsAdapter(
+            expandable = true,
+            onCall = { confirmCall(it) },
+            onMessage = { openSms(it) },
+            onContact = { openOrAddContact(it) },
+            onHistory = { showHistorySheet(it.number, it.title) }
+        )
         findViewById<RecyclerView>(R.id.recentsList).apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = recentsAdapter
         }
+    }
+
+    private fun openSms(number: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number")))
+        } catch (_: Exception) {
+            Toast.makeText(this, "No messaging app found", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun openOrAddContact(number: String) {
+        try {
+            val uri = ContactHelper.lookupContactUri(this, number)
+            if (uri != null) {
+                startActivity(Intent(Intent.ACTION_VIEW, uri))
+            } else {
+                startActivity(
+                    Intent(Intent.ACTION_INSERT_OR_EDIT)
+                        .setType(ContactsContract.Contacts.CONTENT_ITEM_TYPE)
+                        .putExtra(ContactsContract.Intents.Insert.PHONE, number)
+                )
+            }
+        } catch (_: Exception) {
+            Toast.makeText(this, "Could not open contacts app", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun showHistorySheet(number: String, title: String) {
+        val digits = number.filter { it.isDigit() }
+        val history = callLog.filter { it.number.filter { d -> d.isDigit() } == digits }
+        val dialog = BottomSheetDialog(this)
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(16), dp(20), dp(16), dp(16))
+        }
+        root.addView(TextView(this).apply {
+            text = title
+            textSize = 21f
+            setTypeface(typeface, Typeface.BOLD)
+            setPadding(dp(8), 0, dp(8), dp(4))
+        })
+        val sheetAdapter = RecentsAdapter(expandable = false, onCall = {
+            dialog.dismiss()
+            confirmCall(it, title)
+        })
+        root.addView(RecyclerView(this).apply {
+            layoutManager = LinearLayoutManager(this@MainActivity)
+            adapter = sheetAdapter
+            overScrollMode = View.OVER_SCROLL_NEVER
+        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(440)))
+        sheetAdapter.items = buildRecentsItems(history)
+        dialog.setContentView(root)
+        dialog.show()
     }
 
     private fun dayLabel(ts: Long): String {
@@ -383,13 +440,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun renderRecents() {
+    private fun buildRecentsItems(log: List<ContactsRepo.CallEntry>): List<RecentsAdapter.Item> {
         val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
         // Merge consecutive entries with the same number, type, and day.
         class Group(val e: ContactsRepo.CallEntry, var count: Int)
 
         val merged = ArrayList<Group>()
-        for (e in callLog) {
+        for (e in log) {
             val last = merged.lastOrNull()
             if (last != null && last.e.type == e.type &&
                 last.e.number.filter { it.isDigit() } == e.number.filter { it.isDigit() } &&
@@ -426,6 +483,7 @@ class MainActivity : AppCompatActivity() {
                         time = timeFmt.format(Date(g.e.date)),
                         type = g.e.type,
                         number = g.e.number,
+                        duration = g.e.duration,
                         bg = bg,
                         divider = k < j - 1
                     )
@@ -433,8 +491,11 @@ class MainActivity : AppCompatActivity() {
             }
             i = j
         }
-        recentsAdapter.items = items
+        return items
+    }
 
+    private fun renderRecents() {
+        recentsAdapter.items = buildRecentsItems(callLog)
         val hasPerm = checkSelfPermission(Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED
         recentsEmpty.visibility = if (callLog.isEmpty()) View.VISIBLE else View.GONE
         recentsEmpty.text = if (hasPerm) "No calls yet" else "Call log permission needed — grant it in the Gate tab"

@@ -52,4 +52,26 @@ object ContactHelper {
     }
 
     fun lookupName(ctx: Context, number: String?): String? = lookup(ctx, number).name
+
+    /** Lookup URI for the contact owning this number, for ACTION_VIEW. */
+    fun lookupContactUri(ctx: Context, number: String?): Uri? {
+        if (number.isNullOrBlank()) return null
+        if (ctx.checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) return null
+        val uri = Uri.withAppendedPath(
+            ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(number)
+        )
+        try {
+            ctx.contentResolver.query(
+                uri,
+                arrayOf(ContactsContract.PhoneLookup._ID, ContactsContract.PhoneLookup.LOOKUP_KEY),
+                null, null, null
+            )?.use { c ->
+                if (c.moveToFirst()) {
+                    return ContactsContract.Contacts.getLookupUri(c.getLong(0), c.getString(1))
+                }
+            }
+        } catch (_: Exception) {
+        }
+        return null
+    }
 }

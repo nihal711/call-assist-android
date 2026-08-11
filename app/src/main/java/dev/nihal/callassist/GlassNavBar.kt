@@ -88,10 +88,14 @@ class GlassNavBar @JvmOverloads constructor(
     override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
         super.onSizeChanged(w, h, ow, oh)
         if (count == 0) return
-        val bh = h - dp(12)
-        bubble.layoutParams = LayoutParams(bubbleW().toInt(), bh).apply { topMargin = dp(6) }
-        (bubble.background as GradientDrawable).cornerRadius = bh / 2f
-        bubble.translationX = slotX(selected)
+        // Requesting layout during a layout pass is dropped — defer so the
+        // bubble is sized correctly on the very first frame.
+        post {
+            val bh = height - dp(12)
+            bubble.layoutParams = LayoutParams(bubbleW().toInt(), bh).apply { topMargin = dp(6) }
+            (bubble.background as GradientDrawable).cornerRadius = bh / 2f
+            bubble.translationX = slotX(selected)
+        }
     }
 
     fun select(i: Int, notify: Boolean = true) {
