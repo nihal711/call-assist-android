@@ -23,6 +23,12 @@ v1.2: dark theme (black bg, dark cards, blue accent),
 confirmation dialog before every outgoing call, and a default-SIM setting
 (System default / Ask every time / specific SIM) in the Gate tab's Calling card.
 
+v2.3: the call confirmation dialog is a glass panel matching the floating nav
+bar — same translucent surface and hairline edge, 32dp corners, contact avatar,
+and full-width Cancel / green Call pill buttons. The rest of the app's dialogs
+(SIM chooser, settings pickers, block confirmations) pick up the same rounded
+glass treatment via the theme.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key
@@ -44,7 +50,9 @@ mute, speaker, DTMF keypad, end call.
      defaults to `6#`.
 3. Leave "Gate automation enabled" on. Done — next intercom call opens the gate
    automatically. The **Event log** on the main screen shows what happened on
-   each call.
+   each call: one scrollable row per gate run (v2.3), grouped under day headers
+   like Recents, stating the outcome up front — *Gate opened* (green) or *Gate
+   may not have opened* (red). Tap a row to expand the step-by-step timeline.
 
 To go back to normal: Settings → Apps → Choose default apps → Phone app →
 your previous phone app (or flip the automation switch off to keep the app but disable

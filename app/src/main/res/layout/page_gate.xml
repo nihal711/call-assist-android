@@ -168,12 +168,24 @@
                 android:text="EVENT LOG" />
 
             <TextView
-                android:id="@+id/logText"
+                android:id="@+id/logEmpty"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:fontFamily="monospace"
-                android:lineSpacingExtra="4dp"
-                android:textSize="12sp" />
+                android:paddingTop="6dp"
+                android:paddingBottom="6dp"
+                android:text="No gate events yet"
+                android:textColor="@color/textSecondary"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/logList"
+                android:layout_width="match_parent"
+                android:layout_height="360dp"
+                android:clipToPadding="false"
+                android:nestedScrollingEnabled="true"
+                android:overScrollMode="ifContentScrolls"
+                android:scrollbars="vertical" />
 
             <LinearLayout
                 android:layout_width="match_parent"

@@ -73,7 +73,8 @@ class MainActivity : AppCompatActivity() {
 
     // Gate
     private lateinit var statusText: TextView
-    private lateinit var logText: TextView
+    private lateinit var logAdapter: GateLogAdapter
+    private lateinit var logEmpty: TextView
 
     private lateinit var pages: Map<Int, View>
     private lateinit var navBar: GlassNavBar
@@ -543,7 +544,18 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupGate() {
         statusText = findViewById(R.id.statusText)
-        logText = findViewById(R.id.logText)
+        logEmpty = findViewById(R.id.logEmpty)
+        logAdapter = GateLogAdapter()
+        findViewById<RecyclerView>(R.id.logList).apply {
+            layoutManager = LinearLayoutManager(this@MainActivity)
+            adapter = logAdapter
+            // The card lives in a ScrollView; let the list consume its own drags
+            // so the page doesn't steal them mid-scroll.
+            setOnTouchListener { v, _ ->
+                v.parent.requestDisallowInterceptTouchEvent(true)
+                false
+            }
+        }
         val switchEnabled = findViewById<Switch>(R.id.switchEnabled)
         val editContact = findViewById<EditText>(R.id.editContact)
         val editCode = findViewById<EditText>(R.id.editCode)
@@ -655,7 +667,11 @@ class MainActivity : AppCompatActivity() {
         if (sb.isNotEmpty()) sb.delete(sb.length - 1, sb.length)
         statusText.text = sb
 
-        logText.text = Prefs.readLog(this)
+        val sessions = GateLog.sessions(Prefs.readLogEntries(this))
+        logAdapter.items = GateLog.buildItems(sessions)
+        logEmpty.visibility = if (sessions.isEmpty()) View.VISIBLE else View.GONE
+        findViewById<RecyclerView>(R.id.logList).visibility =
+            if (sessions.isEmpty()) View.GONE else View.VISIBLE
     }
 
     // ---------------- Shared ----------------
@@ -679,15 +695,50 @@ class MainActivity : AppCompatActivity() {
             placeCall(number)
             return
         }
-        val display = name?.takeIf { it.isNotBlank() }
-            ?: ContactsRepo.lookupNameCached(number)
-            ?: fmt(number)
-        AlertDialog.Builder(this)
-            .setTitle(display)
-            .setMessage("Call ${fmt(number)}?")
-            .setPositiveButton("Call") { _, _ -> placeCall(number) }
-            .setNegativeButton("Cancel", null)
-            .show()
+        val known = name?.takeIf { it.isNotBlank() } ?: ContactsRepo.lookupNameCached(number)
+        val display = known ?: fmt(number)
+
+        val view = layoutInflater.inflate(R.layout.dialog_confirm_call, null)
+        val dialog = AlertDialog.Builder(this, R.style.GlassDialog)
+            .setView(view)
+            .create()
+
+        view.findViewById<TextView>(R.id.dlgAvatar).apply {
+            text = Ui.initial(display)
+            backgroundTintList = ColorStateList.valueOf(Ui.avatarColor(display))
+        }
+        view.findViewById<TextView>(R.id.dlgName).text = display
+        // For an unknown number the name line already shows it — don't repeat it.
+        view.findViewById<TextView>(R.id.dlgNumber).apply {
+            if (known != null) {
+                text = fmt(number)
+            } else {
+                visibility = View.GONE
+            }
+        }
+        // Only worth showing when the user pinned a specific SIM.
+        view.findViewById<TextView>(R.id.dlgSim).apply {
+            if (Prefs.simMode(this@MainActivity) == Prefs.SIM_FIXED) {
+                text = "via ${Prefs.simLabel(this@MainActivity)}"
+                visibility = View.VISIBLE
+            }
+        }
+        view.findViewById<TextView>(R.id.dlgCancel).setOnClickListener { dialog.dismiss() }
+        view.findViewById<TextView>(R.id.dlgCall).setOnClickListener {
+            dialog.dismiss()
+            placeCall(number)
+        }
+
+        // Real GPU blur of the content behind, when the system allows it.
+        Glass.applyDialogBlur(dialog, view)
+
+        dialog.show()
+        // Floating dialogs default to a narrow platform width; widen to match
+        // the app's card gutters.
+        dialog.window?.setLayout(
+            (resources.displayMetrics.widthPixels * 0.86f).toInt(),
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        )
     }
 
     private fun placeCall(number: String, account: PhoneAccountHandle? = null) {
