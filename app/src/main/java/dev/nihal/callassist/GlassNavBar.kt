@@ -4,7 +4,9 @@ import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.text.TextPaint
 import android.util.AttributeSet
+import android.view.animation.PathInterpolator
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
@@ -27,6 +29,10 @@ class GlassNavBar @JvmOverloads constructor(
     data class TabSpec(val iconRes: Int, val label: String)
 
     var onTabSelected: ((Int) -> Unit)? = null
+
+    // Decelerating ease-out: quick off the mark, settles softly — matches the
+    // feel of the rest of the UI better than the default linear-ish interpolator.
+    private val bubbleInterpolator = PathInterpolator(0.2f, 0.9f, 0.2f, 1f)
 
     private val bubble = View(context)
     private val row = LinearLayout(context)
@@ -64,6 +70,13 @@ class GlassNavBar @JvmOverloads constructor(
                 text = t.label
                 textSize = 12f
                 gravity = Gravity.CENTER
+                // Reserve the bold width up front so selecting a tab only
+                // repaints the label instead of re-measuring the bar.
+                val bold = TextPaint().apply {
+                    typeface = Typeface.DEFAULT_BOLD
+                    textSize = this@apply.textSize
+                }
+                minWidth = Math.ceil(bold.measureText(t.label).toDouble()).toInt()
             }
             item.addView(
                 label,
@@ -103,7 +116,12 @@ class GlassNavBar @JvmOverloads constructor(
         val idx = i.coerceIn(0, count - 1)
         selected = idx
         if (width > 0) {
-            bubble.animate().translationX(slotX(idx)).setDuration(180).start()
+            bubble.animate()
+                .translationX(slotX(idx))
+                .setDuration(220)
+                .setInterpolator(bubbleInterpolator)
+                .withLayer()   // render the bubble into a hardware layer for the slide
+                .start()
         }
         updateTints()
         if (notify) onTabSelected?.invoke(idx)
@@ -116,6 +134,9 @@ class GlassNavBar @JvmOverloads constructor(
             val c = if (i == selected) active else inactive
             icons[i].imageTintList = ColorStateList.valueOf(c)
             labels[i].setTextColor(c)
+            // Toggling bold changes the text's measured width, which would
+            // request a layout pass of the whole bar mid-animation. The labels
+            // are already sized for bold (see setTabs), so this only repaints.
             labels[i].setTypeface(null, if (i == selected) Typeface.BOLD else Typeface.NORMAL)
         }
     }

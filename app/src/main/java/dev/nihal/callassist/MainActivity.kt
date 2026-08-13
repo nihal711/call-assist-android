@@ -81,6 +81,10 @@ class MainActivity : AppCompatActivity() {
     private var currentTab = 0
     private var keypadCollapsed = false
 
+    /** Just past the nav bar's 180ms bubble animation. */
+    private val TAB_SETTLE_MS = 200L
+    private var pendingReload: Runnable? = null
+
     private val backCallback = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() {
             when {
@@ -122,13 +126,7 @@ class MainActivity : AppCompatActivity() {
                 GlassNavBar.TabSpec(R.drawable.ic_shield, "Gate")
             )
         )
-        navBar.onTabSelected = { idx ->
-            currentTab = idx
-            pages.forEach { (i, v) -> v.visibility = if (i == idx) View.VISIBLE else View.GONE }
-            if (idx == 1) reloadData()
-            if (idx == 0) setKeypadCollapsed(false)
-            updateBackState()
-        }
+        navBar.onTabSelected = { idx -> switchTab(idx) }
         onBackPressedDispatcher.addCallback(this, backCallback)
 
         setupKeypad()
@@ -169,6 +167,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        pendingReload?.let { navBar.removeCallbacks(it) }
         toneGen?.release()
         bg.shutdown()
         super.onDestroy()
@@ -675,6 +674,32 @@ class MainActivity : AppCompatActivity() {
     }
 
     // ---------------- Shared ----------------
+
+    /**
+     * The page swap itself is cheap, but re-querying contacts/call log and
+     * re-binding three lists is not — and running it on the frames the nav bar
+     * bubble is animating shows up as a visible stutter. So the visibility
+     * change happens now (the user sees the new page immediately) and the
+     * expensive refresh is posted until after the ~180ms bubble animation.
+     */
+    private fun switchTab(idx: Int) {
+        currentTab = idx
+        // Only touch visibility for pages whose state actually changes —
+        // re-setting VISIBLE on the current page would re-trigger layout.
+        pages.forEach { (i, v) ->
+            val want = if (i == idx) View.VISIBLE else View.GONE
+            if (v.visibility != want) v.visibility = want
+        }
+        if (idx == 0) setKeypadCollapsed(false)
+        updateBackState()
+
+        pendingReload?.let { navBar.removeCallbacks(it) }
+        if (idx == 1) {
+            val r = Runnable { pendingReload = null; reloadData() }
+            pendingReload = r
+            navBar.postDelayed(r, TAB_SETTLE_MS)
+        }
+    }
 
     private fun reloadData() {
         if (bg.isShutdown) return
