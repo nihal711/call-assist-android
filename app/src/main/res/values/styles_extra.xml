@@ -35,6 +35,10 @@
         <item name="android:windowIsFloating">true</item>
         <item name="android:backgroundDimAmount">0.55</item>
         <item name="android:windowAnimationStyle">@style/GlassDialogAnim</item>
+        <!-- Required for Window#setBackgroundBlurRadius to take effect at all
+             (AOSP window-blurs contract). The blur radius itself is declared in
+             values-v31, where the attribute exists. -->
+        <item name="android:windowIsTranslucent">true</item>
     </style>
 
     <style name="GlassDialogAnim" parent="@android:style/Animation.Dialog">

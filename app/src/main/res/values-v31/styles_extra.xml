@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Declaring the blur radius on the theme (API 31+) means the dialog's very
+      first frame is already blurred, instead of the code path in Glass.kt
+      blurring it in a frame or two after show(). Glass.kt still runs: it tracks
+      the system's cross-window-blur flag at runtime and falls back when the
+      platform turns blur off.
+
+      80dp matches AOSP's documented "frosted glass" value for background blur
+      (source.android.com/docs/core/display/window-blurs); the docs warn against
+      going past 150.
+    -->
+    <style name="GlassDialog" parent="Theme.Material3.DayNight.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:backgroundDimAmount">0.25</item>
+        <item name="android:windowAnimationStyle">@style/GlassDialogAnim</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackgroundBlurRadius">80dp</item>
+    </style>
+</resources>

@@ -22,8 +22,13 @@ import androidx.core.content.ContextCompat
  */
 object Glass {
 
-    /** Matches the dialog's 32dp corner radius closely enough to read as one surface. */
-    private const val BLUR_RADIUS_DP = 48
+    /**
+     * AOSP's documented value for a frosted-glass background blur; the same docs
+     * warn that going past 150 costs real performance. Android 17 uses
+     * the same API — the system just applies it far more widely — so there is no
+     * newer blur API to move to here.
+     */
+    private const val BLUR_RADIUS_DP = 80
 
     /**
      * @param panel the view whose background is the glass surface — it is
@@ -53,6 +58,13 @@ object Glass {
 
         val listener = java.util.function.Consumer<Boolean> { enabled ->
             decor.post { setEnabled(enabled) }
+        }
+
+        // The theme (values-v31) already asks for blur on the first frame, so
+        // match the panel fill to it now — waiting for attach would show one
+        // frame of the opaque fill over an already-blurred backdrop.
+        ContextCompat.getSystemService(ctx, WindowManager::class.java)?.let {
+            setEnabled(it.isCrossWindowBlurEnabled)
         }
 
         decor.addOnAttachStateChangeListener(object : android.view.View.OnAttachStateChangeListener {
