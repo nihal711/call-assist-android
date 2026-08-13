@@ -58,8 +58,10 @@ object GateLog {
             ?: lines.firstOrNull { it.message.startsWith("Call active — sending") }
                 ?.let { quoted(it.message) }
 
+        // "…hung up — done" and "…hung up after 12s — done" both count.
         val finished = lines.any {
-            it.message.contains("hung up — done") || it.message.contains("ended")
+            (it.message.contains("hung up") && it.message.contains("— done")) ||
+                it.message.contains("ended")
         }
         val warned = lines.any {
             it.message.contains("may NOT have opened") ||
@@ -101,15 +103,38 @@ object GateLog {
             "Could not mute mic" + (afterParen(msg)?.let { " ($it)" } ?: "")
         msg.startsWith("Call active — sending") -> "Sending code"
         msg.startsWith("Attempt ") -> {
-            // "Attempt 1/3 — sending "6#"" -> "Sent code "6#" (try 1/3)"
+            // "Attempt 1/3 — sending "6#"" -> "Sending code "6#" (try 1/3)"
             val n = msg.removePrefix("Attempt ").substringBefore(' ')
             val code = quoted(msg)
-            if (code != null) "Sent code \"$code\" (try $n)" else msg
+            if (code != null) "Sending code \"$code\" (try $n)" else msg
         }
-        msg.startsWith("Still connected") -> "No answer from gate — retrying"
-        msg.contains("hung up — done") -> "Intercom hung up — code accepted"
+        msg.startsWith("Code sent") -> {
+            val tones = Regex("\\((\\d+) tones?\\)").find(msg)?.groupValues?.get(1)
+            val wait = Regex("waiting (\\d+)s").find(msg)?.groupValues?.get(1)
+            buildString {
+                append("Code sent")
+                if (tones != null) append(" ($tones tones)")
+                if (wait != null) append(" — waiting ${wait}s for the gate")
+            }
+        }
+        msg.startsWith("Still connected") -> {
+            val secs = Regex("Still connected (\\d+)s").find(msg)?.groupValues?.get(1)
+            if (secs != null) "Still connected after ${secs}s — gate didn't answer, retrying"
+            else "No answer from gate — retrying"
+        }
+        msg.startsWith("No response after") -> {
+            val secs = Regex("hanging up in (\\d+)s").find(msg)?.groupValues?.get(1)
+            "All attempts used — hanging up" + (secs?.let { " in ${it}s" } ?: "")
+        }
+        msg.contains("hung up") && msg.contains("— done") -> {
+            val secs = Regex("after (\\d+)s").find(msg)?.groupValues?.get(1)
+            "Intercom hung up" + (secs?.let { " after ${it}s" } ?: "") + " — code accepted"
+        }
         msg.contains("ended") -> "Call ended"
-        msg.contains("may NOT have opened") -> "Gave up — gate may not have opened"
+        msg.contains("may NOT have opened") -> {
+            val secs = Regex("after (\\d+)s").find(msg)?.groupValues?.get(1)
+            "We hung up" + (secs?.let { " after ${it}s" } ?: "") + " — gate may not have opened"
+        }
         msg.startsWith("Failsafe:") -> "Failsafe hang-up (call ran too long)"
         msg.startsWith("Another call is in progress") -> "Held your other call"
         msg.startsWith("Resumed the held call") -> "Resumed your other call"

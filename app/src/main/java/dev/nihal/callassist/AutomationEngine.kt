@@ -55,6 +55,7 @@ object AutomationEngine {
         var sequenceStarted = false
         var wasMuted = false
         var weHungUp = false
+        val startedAt = android.os.SystemClock.elapsedRealtime()
 
         // A call that was active (or already held) before the intercom barged in.
         // Telecom holds it when we answer; we resume it when the intercom is done.
@@ -94,14 +95,15 @@ object AutomationEngine {
                             } catch (_: Exception) {
                             }
                         }
+                        val secs = (android.os.SystemClock.elapsedRealtime() - startedAt) / 1000
                         if (weHungUp) {
-                            Prefs.log(appCtx, "We hung up after $MAX_ATTEMPTS attempts — gate may NOT have opened")
+                            Prefs.log(appCtx, "We hung up after ${secs}s — gate may NOT have opened")
                             Notifications.automation(
                                 appCtx,
                                 "⚠ Sent the gate code ${MAX_ATTEMPTS}× but \"$label\" never hung up — the gate may not have opened"
                             )
                         } else {
-                            Prefs.log(appCtx, "\"$label\" hung up — done")
+                            Prefs.log(appCtx, "\"$label\" hung up after ${secs}s — done")
                             Notifications.automation(appCtx, "Done — gate code sent to \"$label\"")
                         }
                     }
@@ -134,12 +136,26 @@ object AutomationEngine {
             t += DIGIT_GAP_MS
         }
         val seqEnd = t - DIGIT_GAP_MS + TONE_MS
+        // Log once the last tone has actually been played, then again when the
+        // listen-for-hangup window is up — so the log shows the waiting, not
+        // just the sending.
+        handler.postDelayed({
+            if (call.stateCompat() == Call.STATE_DISCONNECTED) return@postDelayed
+            Prefs.log(
+                ctx,
+                "Code sent (${code.length} tones) — waiting ${RETRY_WAIT_MS / 1000}s for the gate"
+            )
+        }, token, seqEnd)
         handler.postDelayed({
             if (call.stateCompat() == Call.STATE_DISCONNECTED) return@postDelayed
             if (n < MAX_ATTEMPTS) {
                 Prefs.log(ctx, "Still connected ${RETRY_WAIT_MS / 1000}s after attempt $n — retrying")
                 attempt(ctx, call, token, n + 1, markWeHungUp)
             } else {
+                Prefs.log(
+                    ctx,
+                    "No response after $MAX_ATTEMPTS attempts — hanging up in ${HANGUP_AFTER_LAST_MS / 1000}s"
+                )
                 handler.postDelayed({
                     if (call.stateCompat() != Call.STATE_DISCONNECTED) {
                         markWeHungUp()

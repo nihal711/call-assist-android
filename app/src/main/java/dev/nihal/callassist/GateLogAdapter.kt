@@ -78,8 +78,11 @@ class GateLogAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         val parts = mutableListOf<String>()
         s.label?.let { parts.add(it) }
         s.code?.let { parts.add("code $it") }
-        val tries = s.steps.count { it.text.startsWith("Sent code") }
+        val tries = s.steps.count { it.text.startsWith("Sending code") }
         if (tries > 1) parts.add("$tries tries")
+        // Wall-clock length of the run, from answer to disconnect.
+        val secs = (s.end - s.start) / 1000
+        if (s.start > 0L && s.end > s.start && secs > 0) parts.add("${secs}s")
         if (parts.isEmpty()) parts.add("${s.steps.size} events")
         return parts.joinToString(" · ")
     }
@@ -137,10 +140,19 @@ class GateLogAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             textSize = 13f
             setTextColor(ContextCompat.getColor(ctx, R.color.textSecondary))
         }
+        // Colour only the steps that decide the outcome, so they stand out from
+        // the routine ones without turning the list into confetti.
+        val color = when {
+            step.text.contains("code accepted") -> R.color.green
+            step.text.contains("may not have opened") ||
+                step.text.startsWith("Failsafe") ||
+                step.text.startsWith("Could not mute") -> R.color.red
+            else -> R.color.textSecondary
+        }
         val text = TextView(ctx).apply {
             text = step.text
             textSize = 13f
-            setTextColor(ContextCompat.getColor(ctx, R.color.textSecondary))
+            setTextColor(ContextCompat.getColor(ctx, color))
             layoutParams = LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f
             ).apply { marginStart = dp(ctx, 12) }

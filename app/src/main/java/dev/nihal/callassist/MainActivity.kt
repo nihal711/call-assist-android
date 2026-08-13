@@ -695,7 +695,8 @@ class MainActivity : AppCompatActivity() {
             placeCall(number)
             return
         }
-        val known = name?.takeIf { it.isNotBlank() } ?: ContactsRepo.lookupNameCached(number)
+        val contact = ContactsRepo.lookupCached(number)
+        val known = name?.takeIf { it.isNotBlank() } ?: contact?.name
         val display = known ?: fmt(number)
 
         val view = layoutInflater.inflate(R.layout.dialog_confirm_call, null)
@@ -707,6 +708,7 @@ class MainActivity : AppCompatActivity() {
             text = Ui.initial(display)
             backgroundTintList = ColorStateList.valueOf(Ui.avatarColor(display))
         }
+        Ui.loadPhoto(this, view.findViewById(R.id.dlgPhoto), contact?.photoUri)
         view.findViewById<TextView>(R.id.dlgName).text = display
         // For an unknown number the name line already shows it — don't repeat it.
         view.findViewById<TextView>(R.id.dlgNumber).apply {
@@ -724,7 +726,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
         view.findViewById<TextView>(R.id.dlgCancel).setOnClickListener { dialog.dismiss() }
-        view.findViewById<TextView>(R.id.dlgCall).setOnClickListener {
+        view.findViewById<View>(R.id.dlgCall).setOnClickListener {
             dialog.dismiss()
             placeCall(number)
         }

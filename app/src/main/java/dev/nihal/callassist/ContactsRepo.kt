@@ -15,7 +15,8 @@ object ContactsRepo {
         val starred: Boolean,
         val numbers: MutableList<PhoneEntry>,
         var t9: String,
-        var t9Map: IntArray
+        var t9Map: IntArray,
+        val photoUri: String? = null
     )
 
     data class Match(
@@ -77,7 +78,7 @@ object ContactsRepo {
                 Phone.CONTENT_URI,
                 arrayOf(
                     Phone.CONTACT_ID, Phone.DISPLAY_NAME, Phone.NUMBER,
-                    Phone.TYPE, Phone.LABEL, Phone.STARRED
+                    Phone.TYPE, Phone.LABEL, Phone.STARRED, Phone.PHOTO_URI
                 ),
                 null, null,
                 Phone.STARRED + " DESC, " + Phone.DISPLAY_NAME + " COLLATE NOCASE ASC"
@@ -89,10 +90,11 @@ object ContactsRepo {
                     val type = c.getInt(3)
                     val label = Phone.getTypeLabel(ctx.resources, type, c.getString(4)).toString()
                     val starred = c.getInt(5) == 1
+                    val photo = c.getString(6)
                     val digits = number.filter { it.isDigit() }
                     val contact = byId.getOrPut(id) {
                         val (t9, map) = t9encode(name)
-                        Contact(id, name, starred, mutableListOf(), t9, map)
+                        Contact(id, name, starred, mutableListOf(), t9, map, photo)
                     }
                     if (contact.numbers.none { it.digits == digits && digits.isNotEmpty() }) {
                         contact.numbers.add(PhoneEntry(number, label, digits))
@@ -168,12 +170,14 @@ object ContactsRepo {
         return out.sortedWith(compareBy({ it.rank }, { it.contact.name.lowercase() })).take(limit)
     }
 
-    fun lookupNameCached(number: String): String? {
+    fun lookupCached(number: String): Contact? {
         val digits = number.filter { it.isDigit() }
         if (digits.isEmpty()) return null
         val tail = digits.takeLast(9)
-        return contacts.firstOrNull { c -> c.numbers.any { it.digits.endsWith(tail) } }?.name
+        return contacts.firstOrNull { c -> c.numbers.any { it.digits.endsWith(tail) } }
     }
+
+    fun lookupNameCached(number: String): String? = lookupCached(number)?.name
 
     /** Blocking; call from a background thread. */
     fun loadCallLog(ctx: Context, limit: Int = 300): List<CallEntry> {

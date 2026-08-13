@@ -24,6 +24,36 @@ object Ui {
         val c = t.first()
         return if (c.isLetter()) c.uppercase() else "#"
     }
+
+    /**
+     * Shows the contact's photo in [target], circle-cropped, hiding it (so the
+     * coloured initial behind shows instead) when there is no photo or it can't
+     * be read. Contact thumbnails are small and already cached by the provider,
+     * so decoding on the UI thread is fine here.
+     */
+    fun loadPhoto(ctx: android.content.Context, target: android.widget.ImageView, uri: String?) {
+        if (uri.isNullOrBlank()) {
+            target.visibility = View.GONE
+            return
+        }
+        val bmp = try {
+            ctx.contentResolver.openInputStream(android.net.Uri.parse(uri))?.use {
+                android.graphics.BitmapFactory.decodeStream(it)
+            }
+        } catch (_: Exception) {
+            null
+        }
+        if (bmp == null) {
+            target.visibility = View.GONE
+            return
+        }
+        target.setImageDrawable(
+            androidx.core.graphics.drawable.RoundedBitmapDrawableFactory
+                .create(ctx.resources, bmp)
+                .apply { isCircular = true }
+        )
+        target.visibility = View.VISIBLE
+    }
 }
 
 /** One list adapter reused by the T9 suggestions, recents, and contacts pages. */
