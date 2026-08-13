@@ -104,6 +104,8 @@ object ContactsRepo {
         } catch (_: Exception) {
         }
         contacts = byId.values.filter { it.numbers.isNotEmpty() }
+        // Photos may have been edited since the last load.
+        Ui.clearPhotoCache()
     }
 
     /**

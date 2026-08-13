@@ -88,16 +88,30 @@
                     android:textSize="14sp" />
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/expAvatar"
+            <FrameLayout
                 android:layout_width="52dp"
                 android:layout_height="52dp"
-                android:layout_marginStart="12dp"
-                android:background="@drawable/bg_circle"
-                android:gravity="center"
-                android:textColor="#FFFFFF"
-                android:textSize="20sp"
-                android:textStyle="bold" />
+                android:layout_marginStart="12dp">
+
+                <TextView
+                    android:id="@+id/expAvatar"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/bg_circle"
+                    android:gravity="center"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold" />
+
+                <!-- Shown instead of the initial when the contact has a photo -->
+                <ImageView
+                    android:id="@+id/expPhoto"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="@null"
+                    android:scaleType="centerCrop"
+                    android:visibility="gone" />
+            </FrameLayout>
         </LinearLayout>
 
         <LinearLayout

@@ -67,6 +67,7 @@ class RecentsAdapter(
         val expName: TextView = v.findViewById(R.id.expName)
         val expNumber: TextView = v.findViewById(R.id.expNumber)
         val expAvatar: TextView = v.findViewById(R.id.expAvatar)
+        val expPhoto: ImageView = v.findViewById(R.id.expPhoto)
         val expStatusIcon: ImageView = v.findViewById(R.id.expStatusIcon)
         val expStatus: TextView = v.findViewById(R.id.expStatus)
         val expTime: TextView = v.findViewById(R.id.expTime)
@@ -150,6 +151,12 @@ class RecentsAdapter(
                     h.expAvatar.text = Ui.initial(item.title)
                     h.expAvatar.backgroundTintList =
                         ColorStateList.valueOf(Ui.avatarColor(item.title))
+                    // Only the expanded card shows the photo; collapsed rows stay
+                    // as plain icon + name.
+                    Ui.loadPhoto(
+                        ctx, h.expPhoto,
+                        ContactsRepo.lookupCached(item.number)?.photoUri
+                    )
                     h.expStatusIcon.setImageResource(iconRes)
                     h.expStatusIcon.imageTintList = ColorStateList.valueOf(tint)
                     h.expStatus.text = statusText(item)
