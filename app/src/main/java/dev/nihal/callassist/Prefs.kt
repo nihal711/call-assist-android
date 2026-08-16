@@ -8,6 +8,9 @@ import java.util.Date
 import java.util.Locale
 
 object Prefs {
+    // Generic on purpose — the building name isn't the app's to assume. Anyone
+    // already running the app keeps whatever they saved; this only seeds a
+    // fresh install, and the Gate tab lets them edit it.
     const val DEFAULT_CONTACT = "Intercom"
     const val DEFAULT_CODE = "6#"
 

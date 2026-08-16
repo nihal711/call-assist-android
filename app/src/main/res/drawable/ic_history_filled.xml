@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Selected Recents tab: ic_history's clock rendered as a solid disc with the
+  hands knocked out (evenOdd), plus the same rewind arrow at the 9 o'clock
+  position. Dial centre (13,12) and radius 9 match the outline version exactly,
+  so the glyph doesn't shift when the tab is tapped.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Rewind arrow: the tick that sits outside the dial on the left. -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M4,12L1,12l3.89,3.89 0.07,0.14L9,12z" />
+    <!-- Solid dial with the hour/minute hands knocked out. -->
+    <path
+        android:fillColor="#FF000000"
+        android:fillType="evenOdd"
+        android:pathData="M13,3c-4.97,0 -9,4.03 -9,9s4.03,9 9,9 9,-4.03 9,-9 -4.03,-9 -9,-9zM12.15,7.2h1.7v4.32l3.62,2.15 -0.87,1.46 -4.45,-2.64z" />
+</vector>

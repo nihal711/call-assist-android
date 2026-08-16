@@ -26,7 +26,16 @@ class GlassNavBar @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null
 ) : FrameLayout(context, attrs) {
 
-    data class TabSpec(val iconRes: Int, val label: String)
+    /**
+     * [iconRes] is the resting (outlined) icon; [activeIconRes] is swapped in
+     * while the tab is selected. Pass only [iconRes] for a tab that keeps the
+     * same glyph in both states.
+     */
+    data class TabSpec(
+        val iconRes: Int,
+        val label: String,
+        val activeIconRes: Int = iconRes
+    )
 
     var onTabSelected: ((Int) -> Unit)? = null
 
@@ -38,6 +47,9 @@ class GlassNavBar @JvmOverloads constructor(
     private val row = LinearLayout(context)
     private val icons = mutableListOf<ImageView>()
     private val labels = mutableListOf<TextView>()
+    private val specs = mutableListOf<TabSpec>()
+    /** Currently applied icon per tab, so we only call setImageResource on a change. */
+    private val shownIcons = mutableListOf<Int>()
     private var count = 0
     private var selected = 0
     private var dragging = false
@@ -57,6 +69,9 @@ class GlassNavBar @JvmOverloads constructor(
         row.removeAllViews()
         icons.clear()
         labels.clear()
+        specs.clear()
+        specs.addAll(tabs)
+        shownIcons.clear()
         count = tabs.size
         for (t in tabs) {
             val item = LinearLayout(context).apply {
@@ -65,6 +80,7 @@ class GlassNavBar @JvmOverloads constructor(
                 importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
             }
             val icon = ImageView(context).apply { setImageResource(t.iconRes) }
+            shownIcons.add(t.iconRes)
             item.addView(icon, LinearLayout.LayoutParams(dp(24), dp(24)))
             val label = TextView(context).apply {
                 text = t.label
@@ -133,6 +149,14 @@ class GlassNavBar @JvmOverloads constructor(
         for (i in icons.indices) {
             val c = if (i == selected) active else inactive
             icons[i].imageTintList = ColorStateList.valueOf(c)
+            // Outlined at rest, solid while selected. Guarded because
+            // setImageResource on an unchanged drawable still forces a
+            // requestLayout of the bar mid-slide.
+            val want = if (i == selected) specs[i].activeIconRes else specs[i].iconRes
+            if (shownIcons[i] != want) {
+                icons[i].setImageResource(want)
+                shownIcons[i] = want
+            }
             labels[i].setTextColor(c)
             // Toggling bold changes the text's measured width, which would
             // request a layout pass of the whole bar mid-animation. The labels

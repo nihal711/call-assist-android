@@ -79,6 +79,12 @@
                 android:paddingTop="8dp"
                 android:paddingBottom="4dp">
 
+                <!--
+                  fitCenter + padding rather than scaleType="center": "center"
+                  would pin the vector at its intrinsic 24dp and leave the
+                  handset marooned in a 76dp circle. 22dp of padding scales it
+                  up to ~32dp, a fuller glyph-to-circle ratio.
+                -->
                 <ImageButton
                     android:id="@+id/btnDial"
                     android:layout_width="76dp"
@@ -87,7 +93,8 @@
                     android:background="@drawable/bg_circle"
                     android:backgroundTint="@color/green"
                     android:contentDescription="Call"
-                    android:scaleType="center"
+                    android:padding="22dp"
+                    android:scaleType="fitCenter"
                     android:src="@drawable/ic_phone"
                     app:tint="#FFFFFF" />
             </FrameLayout>

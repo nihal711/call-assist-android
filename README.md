@@ -1,6 +1,6 @@
 # Call Assist
 
-Android app that auto-opens the condo gate when the **Intercom**
+Android app that auto-opens the condo gate when your building's **intercom**
 calls — plus a full replacement dialer (T9 keypad, recents, contacts) since it
 runs as the default phone app.
 

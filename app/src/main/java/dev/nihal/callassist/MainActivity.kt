@@ -120,10 +120,10 @@ class MainActivity : AppCompatActivity() {
         )
         navBar.setTabs(
             listOf(
-                GlassNavBar.TabSpec(R.drawable.ic_dialpad, "Keypad"),
-                GlassNavBar.TabSpec(R.drawable.ic_history, "Recents"),
-                GlassNavBar.TabSpec(R.drawable.ic_person, "Contacts"),
-                GlassNavBar.TabSpec(R.drawable.ic_shield, "Gate")
+                GlassNavBar.TabSpec(R.drawable.ic_dialpad, "Keypad", R.drawable.ic_dialpad_filled),
+                GlassNavBar.TabSpec(R.drawable.ic_history, "Recents", R.drawable.ic_history_filled),
+                GlassNavBar.TabSpec(R.drawable.ic_person_outline, "Contacts", R.drawable.ic_person),
+                GlassNavBar.TabSpec(R.drawable.ic_shield_outline, "Gate", R.drawable.ic_shield)
             )
         )
         navBar.onTabSelected = { idx -> switchTab(idx) }
@@ -372,6 +372,12 @@ class MainActivity : AppCompatActivity() {
         findViewById<RecyclerView>(R.id.recentsList).apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = recentsAdapter
+            // The list's bounds never depend on its contents, so skip the
+            // parent re-measure on every data change.
+            setHasFixedSize(true)
+            // Rows are cheap but numerous; a deeper cache means switching back
+            // to this tab rebinds instead of re-inflating.
+            setItemViewCacheSize(12)
         }
     }
 
@@ -512,6 +518,8 @@ class MainActivity : AppCompatActivity() {
         findViewById<RecyclerView>(R.id.contactsList).apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = contactsAdapter
+            setHasFixedSize(true)
+            setItemViewCacheSize(12)
         }
         contactSearch.doAfterTextChanged { renderContacts() }
     }
@@ -684,10 +692,14 @@ class MainActivity : AppCompatActivity() {
      */
     private fun switchTab(idx: Int) {
         currentTab = idx
+        // INVISIBLE rather than GONE for the pages we're leaving: a GONE page
+        // is dropped from layout, so coming back to it costs a full measure +
+        // layout of the page on the very frame the bubble is sliding. INVISIBLE
+        // keeps it measured, which makes the swap a draw-only change.
         // Only touch visibility for pages whose state actually changes —
         // re-setting VISIBLE on the current page would re-trigger layout.
         pages.forEach { (i, v) ->
-            val want = if (i == idx) View.VISIBLE else View.GONE
+            val want = if (i == idx) View.VISIBLE else View.INVISIBLE
             if (v.visibility != want) v.visibility = want
         }
         if (idx == 0) setKeypadCollapsed(false)
