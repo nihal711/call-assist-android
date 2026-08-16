@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Unselected Recents tab: the handset glyph in the
+  lower-left with incoming (down-left) and outgoing (up-right) arrows tucked
+  into its top-right corner.
+
+  The handset is the standard phone path — already drawn on the diagonal, so no
+  rotation is involved — scaled to 0.70 and shifted into the lower-left. The
+  transform is baked into the path coordinates rather than applied via <group>
+  so the geometry is inspectable and identical to ic_recents_filled. The
+  handset is stroked here and filled there; the arrows are byte-identical in
+  both, so selecting the tab changes only the handset's weight and nothing
+  shifts position. Arrows are stroked slightly lighter (1.5) than the handset
+  outline (1.7) so the handset stays dominant.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Handset, hollow. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M3.93,15.55c0.77,1.51 2.01,2.74 3.52,3.52l1.18,-1.18c0.15,-0.15 0.36,-0.19 0.55,-0.13c0.60,0.20 1.25,0.31 1.90,0.31c0.29,0.00 0.53,0.24 0.53,0.53l0.00,1.86c0.00,0.29 -0.24,0.53 -0.53,0.53c-5.01,0.00 -9.07,-4.06 -9.07,-9.07c0.00,-0.29 0.24,-0.53 0.53,-0.53l1.87,0.00c0.29,0.00 0.53,0.24 0.53,0.53c0.00,0.66 0.11,1.30 0.31,1.90c0.06,0.19 0.01,0.39 -0.13,0.55l-1.18,1.17z" />
+
+    <!-- Incoming arrow: down-left, into the handset. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.35"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M17.2,4.3l-4.6,4.6M12.6,7.0v1.9h1.9" />
+
+    <!-- Outgoing arrow: up-right, away from the handset. -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.35"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M15.1,11.3l4.6,-4.6M19.7,8.6v-1.9h-1.9" />
+</vector>

@@ -121,7 +121,7 @@ class MainActivity : AppCompatActivity() {
         navBar.setTabs(
             listOf(
                 GlassNavBar.TabSpec(R.drawable.ic_dialpad, "Keypad", R.drawable.ic_dialpad_filled),
-                GlassNavBar.TabSpec(R.drawable.ic_history, "Recents", R.drawable.ic_history_filled),
+                GlassNavBar.TabSpec(R.drawable.ic_recents, "Recents", R.drawable.ic_recents_filled),
                 GlassNavBar.TabSpec(R.drawable.ic_person_outline, "Contacts", R.drawable.ic_person),
                 GlassNavBar.TabSpec(R.drawable.ic_shield_outline, "Gate", R.drawable.ic_shield)
             )
