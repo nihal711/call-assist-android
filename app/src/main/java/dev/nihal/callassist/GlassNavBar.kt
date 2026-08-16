@@ -82,15 +82,19 @@ class GlassNavBar @JvmOverloads constructor(
             val icon = ImageView(context).apply { setImageResource(t.iconRes) }
             shownIcons.add(t.iconRes)
             item.addView(icon, LinearLayout.LayoutParams(dp(24), dp(24)))
-            val label = TextView(context).apply {
+            val label = TextView(context).apply label@{
                 text = t.label
                 textSize = 12f
                 gravity = Gravity.CENTER
+                includeFontPadding = false   // trims the ascent/descent slack above the text
                 // Reserve the bold width up front so selecting a tab only
-                // repaints the label instead of re-measuring the bar.
+                // repaints the label instead of re-measuring the bar. Measure
+                // against this TextView's own paint (this@apply inside the
+                // inner block would resolve to the TextPaint, silently
+                // measuring at the default 12px instead of 12sp).
                 val bold = TextPaint().apply {
                     typeface = Typeface.DEFAULT_BOLD
-                    textSize = this@apply.textSize
+                    textSize = this@label.textSize
                 }
                 minWidth = Math.ceil(bold.measureText(t.label).toDouble()).toInt()
             }
@@ -98,7 +102,7 @@ class GlassNavBar @JvmOverloads constructor(
                 label,
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { topMargin = dp(2) }
+                ).apply { topMargin = dp(1) }
             )
             row.addView(
                 item,
