@@ -1,17 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Unselected Recents tab: the handset glyph in the
-  lower-left with incoming (down-left) and outgoing (up-right) arrows tucked
-  into its top-right corner.
+  Unselected Recents tab.
+
+  The handset and the arrow pair read as one overlapping glyph: the handset
+  is ~84% of the glyph's total width and spans its full height, with the
+  arrows sitting over its upper-right shoulder. An earlier
+  version tucked a small handset into the bottom-left corner with the arrows
+  floating separately in the top-right, which read as two disconnected marks.
 
   The handset is the standard phone path — already drawn on the diagonal, so no
-  rotation is involved — scaled to 0.70 and shifted into the lower-left. The
-  transform is baked into the path coordinates rather than applied via <group>
-  so the geometry is inspectable and identical to ic_recents_filled. The
-  handset is stroked here and filled there; the arrows are byte-identical in
-  both, so selecting the tab changes only the handset's weight and nothing
-  shifts position. Arrows are stroked slightly lighter (1.5) than the handset
-  outline (1.7) so the handset stays dominant.
+  rotation is involved — scaled to 16.6 of the 24-unit viewport and anchored
+  bottom-left. The transform is baked into the path coordinates rather than
+  applied via <group> so the geometry stays inspectable and is byte-identical
+  to ic_recents_filled. Only the handset changes between the two files (stroked
+  here, filled there), so selecting the tab shifts nothing.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
@@ -26,23 +28,23 @@
         android:strokeWidth="1.7"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M3.93,15.55c0.77,1.51 2.01,2.74 3.52,3.52l1.18,-1.18c0.15,-0.15 0.36,-0.19 0.55,-0.13c0.60,0.20 1.25,0.31 1.90,0.31c0.29,0.00 0.53,0.24 0.53,0.53l0.00,1.86c0.00,0.29 -0.24,0.53 -0.53,0.53c-5.01,0.00 -9.07,-4.06 -9.07,-9.07c0.00,-0.29 0.24,-0.53 0.53,-0.53l1.87,0.00c0.29,0.00 0.53,0.24 0.53,0.53c0.00,0.66 0.11,1.30 0.31,1.90c0.06,0.19 0.01,0.39 -0.13,0.55l-1.18,1.17z" />
+        android:pathData="M4.53,11.97c1.33,2.61 3.47,4.74 6.09,6.09l2.03,-2.03c0.25,-0.25 0.62,-0.33 0.94,-0.22c1.04,0.34 2.15,0.53 3.29,0.53c0.51,0.00 0.92,0.41 0.92,0.92l0.00,3.22c0.00,0.51 -0.41,0.92 -0.92,0.92c-8.66,0.00 -15.68,-7.02 -15.68,-15.68c0.00,-0.51 0.41,-0.92 0.92,-0.92l3.23,0.00c0.51,0.00 0.92,0.41 0.92,0.92c0.00,1.15 0.18,2.25 0.53,3.29c0.11,0.33 0.02,0.68 -0.23,0.94l-2.04,2.02z" />
 
-    <!-- Incoming arrow: down-left, into the handset. -->
+    <!-- Incoming arrow: down-left, over the handset's shoulder. -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FF000000"
-        android:strokeWidth="1.35"
+        android:strokeWidth="1.55"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M17.2,4.3l-4.6,4.6M12.6,7.0v1.9h1.9" />
+        android:pathData="M14.40,4.64L9.34,9.70M9.34,7.37L9.34,9.70L11.67,9.70" />
 
-    <!-- Outgoing arrow: up-right, away from the handset. -->
+    <!-- Outgoing arrow: up-right. -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#FF000000"
-        android:strokeWidth="1.35"
+        android:strokeWidth="1.55"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:pathData="M15.1,11.3l4.6,-4.6M19.7,8.6v-1.9h-1.9" />
+        android:pathData="M14.52,11.68L19.90,6.62M17.43,6.62L19.90,6.62L19.90,9.09" />
 </vector>
