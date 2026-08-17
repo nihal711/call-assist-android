@@ -49,7 +49,7 @@ object AutomationEngine {
     fun start(ctx: Context, call: Call, label: String) {
         val appCtx = ctx.applicationContext
         Prefs.log(appCtx, "Incoming call from \"$label\" — auto-answering")
-        Notifications.automation(appCtx, "Answering \"$label\", sending gate code…")
+        Notifications.automation(appCtx, "Answering $label — entering code…")
 
         val token = Any()
         var sequenceStarted = false
@@ -100,11 +100,11 @@ object AutomationEngine {
                             Prefs.log(appCtx, "We hung up after ${secs}s — gate may NOT have opened")
                             Notifications.automation(
                                 appCtx,
-                                "⚠ Sent the gate code ${MAX_ATTEMPTS}× but \"$label\" never hung up — the gate may not have opened"
+                                "⚠ Entered the code ${MAX_ATTEMPTS}× for $label but it never hung up — the gate may not have opened"
                             )
                         } else {
                             Prefs.log(appCtx, "\"$label\" hung up after ${secs}s — done")
-                            Notifications.automation(appCtx, "Done — gate code sent to \"$label\"")
+                            Notifications.automation(appCtx, "Opened — code entered for $label")
                         }
                     }
                 }

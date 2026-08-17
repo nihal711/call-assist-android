@@ -183,7 +183,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="360dp"
                 android:clipToPadding="false"
-                android:nestedScrollingEnabled="true"
+                android:nestedScrollingEnabled="false"
                 android:overScrollMode="ifContentScrolls"
                 android:scrollbars="vertical" />
 

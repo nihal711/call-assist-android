@@ -50,6 +50,16 @@ object Notifications {
         notifySafe(ctx, ID_CALL, b.build())
     }
 
+    /** Opens the app straight to the Gate tab, where the event log lives. */
+    private fun gateTabPending(ctx: Context): PendingIntent =
+        PendingIntent.getActivity(
+            ctx, 2,
+            Intent(ctx, MainActivity::class.java)
+                .setAction(MainActivity.ACTION_SHOW_GATE)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
     fun automation(ctx: Context, text: String) {
         if (!Prefs.notifyGate(ctx)) return
         ensureChannels(ctx)
@@ -58,6 +68,8 @@ object Notifications {
             .setContentTitle("Call Assist")
             .setContentText(text)
             .setStyle(Notification.BigTextStyle().bigText(text))
+            .setContentIntent(gateTabPending(ctx))
+            .setAutoCancel(true)
             .build()
         notifySafe(ctx, ID_AUTOMATION, n)
     }

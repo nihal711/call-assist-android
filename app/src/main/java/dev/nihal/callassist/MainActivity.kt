@@ -27,6 +27,7 @@ import android.text.style.StyleSpan
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
+import android.view.MotionEvent
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
@@ -51,6 +52,12 @@ import java.util.Locale
 import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
+
+    companion object {
+        /** Sent by the gate notification: open straight to the Gate tab's log. */
+        const val ACTION_SHOW_GATE = "dev.nihal.callassist.SHOW_GATE"
+        private const val TAB_GATE = 3
+    }
 
     private val bg = Executors.newSingleThreadExecutor()
 
@@ -142,12 +149,24 @@ class MainActivity : AppCompatActivity() {
 
         // First run: take the user to setup until the app is the default dialer.
         val rm = getSystemService(RoleManager::class.java)
-        navBar.select(if (rm.isRoleHeld(RoleManager.ROLE_DIALER)) 0 else 3)
-        handleDialIntent(intent)
+        navBar.select(if (rm.isRoleHeld(RoleManager.ROLE_DIALER)) 0 else TAB_GATE)
+        handleIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
+        // singleTask: the launch intent sticks around for later getIntent() calls,
+        // so replace it with the one that actually brought us to the front.
+        intent?.let { setIntent(it) }
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        if (intent?.action == ACTION_SHOW_GATE) {
+            navBar.select(TAB_GATE)
+            // The log itself is rebuilt in onResume's refreshGate().
+            return
+        }
         handleDialIntent(intent)
     }
 
@@ -556,10 +575,29 @@ class MainActivity : AppCompatActivity() {
         findViewById<RecyclerView>(R.id.logList).apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = logAdapter
-            // The card lives in a ScrollView; let the list consume its own drags
-            // so the page doesn't steal them mid-scroll.
-            setOnTouchListener { v, _ ->
-                v.parent.requestDisallowInterceptTouchEvent(true)
+            // The card lives in a ScrollView. Nested scrolling is off in the
+            // layout so the list never hands leftover scroll up to the page —
+            // otherwise one swipe scrolls the log and then the whole Gate tab.
+            // Here we also stop the ScrollView from stealing the gesture, but
+            // only while the list can still move in the direction being dragged:
+            // once it's at the end (or too short to scroll) the page should get
+            // the swipe as usual.
+            var lastY = 0f
+            setOnTouchListener { v, e ->
+                when (e.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        lastY = e.y
+                        v.parent.requestDisallowInterceptTouchEvent(canScrollVertically(1) || canScrollVertically(-1))
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        // Dragging up (finger toward the top) scrolls content down.
+                        val dir = if (e.y < lastY) 1 else -1
+                        lastY = e.y
+                        v.parent.requestDisallowInterceptTouchEvent(canScrollVertically(dir))
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                        v.parent.requestDisallowInterceptTouchEvent(false)
+                }
                 false
             }
         }
