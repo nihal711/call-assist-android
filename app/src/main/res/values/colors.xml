@@ -20,4 +20,6 @@
     <color name="green">#26B858</color>
     <color name="red">#F4523B</color>
     <color name="amber">#FFC107</color>
+    <!-- Ripple/pressed fill for the tappable status issue rows -->
+    <color name="rowPressed">#E0E0E8</color>
 </resources>

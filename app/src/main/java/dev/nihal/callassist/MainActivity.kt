@@ -20,7 +20,6 @@ import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import android.telephony.PhoneNumberUtils
 import android.text.SpannableString
-import android.text.SpannableStringBuilder
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
@@ -33,6 +32,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.GridLayout
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Switch
 import android.widget.TextView
@@ -79,7 +79,6 @@ class MainActivity : AppCompatActivity() {
     private var callLog: List<ContactsRepo.CallEntry> = emptyList()
 
     // Gate
-    private lateinit var statusText: TextView
     private lateinit var logAdapter: GateLogAdapter
     private lateinit var logEmpty: TextView
 
@@ -569,7 +568,6 @@ class MainActivity : AppCompatActivity() {
     // ---------------- Gate / settings ----------------
 
     private fun setupGate() {
-        statusText = findViewById(R.id.statusText)
         logEmpty = findViewById(R.id.logEmpty)
         logAdapter = GateLogAdapter()
         findViewById<RecyclerView>(R.id.logList).apply {
@@ -626,35 +624,6 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Saved", Toast.LENGTH_SHORT).show()
             refreshGate()
         }
-        findViewById<Button>(R.id.btnRole).setOnClickListener {
-            val rm = getSystemService(RoleManager::class.java)
-            if (rm.isRoleAvailable(RoleManager.ROLE_DIALER) && !rm.isRoleHeld(RoleManager.ROLE_DIALER)) {
-                roleLauncher.launch(rm.createRequestRoleIntent(RoleManager.ROLE_DIALER))
-            } else {
-                Toast.makeText(this, "Already the default phone app", Toast.LENGTH_SHORT).show()
-            }
-        }
-        findViewById<Button>(R.id.btnPerms).setOnClickListener {
-            val perms = mutableListOf(
-                Manifest.permission.READ_CONTACTS,
-                Manifest.permission.READ_CALL_LOG,
-                Manifest.permission.READ_PHONE_STATE,
-                Manifest.permission.CALL_PHONE
-            )
-            if (Build.VERSION.SDK_INT >= 33) perms.add(Manifest.permission.POST_NOTIFICATIONS)
-            permLauncher.launch(perms.toTypedArray())
-        }
-        // btnFsi opens the Android 14+ full-screen-intent permission page
-        findViewById<Button>(R.id.btnFsi).setOnClickListener {
-            try {
-                startActivity(
-                    Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
-                        .setData(Uri.parse("package:$packageName"))
-                )
-            } catch (_: Exception) {
-                Toast.makeText(this, "Open Settings → Apps → Call Assist → Notifications", Toast.LENGTH_LONG).show()
-            }
-        }
         findViewById<Button>(R.id.btnRefreshLog).setOnClickListener { refreshGate() }
         findViewById<Button>(R.id.btnClearLog).setOnClickListener {
             Prefs.clearLog(this)
@@ -662,50 +631,165 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun refreshGate() {
-        val rm = getSystemService(RoleManager::class.java)
-        val isDialer = rm.isRoleHeld(RoleManager.ROLE_DIALER)
-        val contacts = has(Manifest.permission.READ_CONTACTS)
-        val callLogPerm = has(Manifest.permission.READ_CALL_LOG)
-        val notif = Build.VERSION.SDK_INT < 33 || has(Manifest.permission.POST_NOTIFICATIONS)
+    /**
+     * One thing that has to be true for the gate to open. [blocking] separates
+     * "automation cannot run" from "it runs, but something is degraded" — the
+     * headline reports the worst of the two, and only the failures get a row.
+     */
+    private data class Check(
+        val title: String,
+        val detail: String,
+        val ok: Boolean,
+        val blocking: Boolean,
+        val fix: (() -> Unit)?
+    )
 
-        val sb = SpannableStringBuilder()
-        fun line(ok: Boolean, text: String) {
-            val start = sb.length
-            sb.append("●  ")
-            sb.setSpan(
-                ForegroundColorSpan(if (ok) 0xFF26B858.toInt() else 0xFFF4523B.toInt()),
-                start, start + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
-            sb.append(text).append('\n')
-        }
-        line(isDialer, if (isDialer) "Default phone app" else "Not the default phone app — automation off")
-        line(contacts, if (contacts) "Contacts permission" else "Contacts permission missing")
-        line(callLogPerm, if (callLogPerm) "Call log permission" else "Call log permission missing (Recents)")
-        line(notif, if (notif) "Notifications" else "Notification permission missing")
+    private fun gateChecks(): List<Check> {
+        val rm = getSystemService(RoleManager::class.java)
         val fsi = Build.VERSION.SDK_INT < 34 ||
             getSystemService(NotificationManager::class.java).canUseFullScreenIntent()
-        line(
-            fsi,
-            if (fsi) "Full-screen call alerts"
-            else "Full-screen call alerts blocked — calls show as a banner only"
+        val missingPerms = mutableListOf<String>().apply {
+            if (!has(Manifest.permission.READ_CONTACTS)) add("Contacts")
+            if (!has(Manifest.permission.READ_CALL_LOG)) add("Call log")
+            if (Build.VERSION.SDK_INT >= 33 && !has(Manifest.permission.POST_NOTIFICATIONS)) add("Notifications")
+        }
+        return listOf(
+            Check(
+                "Set as default phone app",
+                "Required — the gate can't be answered without it",
+                rm.isRoleHeld(RoleManager.ROLE_DIALER),
+                blocking = true,
+                fix = {
+                    if (rm.isRoleAvailable(RoleManager.ROLE_DIALER) && !rm.isRoleHeld(RoleManager.ROLE_DIALER)) {
+                        roleLauncher.launch(rm.createRequestRoleIntent(RoleManager.ROLE_DIALER))
+                    }
+                }
+            ),
+            Check(
+                "Grant permissions",
+                if (missingPerms.isEmpty()) "" else "${missingPerms.joinToString(", ")} — tap to allow",
+                missingPerms.isEmpty(),
+                blocking = true,
+                fix = { requestGatePerms() }
+            ),
+            Check(
+                "Turn on automation",
+                "Auto-answer is switched off below",
+                Prefs.enabled(this),
+                blocking = true,
+                fix = null
+            ),
+            Check(
+                "Allow full-screen call alerts",
+                "Calls show as a banner only",
+                fsi,
+                blocking = false,
+                fix = { openFsiSettings() }
+            ),
+            Check(
+                "Exempt from battery optimization",
+                "Android may delay or kill the app",
+                getSystemService(android.os.PowerManager::class.java)
+                    .isIgnoringBatteryOptimizations(packageName),
+                blocking = false,
+                fix = { openBatterySettings() }
+            )
         )
-        val battery = getSystemService(android.os.PowerManager::class.java)
-            .isIgnoringBatteryOptimizations(packageName)
-        line(
-            battery,
-            if (battery) "Battery optimization exempt"
-            else "Battery optimization active — exempt it in Settings → System"
+    }
+
+    private fun requestGatePerms() {
+        val perms = mutableListOf(
+            Manifest.permission.READ_CONTACTS,
+            Manifest.permission.READ_CALL_LOG,
+            Manifest.permission.READ_PHONE_STATE,
+            Manifest.permission.CALL_PHONE
         )
-        findViewById<Button>(R.id.btnFsi).visibility = if (fsi) View.GONE else View.VISIBLE
-        val on = Prefs.enabled(this)
-        line(
-            on,
-            if (on) "Automation on for \"${Prefs.contactName(this)}\" → ${Prefs.gateCode(this)}"
-            else "Automation is switched off"
-        )
-        if (sb.isNotEmpty()) sb.delete(sb.length - 1, sb.length)
-        statusText.text = sb
+        if (Build.VERSION.SDK_INT >= 33) perms.add(Manifest.permission.POST_NOTIFICATIONS)
+        permLauncher.launch(perms.toTypedArray())
+    }
+
+    /** Android 14+ full-screen-intent permission page. */
+    private fun openFsiSettings() {
+        try {
+            startActivity(
+                Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
+                    .setData(Uri.parse("package:$packageName"))
+            )
+        } catch (_: Exception) {
+            Toast.makeText(this, "Open Settings → Apps → Call Assist → Notifications", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun openBatterySettings() {
+        // The direct request dialog needs REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+        // which Play flags; the settings list gets there without it.
+        try {
+            startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+        } catch (_: Exception) {
+            Toast.makeText(this, "Open Settings → Apps → Call Assist → Battery", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun refreshGate() {
+        val checks = gateChecks()
+        val issues = checks.filter { !it.ok }
+        val blockers = issues.count { it.blocking }
+
+        val badge = findViewById<ImageView>(R.id.statusBadge)
+        val headline = findViewById<TextView>(R.id.statusHeadline)
+        val sub = findViewById<TextView>(R.id.statusSub)
+        val tint = when {
+            blockers > 0 -> getColor(R.color.red)
+            issues.isNotEmpty() -> getColor(R.color.amber)
+            else -> getColor(R.color.green)
+        }
+        // mutate() so tinting this pill doesn't recolour every other view
+        // sharing bg_status_pill from the resource cache — the issue dots below
+        // use the same drawable.
+        badge.background.mutate().setTint(tint)
+        badge.setImageResource(if (issues.isEmpty()) R.drawable.ic_check_small else R.drawable.ic_gate_warn)
+        // Both glyphs sit on the coloured pill, so force white over whatever
+        // tint they carry (ic_gate_warn defaults to a grey control colour).
+        badge.imageTintList = android.content.res.ColorStateList.valueOf(0xFFFFFFFF.toInt())
+        headline.text = when {
+            blockers > 0 -> "Automation is off"
+            issues.isNotEmpty() -> "Ready, with warnings"
+            else -> "Ready"
+        }
+        headline.setTextColor(if (blockers > 0) tint else getColor(R.color.textPrimary))
+        sub.text = when {
+            blockers > 0 -> issues.first { it.blocking }.detail
+            else -> "${Prefs.contactName(this)}  →  ${Prefs.gateCode(this)}"
+        }
+
+        // Only the unmet checks get a row, so a healthy setup is a single line
+        // instead of seven ticks and two buttons that do nothing.
+        val box = findViewById<LinearLayout>(R.id.statusIssues)
+        box.removeAllViews()
+        for (c in issues) {
+            val row = layoutInflater.inflate(R.layout.item_status_issue, box, false)
+            row.findViewById<TextView>(R.id.issueTitle).text = c.title
+            row.findViewById<View>(R.id.issueDot).background.mutate().setTint(
+                if (c.blocking) getColor(R.color.red) else getColor(R.color.amber)
+            )
+            val detail = row.findViewById<TextView>(R.id.issueDetail)
+            detail.text = c.detail
+            detail.visibility = if (c.detail.isEmpty()) View.GONE else View.VISIBLE
+            val chevron = row.findViewById<View>(R.id.issueChevron)
+            if (c.fix != null) {
+                row.setOnClickListener { c.fix.invoke() }
+            } else {
+                // Nothing to launch (the automation switch is right below).
+                row.isClickable = false
+                chevron.visibility = View.INVISIBLE
+            }
+            if (box.childCount > 0) {
+                (row.layoutParams as LinearLayout.LayoutParams).topMargin =
+                    resources.getDimensionPixelSize(R.dimen.status_row_gap)
+            }
+            box.addView(row)
+        }
+        box.visibility = if (issues.isEmpty()) View.GONE else View.VISIBLE
 
         val sessions = GateLog.sessions(Prefs.readLogEntries(this))
         logAdapter.items = GateLog.buildItems(sessions)

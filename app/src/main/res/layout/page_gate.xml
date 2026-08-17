@@ -54,33 +54,56 @@
                 android:layout_height="wrap_content"
                 android:text="STATUS" />
 
-            <TextView
-                android:id="@+id/statusText"
+            <!--
+              Headline: one line that answers "is the gate going to work?".
+              When everything checks out this is the whole card — the seven
+              individual green ticks said nothing the summary doesn't.
+            -->
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:lineSpacingExtra="8dp"
-                android:textSize="14sp" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <Button
-                android:id="@+id/btnRole"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="Set as default phone app" />
+                <ImageView
+                    android:id="@+id/statusBadge"
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:background="@drawable/bg_status_pill"
+                    android:contentDescription="Status"
+                    android:padding="4dp"
+                    android:src="@drawable/ic_check_small" />
 
-            <Button
-                android:id="@+id/btnPerms"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Grant permissions" />
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
 
-            <Button
-                android:id="@+id/btnFsi"
+                    <TextView
+                        android:id="@+id/statusHeadline"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="16sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/statusSub"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/textSecondary"
+                        android:textSize="13sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- One tappable row per problem; empty (and gone) when all is well. -->
+            <LinearLayout
+                android:id="@+id/statusIssues"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:backgroundTint="@color/red"
-                android:text="Allow full-screen call alerts"
-                android:textColor="#FFFFFF"
+                android:layout_marginTop="14dp"
+                android:orientation="vertical"
                 android:visibility="gone" />
         </LinearLayout>
 
