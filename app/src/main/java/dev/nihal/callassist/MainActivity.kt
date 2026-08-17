@@ -577,24 +577,19 @@ class MainActivity : AppCompatActivity() {
             adapter = logAdapter
             // The card lives in a ScrollView. Nested scrolling is off in the
             // layout so the list never hands leftover scroll up to the page —
-            // otherwise one swipe scrolls the log and then the whole Gate tab.
-            // Here we also stop the ScrollView from stealing the gesture, but
-            // only while the list can still move in the direction being dragged:
-            // once it's at the end (or too short to scroll) the page should get
-            // the swipe as usual.
-            var lastY = 0f
+            // that chaining is what made one swipe scroll the log and then the
+            // whole Gate tab.
+            //
+            // A touch that lands on the log belongs to the log for the whole
+            // gesture, so we claim it on DOWN and release on UP. Don't try to
+            // re-decide per MOVE based on which way the finger is going: the
+            // first MOVE arrives with a near-zero delta, so the direction is a
+            // coin flip, and guessing wrong hands the drag to the ScrollView
+            // mid-scroll — which reads as the list ignoring your finger.
             setOnTouchListener { v, e ->
                 when (e.actionMasked) {
-                    MotionEvent.ACTION_DOWN -> {
-                        lastY = e.y
-                        v.parent.requestDisallowInterceptTouchEvent(canScrollVertically(1) || canScrollVertically(-1))
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        // Dragging up (finger toward the top) scrolls content down.
-                        val dir = if (e.y < lastY) 1 else -1
-                        lastY = e.y
-                        v.parent.requestDisallowInterceptTouchEvent(canScrollVertically(dir))
-                    }
+                    MotionEvent.ACTION_DOWN ->
+                        v.parent.requestDisallowInterceptTouchEvent(true)
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
                         v.parent.requestDisallowInterceptTouchEvent(false)
                 }
