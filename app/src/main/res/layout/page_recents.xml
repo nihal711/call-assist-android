@@ -49,6 +49,6 @@
         android:clipToPadding="false"
         android:paddingStart="16dp"
         android:paddingEnd="16dp"
-        android:paddingBottom="102dp"
+        android:paddingBottom="93dp"
         android:scrollbars="none" />
 </LinearLayout>
