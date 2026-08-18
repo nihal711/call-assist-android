@@ -37,6 +37,39 @@ class SettingsActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btnReplies).setOnClickListener { showReplies() }
 
+        val btnRetryWait = findViewById<Button>(R.id.btnRetryWait)
+        btnRetryWait.text = "Wait for gate: ${Prefs.retryWaitSeconds(this)}s"
+        btnRetryWait.setOnClickListener {
+            pick(
+                title = "Wait for gate",
+                choices = Prefs.RETRY_WAIT_CHOICES,
+                labels = Prefs.RETRY_WAIT_CHOICES.map { s ->
+                    if (s == Prefs.DEFAULT_RETRY_WAIT_S) "${s}s (default)" else "${s}s"
+                },
+                current = Prefs.retryWaitSeconds(this)
+            ) { chosen ->
+                Prefs.setRetryWaitSeconds(this, chosen)
+                btnRetryWait.text = "Wait for gate: ${chosen}s"
+            }
+        }
+
+        val btnMaxAttempts = findViewById<Button>(R.id.btnMaxAttempts)
+        btnMaxAttempts.text = "Code attempts: ${Prefs.maxAttempts(this)}"
+        btnMaxAttempts.setOnClickListener {
+            pick(
+                title = "Code attempts",
+                choices = Prefs.MAX_ATTEMPT_CHOICES,
+                labels = Prefs.MAX_ATTEMPT_CHOICES.map { n ->
+                    val base = if (n == 1) "1 (no retry)" else "$n"
+                    if (n == Prefs.DEFAULT_MAX_ATTEMPTS) "$base — default" else base
+                },
+                current = Prefs.maxAttempts(this)
+            ) { chosen ->
+                Prefs.setMaxAttempts(this, chosen)
+                btnMaxAttempts.text = "Code attempts: $chosen"
+            }
+        }
+
         val switchTones = findViewById<Switch>(R.id.switchTones)
         switchTones.isChecked = Prefs.keyTones(this)
         switchTones.setOnCheckedChangeListener { _, checked -> Prefs.setKeyTones(this, checked) }
@@ -76,6 +109,24 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.batteryHint).text =
             if (ignoring) "✓ Already exempt — Samsung's battery manager won't interfere."
             else "Keeps Samsung's battery manager from ever interfering with gate automation."
+    }
+
+    /** Single-choice dialog over a fixed set of numbers. */
+    private fun pick(
+        title: String,
+        choices: IntArray,
+        labels: List<String>,
+        current: Int,
+        onPick: (Int) -> Unit
+    ) {
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setSingleChoiceItems(labels.toTypedArray(), choices.indexOf(current)) { d, which ->
+                onPick(choices[which])
+                d.dismiss()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun themeLabel(): String = when (Prefs.themeMode(this)) {

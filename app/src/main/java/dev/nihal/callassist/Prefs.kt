@@ -14,6 +14,15 @@ object Prefs {
     const val DEFAULT_CONTACT = "Intercom"
     const val DEFAULT_CODE = "6#"
 
+    // How long to give the gate before assuming the code didn't land. Intercoms
+    // vary a lot — some drop the call in 2s, some take 8-10s — so this is tunable
+    // from Settings. Too short and we re-send tones into a gate that is already
+    // acting on the first code.
+    const val DEFAULT_RETRY_WAIT_S = 7
+    const val DEFAULT_MAX_ATTEMPTS = 3
+    val RETRY_WAIT_CHOICES = intArrayOf(3, 5, 7, 10, 15)
+    val MAX_ATTEMPT_CHOICES = intArrayOf(1, 2, 3, 4, 5)
+
     private fun sp(ctx: Context): SharedPreferences =
         ctx.getSharedPreferences("callassist", Context.MODE_PRIVATE)
 
@@ -25,6 +34,20 @@ object Prefs {
 
     fun gateCode(ctx: Context): String = sp(ctx).getString("code", DEFAULT_CODE)!!
     fun setGateCode(ctx: Context, v: String) = sp(ctx).edit().putString("code", v).apply()
+
+    /** Seconds to wait after a code before deciding the gate didn't take it. */
+    fun retryWaitSeconds(ctx: Context): Int =
+        sp(ctx).getInt("retryWaitS", DEFAULT_RETRY_WAIT_S).coerceIn(1, 30)
+
+    fun setRetryWaitSeconds(ctx: Context, v: Int) =
+        sp(ctx).edit().putInt("retryWaitS", v.coerceIn(1, 30)).apply()
+
+    /** Total times the code is sent, including the first. */
+    fun maxAttempts(ctx: Context): Int =
+        sp(ctx).getInt("maxAttempts", DEFAULT_MAX_ATTEMPTS).coerceIn(1, 5)
+
+    fun setMaxAttempts(ctx: Context, v: Int) =
+        sp(ctx).edit().putInt("maxAttempts", v.coerceIn(1, 5)).apply()
 
     fun notifyGate(ctx: Context): Boolean = sp(ctx).getBoolean("notifyGate", true)
     fun setNotifyGate(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("notifyGate", v).apply()

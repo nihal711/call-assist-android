@@ -10,9 +10,9 @@ import android.telephony.PhoneNumberUtils
 /**
  * Automation for the intercom contact:
  *   answer -> save mute state, mute mic -> ~1.2s settle ->
- *   send gate code, digits 1s apart -> wait 5s ->
- *   retry up to 3 attempts total -> hang up ~3.5s after the last wait ->
- *   40s failsafe hangup no matter what.
+ *   send gate code, digits 1s apart -> wait (Settings, default 7s) ->
+ *   retry up to N attempts total (Settings, default 3) ->
+ *   hang up ~3.5s after the last wait -> failsafe hangup sized to those settings.
  * On disconnect: restore the previous mute state and resume any call that was
  * put on hold when the intercom barged in. If WE had to hang up (intercom never
  * disconnected), warn that the gate may not have opened — when the code works,
@@ -25,10 +25,18 @@ object AutomationEngine {
     private const val FIRST_TONE_DELAY_MS = 1200L   // let the audio path settle after answering
     private const val DIGIT_GAP_MS = 1000L          // digit starts 1s apart (~750ms silence between tones)
     private const val TONE_MS = 250L                // how long each DTMF tone is held
-    private const val RETRY_WAIT_MS = 5000L         // wait after each attempt before checking
-    private const val MAX_ATTEMPTS = 3
     private const val HANGUP_AFTER_LAST_MS = 3500L
-    private const val FAILSAFE_HANGUP_MS = 40000L
+
+    /**
+     * Last-resort hangup. Sized from the current settings plus headroom, so a
+     * long wait × many attempts can't be guillotined mid-sequence — the old
+     * fixed 40s would have cut off e.g. 15s × 5.
+     */
+    private fun failsafeMs(ctx: Context, code: String): Long {
+        val attempts = Prefs.maxAttempts(ctx)
+        val perAttempt = code.length * DIGIT_GAP_MS + Prefs.retryWaitSeconds(ctx) * 1000L
+        return FIRST_TONE_DELAY_MS + attempts * perAttempt + HANGUP_AFTER_LAST_MS + 10000L
+    }
 
     /** Cheap check usable on the main thread — no contacts query. */
     fun numberMatches(ctx: Context, number: String?): Boolean {
@@ -100,7 +108,7 @@ object AutomationEngine {
                             Prefs.log(appCtx, "We hung up after ${secs}s — gate may NOT have opened")
                             Notifications.automation(
                                 appCtx,
-                                "Attempted — code entered ${MAX_ATTEMPTS}× but $label did not hang up, gate may not have opened."
+                                "Attempted — code entered ${Prefs.maxAttempts(appCtx)}× but $label did not hang up, gate may not have opened."
                             )
                         } else {
                             Prefs.log(appCtx, "\"$label\" hung up after ${secs}s — done")
@@ -118,18 +126,21 @@ object AutomationEngine {
             call.answer(VideoProfile.STATE_AUDIO_ONLY)
         }
 
+        val failsafe = failsafeMs(appCtx, Prefs.gateCode(appCtx).trim().ifEmpty { Prefs.DEFAULT_CODE })
         handler.postDelayed({
             if (call.stateCompat() != Call.STATE_DISCONNECTED) {
                 weHungUp = true
-                Prefs.log(appCtx, "Failsafe: hanging up after ${FAILSAFE_HANGUP_MS / 1000}s")
+                Prefs.log(appCtx, "Failsafe: hanging up after ${failsafe / 1000}s")
                 call.disconnect()
             }
-        }, token, FAILSAFE_HANGUP_MS)
+        }, token, failsafe)
     }
 
     private fun attempt(ctx: Context, call: Call, token: Any, n: Int, markWeHungUp: () -> Unit) {
         val code = Prefs.gateCode(ctx).trim().ifEmpty { Prefs.DEFAULT_CODE }
-        Prefs.log(ctx, "Attempt $n/$MAX_ATTEMPTS — sending \"$code\"")
+        val maxAttempts = Prefs.maxAttempts(ctx)
+        val retryWaitMs = Prefs.retryWaitSeconds(ctx) * 1000L
+        Prefs.log(ctx, "Attempt $n/$maxAttempts — sending \"$code\"")
         var t = 0L
         for (ch in code) {
             scheduleTone(call, token, ch, t)
@@ -139,22 +150,30 @@ object AutomationEngine {
         // Log once the last tone has actually been played, then again when the
         // listen-for-hangup window is up — so the log shows the waiting, not
         // just the sending.
+        var sentAt = 0L
         handler.postDelayed({
             if (call.stateCompat() == Call.STATE_DISCONNECTED) return@postDelayed
+            sentAt = android.os.SystemClock.elapsedRealtime()
             Prefs.log(
                 ctx,
-                "Code sent (${code.length} tones) — waiting ${RETRY_WAIT_MS / 1000}s for the gate"
+                "Code sent (${code.length} tones) — waiting ${retryWaitMs / 1000}s for the gate"
             )
         }, token, seqEnd)
         handler.postDelayed({
             if (call.stateCompat() == Call.STATE_DISCONNECTED) return@postDelayed
-            if (n < MAX_ATTEMPTS) {
-                Prefs.log(ctx, "Still connected ${RETRY_WAIT_MS / 1000}s after attempt $n — retrying")
+            // Report what actually elapsed, not the configured wait — a doze or a
+            // stalled main thread can turn a 7s window into 17s, and the log
+            // claiming "7s" hid exactly that.
+            val waited =
+                if (sentAt == 0L) retryWaitMs / 1000
+                else (android.os.SystemClock.elapsedRealtime() - sentAt + 500) / 1000
+            if (n < maxAttempts) {
+                Prefs.log(ctx, "Still connected ${waited}s after attempt $n — retrying")
                 attempt(ctx, call, token, n + 1, markWeHungUp)
             } else {
                 Prefs.log(
                     ctx,
-                    "No response after $MAX_ATTEMPTS attempts — hanging up in ${HANGUP_AFTER_LAST_MS / 1000}s"
+                    "No response after $maxAttempts attempts — hanging up in ${HANGUP_AFTER_LAST_MS / 1000}s"
                 )
                 handler.postDelayed({
                     if (call.stateCompat() != Call.STATE_DISCONNECTED) {
@@ -163,7 +182,7 @@ object AutomationEngine {
                     }
                 }, token, HANGUP_AFTER_LAST_MS)
             }
-        }, token, seqEnd + RETRY_WAIT_MS)
+        }, token, seqEnd + retryWaitMs)
     }
 
     private fun scheduleTone(call: Call, token: Any, ch: Char, at: Long) {
