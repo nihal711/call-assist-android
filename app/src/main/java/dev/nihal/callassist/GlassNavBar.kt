@@ -81,10 +81,10 @@ class GlassNavBar @JvmOverloads constructor(
             }
             val icon = ImageView(context).apply { setImageResource(t.iconRes) }
             shownIcons.add(t.iconRes)
-            item.addView(icon, LinearLayout.LayoutParams(dp(22), dp(22)))
+            item.addView(icon, LinearLayout.LayoutParams(dp(23), dp(23)))
             val label = TextView(context).apply label@{
                 text = t.label
-                textSize = 11f
+                textSize = 11.5f
                 gravity = Gravity.CENTER
                 includeFontPadding = false   // trims the ascent/descent slack above the text
                 // Reserve the bold width up front so selecting a tab only
