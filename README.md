@@ -7,7 +7,7 @@ runs as the default phone app.
 When a call arrives from the configured contact, the app:
 
 1. Auto-answers the call and mutes the mic (v1.3).
-2. ~1.2 s after connect, sends DTMF `6` then `#`, 1 s apart (DTMF is
+2. ~1.2 s after connect, sends DTMF `6` then `#`, 0.7 s apart (DTMF is
    modem-injected, so muting doesn't affect it).
 3. Waits 5 s. If the intercom already hung up (gate opened), it's done.
 4. Otherwise re-sends `6` `#` one second apart, then hangs up ~3.5 s later.
