@@ -13,7 +13,7 @@ import android.telephony.PhoneNumberUtils
 /**
  * Automation for the intercom contact:
  *   answer -> save mute state, mute mic, earpiece + call volume to minimum -> ~1.2s settle ->
- *   send gate code, digits 1s apart -> wait (Settings, default 5s) ->
+ *   send gate code, digits 0.7s apart -> wait (Settings, default 5s) ->
  *   retry up to N attempts total (Settings, default 3) ->
  *   after the last attempt, wait an extra 5s buffer on top of the normal wait
  *   (so 5s wait -> the final attempt gets 10s), then hang up ->
@@ -36,7 +36,7 @@ object AutomationEngine {
     }
 
     private const val FIRST_TONE_DELAY_MS = 1200L   // let the audio path settle after answering
-    private const val DIGIT_GAP_MS = 1000L          // digit starts 1s apart (~750ms silence between tones)
+    private const val DIGIT_GAP_MS = 700L           // digits start 0.7s apart (~450ms silence between tones)
     private const val TONE_MS = 250L                // how long each DTMF tone is held
     // Extra listening time after the final attempt's normal wait — some gates
     // act on the code slowly, so the last try gets wait + this before we give up.
