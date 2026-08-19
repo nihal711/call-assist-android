@@ -98,6 +98,7 @@ object GateLog {
      */
     private fun stepText(msg: String): String = when {
         msg.startsWith(START_MARKER) -> "Answered automatically"
+        msg.startsWith("Call active — mic muted, speaker silenced") -> "Mic muted, speaker silenced"
         msg.startsWith("Call active — mic muted") -> "Mic muted"
         msg.startsWith("Call active — could not mute") ->
             "Could not mute mic" + (afterParen(msg)?.let { " ($it)" } ?: "")
@@ -115,6 +116,8 @@ object GateLog {
                 append("Code sent")
                 if (tones != null) append(" ($tones tones)")
                 if (wait != null) append(" — waiting ${wait}s for the gate")
+                Regex("digits took (\\d+)s").find(msg)?.groupValues?.get(1)
+                    ?.let { append(" (digits took ${it}s — phone was slow)") }
             }
         }
         msg.startsWith("Still connected") -> {

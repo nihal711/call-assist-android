@@ -1,15 +1,18 @@
 package dev.nihal.callassist
 
 import android.content.Context
+import android.media.AudioManager
 import android.os.Handler
-import android.os.Looper
+import android.os.HandlerThread
+import android.os.PowerManager
 import android.telecom.Call
+import android.telecom.CallAudioState
 import android.telecom.VideoProfile
 import android.telephony.PhoneNumberUtils
 
 /**
  * Automation for the intercom contact:
- *   answer -> save mute state, mute mic -> ~1.2s settle ->
+ *   answer -> save mute state, mute mic, earpiece + call volume to minimum -> ~1.2s settle ->
  *   send gate code, digits 1s apart -> wait (Settings, default 5s) ->
  *   retry up to N attempts total (Settings, default 3) ->
  *   after the last attempt, wait an extra 5s buffer on top of the normal wait
@@ -20,9 +23,17 @@ import android.telephony.PhoneNumberUtils
  * disconnected), warn that the gate may not have opened — when the code works,
  * the intercom normally ends the call itself.
  * Muting doesn't affect DTMF — tones are injected by the modem, not the mic.
+ *
+ * Timing runs on its own thread under a partial wake lock. Nothing shows on
+ * screen for an auto-answered call, so without the lock the phone is free to
+ * doze a few seconds in — Handler delays only count awake time, which is how a
+ * 5s wait was seen taking 18-21s and why the digits of one code could drift
+ * seconds apart (the gate times out between them and the try is wasted).
  */
 object AutomationEngine {
-    private val handler = Handler(Looper.getMainLooper())
+    private val handler: Handler by lazy {
+        Handler(HandlerThread("gate-automation").apply { start() }.looper)
+    }
 
     private const val FIRST_TONE_DELAY_MS = 1200L   // let the audio path settle after answering
     private const val DIGIT_GAP_MS = 1000L          // digit starts 1s apart (~750ms silence between tones)
@@ -67,7 +78,21 @@ object AutomationEngine {
         var sequenceStarted = false
         var wasMuted = false
         var weHungUp = false
+        var savedVolume = -1
         val startedAt = android.os.SystemClock.elapsedRealtime()
+        val failsafe = failsafeMs(appCtx, Prefs.gateCode(appCtx).trim().ifEmpty { Prefs.DEFAULT_CODE })
+        val audio = appCtx.getSystemService(AudioManager::class.java)
+
+        // Keep the CPU up for the whole sequence so the tone/wait timers run on
+        // wall-clock time. Timed so a missed release can't pin the CPU for long.
+        val wakeLock = try {
+            appCtx.getSystemService(PowerManager::class.java)
+                .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "callassist:gate")
+                .also { it.setReferenceCounted(false); it.acquire(failsafe + 10000L) }
+        } catch (e: Exception) {
+            Prefs.log(appCtx, "Could not hold the CPU awake (${e.message}) — timing may drift")
+            null
+        }
 
         // A call that was active (or already held) before the intercom barged in.
         // Telecom holds it when we answer; we resume it when the intercom is done.
@@ -84,7 +109,11 @@ object AutomationEngine {
                         wasMuted = CallService.instance?.callAudioState?.isMuted ?: false
                         try {
                             CallService.instance?.setMuted(true)
-                            Prefs.log(appCtx, "Call active — mic muted, sending code shortly")
+                            // The intercom's audio is of no use to anyone — keep it
+                            // off the loudspeaker and turn the call volume all the
+                            // way down (restored when the call ends).
+                            silenceCallAudio(appCtx, audio)?.let { savedVolume = it }
+                            Prefs.log(appCtx, "Call active — mic muted, speaker silenced, sending code shortly")
                         } catch (e: Exception) {
                             Prefs.log(appCtx, "Call active — could not mute mic (${e.message})")
                         }
@@ -98,6 +127,16 @@ object AutomationEngine {
                         c.unregisterCallback(this)
                         try {
                             CallService.instance?.setMuted(wasMuted)
+                        } catch (_: Exception) {
+                        }
+                        if (savedVolume >= 0) {
+                            try {
+                                audio.setStreamVolume(AudioManager.STREAM_VOICE_CALL, savedVolume, 0)
+                            } catch (_: Exception) {
+                            }
+                        }
+                        try {
+                            wakeLock?.release()
                         } catch (_: Exception) {
                         }
                         if (heldCall != null && heldCall.stateCompat() == Call.STATE_HOLDING) {
@@ -130,7 +169,6 @@ object AutomationEngine {
             call.answer(VideoProfile.STATE_AUDIO_ONLY)
         }
 
-        val failsafe = failsafeMs(appCtx, Prefs.gateCode(appCtx).trim().ifEmpty { Prefs.DEFAULT_CODE })
         handler.postDelayed({
             if (call.stateCompat() != Call.STATE_DISCONNECTED) {
                 weHungUp = true
@@ -140,11 +178,37 @@ object AutomationEngine {
         }, token, failsafe)
     }
 
+    /**
+     * Route away from the loudspeaker and drop the in-call volume to its floor.
+     * Returns the volume to restore later, or null if nothing was changed.
+     */
+    private fun silenceCallAudio(ctx: Context, audio: AudioManager): Int? {
+        val svc = CallService.instance
+        try {
+            if (svc?.callAudioState?.route == CallAudioState.ROUTE_SPEAKER) {
+                svc.setAudioRoute(CallAudioState.ROUTE_WIRED_OR_EARPIECE)
+            }
+        } catch (_: Exception) {
+        }
+        return try {
+            val before = audio.getStreamVolume(AudioManager.STREAM_VOICE_CALL)
+            val floor = audio.getStreamMinVolume(AudioManager.STREAM_VOICE_CALL)
+            if (before > floor) {
+                audio.setStreamVolume(AudioManager.STREAM_VOICE_CALL, floor, 0)
+                before
+            } else null
+        } catch (e: Exception) {
+            Prefs.log(ctx, "Could not lower the call volume (${e.message})")
+            null
+        }
+    }
+
     private fun attempt(ctx: Context, call: Call, token: Any, n: Int, markWeHungUp: () -> Unit) {
         val code = Prefs.gateCode(ctx).trim().ifEmpty { Prefs.DEFAULT_CODE }
         val maxAttempts = Prefs.maxAttempts(ctx)
         val retryWaitMs = Prefs.retryWaitSeconds(ctx) * 1000L
         Prefs.log(ctx, "Attempt $n/$maxAttempts — sending \"$code\"")
+        val attemptStart = android.os.SystemClock.elapsedRealtime()
         var t = 0L
         for (ch in code) {
             scheduleTone(call, token, ch, t)
@@ -158,9 +222,13 @@ object AutomationEngine {
         handler.postDelayed({
             if (call.stateCompat() == Call.STATE_DISCONNECTED) return@postDelayed
             sentAt = android.os.SystemClock.elapsedRealtime()
+            // If the digits took far longer than scheduled the phone stalled us
+            // mid-code — say so, since that alone can make a try fail.
+            val took = sentAt - attemptStart
+            val slow = if (took > seqEnd + 1500) " (digits took ${(took + 500) / 1000}s — phone was slow)" else ""
             Prefs.log(
                 ctx,
-                "Code sent (${code.length} tones) — waiting ${retryWaitMs / 1000}s for the gate"
+                "Code sent (${code.length} tones) — waiting ${retryWaitMs / 1000}s for the gate$slow"
             )
         }, token, seqEnd)
         handler.postDelayed({
