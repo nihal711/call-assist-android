@@ -95,7 +95,7 @@
                 android:id="@+id/btnRetryWait"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Wait for gate: 7s" />
+                android:text="Wait for gate: 5s" />
 
             <TextView
                 android:layout_width="match_parent"
@@ -116,7 +116,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="Times the code is sent before hanging up, including the first."
+                android:text="Times the code is sent before hanging up, including the first. The last attempt listens an extra 5s before giving up."
                 android:textColor="@color/textSecondary"
                 android:textSize="12sp" />
         </LinearLayout>

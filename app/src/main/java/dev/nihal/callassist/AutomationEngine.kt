@@ -10,9 +10,11 @@ import android.telephony.PhoneNumberUtils
 /**
  * Automation for the intercom contact:
  *   answer -> save mute state, mute mic -> ~1.2s settle ->
- *   send gate code, digits 1s apart -> wait (Settings, default 7s) ->
+ *   send gate code, digits 1s apart -> wait (Settings, default 5s) ->
  *   retry up to N attempts total (Settings, default 3) ->
- *   hang up ~3.5s after the last wait -> failsafe hangup sized to those settings.
+ *   after the last attempt, wait an extra 5s buffer on top of the normal wait
+ *   (so 5s wait -> the final attempt gets 10s), then hang up ->
+ *   failsafe hangup sized to those settings.
  * On disconnect: restore the previous mute state and resume any call that was
  * put on hold when the intercom barged in. If WE had to hang up (intercom never
  * disconnected), warn that the gate may not have opened — when the code works,
@@ -25,12 +27,14 @@ object AutomationEngine {
     private const val FIRST_TONE_DELAY_MS = 1200L   // let the audio path settle after answering
     private const val DIGIT_GAP_MS = 1000L          // digit starts 1s apart (~750ms silence between tones)
     private const val TONE_MS = 250L                // how long each DTMF tone is held
-    private const val HANGUP_AFTER_LAST_MS = 3500L
+    // Extra listening time after the final attempt's normal wait — some gates
+    // act on the code slowly, so the last try gets wait + this before we give up.
+    private const val HANGUP_AFTER_LAST_MS = 5000L
 
     /**
      * Last-resort hangup. Sized from the current settings plus headroom, so a
-     * long wait × many attempts can't be guillotined mid-sequence — the old
-     * fixed 40s would have cut off e.g. 15s × 5.
+     * long wait × many attempts can't be guillotined mid-sequence — a fixed
+     * 40s would have cut off e.g. 15s × 5.
      */
     private fun failsafeMs(ctx: Context, code: String): Long {
         val attempts = Prefs.maxAttempts(ctx)

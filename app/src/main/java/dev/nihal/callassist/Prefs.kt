@@ -18,7 +18,7 @@ object Prefs {
     // vary a lot — some drop the call in 2s, some take 8-10s — so this is tunable
     // from Settings. Too short and we re-send tones into a gate that is already
     // acting on the first code.
-    const val DEFAULT_RETRY_WAIT_S = 7
+    const val DEFAULT_RETRY_WAIT_S = 5
     const val DEFAULT_MAX_ATTEMPTS = 3
     val RETRY_WAIT_CHOICES = intArrayOf(3, 5, 7, 10, 15)
     val MAX_ATTEMPT_CHOICES = intArrayOf(1, 2, 3, 4, 5)
