@@ -35,14 +35,14 @@
             android:id="@+id/issueTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="15sp" />
+            android:textSize="16sp" />
 
         <TextView
             android:id="@+id/issueDetail"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textColor="@color/textSecondary"
-            android:textSize="12sp"
+            android:textSize="13sp"
             android:visibility="gone" />
     </LinearLayout>
 

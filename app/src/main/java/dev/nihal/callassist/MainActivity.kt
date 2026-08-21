@@ -595,7 +595,7 @@ class MainActivity : AppCompatActivity() {
         } catch (_: Exception) {
             "Call Assist"
         }
-        findViewById<Button>(R.id.btnSave).setOnClickListener {
+        findViewById<View>(R.id.btnSave).setOnClickListener {
             Prefs.setContactName(this, editContact.text.toString().trim())
             val code = editCode.text.toString().trim().filter { it.isDigit() || it == '#' || it == '*' }
             Prefs.setGateCode(this, code.ifEmpty { Prefs.DEFAULT_CODE })
