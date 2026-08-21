@@ -28,6 +28,7 @@ import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.widget.Button
 import android.widget.EditText
 import android.widget.GridLayout
@@ -578,18 +579,38 @@ class MainActivity : AppCompatActivity() {
             // that chaining is what made one swipe scroll the log and then the
             // whole Gate tab.
             //
-            // A touch that lands on the log belongs to the log for the whole
-            // gesture, so we claim it on DOWN and release on UP. Don't try to
-            // re-decide per MOVE based on which way the finger is going: the
-            // first MOVE arrives with a near-zero delta, so the direction is a
-            // coin flip, and guessing wrong hands the drag to the ScrollView
-            // mid-scroll — which reads as the list ignoring your finger.
+            // Decide ownership once, after the finger has crossed touch slop.
+            // If the log can move in that direction it keeps the entire gesture;
+            // otherwise the page gets it. This avoids dead swipes at either end
+            // without letting one swipe move both independent scroll regions.
+            val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+            var downY = 0f
+            var logOwnsGesture: Boolean? = null
             setOnTouchListener { v, e ->
                 when (e.actionMasked) {
-                    MotionEvent.ACTION_DOWN ->
+                    MotionEvent.ACTION_DOWN -> {
+                        downY = e.y
+                        logOwnsGesture = null
+                        // Hold the gesture until its direction is intentional.
                         v.parent.requestDisallowInterceptTouchEvent(true)
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        if (logOwnsGesture == null) {
+                            val scrollDelta = downY - e.y
+                            if (kotlin.math.abs(scrollDelta) > touchSlop) {
+                                val direction = if (scrollDelta > 0) 1 else -1
+                                logOwnsGesture = canScrollVertically(direction)
+                                v.parent.requestDisallowInterceptTouchEvent(logOwnsGesture == true)
+                            }
+                        } else if (logOwnsGesture == true) {
+                            // Keep ownership even if this drag reaches an edge.
+                            v.parent.requestDisallowInterceptTouchEvent(true)
+                        }
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        logOwnsGesture = null
                         v.parent.requestDisallowInterceptTouchEvent(false)
+                    }
                 }
                 false
             }

@@ -206,8 +206,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="410dp"
                 android:clipToPadding="false"
+                android:fadeScrollbars="false"
                 android:nestedScrollingEnabled="false"
                 android:overScrollMode="ifContentScrolls"
+                android:scrollbarSize="4dp"
                 android:scrollbars="vertical" />
 
             <LinearLayout
