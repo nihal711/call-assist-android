@@ -135,72 +135,209 @@
             android:layout_marginBottom="2dp"
             android:background="@color/trackBg" />
 
-        <Switch
-            android:id="@+id/switchEnabled"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="38dp"
-            android:text="Auto-answer intercom and send code"
-            android:textSize="14sp" />
-
-        <Switch
-            android:id="@+id/switchNotify"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minHeight="38dp"
-            android:text="Notify when gate code runs"
-            android:textSize="14sp" />
-
-        <!-- Contact, code, and their action use one row instead of three. -->
+        <!-- Two equal-width toggle tiles keep both actions on one clear row. -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:gravity="bottom"
+            android:layout_height="64dp"
+            android:layout_marginTop="7dp"
             android:orientation="horizontal">
 
-            <com.google.android.material.textfield.TextInputLayout
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense"
+            <LinearLayout
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="7dp"
+                android:layout_height="match_parent"
+                android:layout_marginEnd="4dp"
                 android:layout_weight="1"
-                android:hint="Contact name / number">
+                android:background="@drawable/bg_compact_tile"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="10dp"
+                android:paddingEnd="5dp">
 
-                <com.google.android.material.textfield.TextInputEditText
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:text="Auto-open"
+                        android:textStyle="bold"
+                        app:autoSizeMaxTextSize="13sp"
+                        app:autoSizeMinTextSize="10sp"
+                        app:autoSizeStepGranularity="1sp"
+                        app:autoSizeTextType="uniform" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:text="Answer + code"
+                        android:textColor="@color/textSecondary"
+                        app:autoSizeMaxTextSize="10sp"
+                        app:autoSizeMinTextSize="8sp"
+                        app:autoSizeStepGranularity="1sp"
+                        app:autoSizeTextType="uniform" />
+                </LinearLayout>
+
+                <Switch
+                    android:id="@+id/switchEnabled"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:contentDescription="Auto-answer intercom and send code"
+                    android:showText="false" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_compact_tile"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="10dp"
+                android:paddingEnd="5dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:text="Notify"
+                        android:textStyle="bold"
+                        app:autoSizeMaxTextSize="13sp"
+                        app:autoSizeMinTextSize="10sp"
+                        app:autoSizeStepGranularity="1sp"
+                        app:autoSizeTextType="uniform" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:includeFontPadding="false"
+                        android:maxLines="1"
+                        android:text="On gate run"
+                        android:textColor="@color/textSecondary"
+                        app:autoSizeMaxTextSize="10sp"
+                        app:autoSizeMinTextSize="8sp"
+                        app:autoSizeStepGranularity="1sp"
+                        app:autoSizeTextType="uniform" />
+                </LinearLayout>
+
+                <Switch
+                    android:id="@+id/switchNotify"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:contentDescription="Notify when gate code runs"
+                    android:showText="false" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Stable filled fields avoid floating-label overlap at any font scale. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginEnd="4dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_input_field"
+                android:orientation="vertical"
+                android:paddingStart="10dp"
+                android:paddingTop="5dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="3dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="14dp"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:text="CONTACT / NUMBER"
+                    android:textColor="@color/textSecondary"
+                    app:autoSizeMaxTextSize="9sp"
+                    app:autoSizeMinTextSize="7sp"
+                    app:autoSizeStepGranularity="1sp"
+                    app:autoSizeTextType="uniform" />
+
+                <EditText
                     android:id="@+id/editContact"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:background="@null"
+                    android:includeFontPadding="false"
                     android:inputType="text"
                     android:maxLines="1"
+                    android:padding="0dp"
+                    android:singleLine="true"
                     android:textSize="14sp" />
-            </com.google.android.material.textfield.TextInputLayout>
+            </LinearLayout>
 
-            <com.google.android.material.textfield.TextInputLayout
-                style="@style/Widget.Material3.TextInputLayout.OutlinedBox.Dense"
-                android:layout_width="66dp"
-                android:layout_height="wrap_content"
-                android:hint="Code">
+            <LinearLayout
+                android:layout_width="62dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/bg_input_field"
+                android:orientation="vertical"
+                android:paddingStart="9dp"
+                android:paddingTop="5dp"
+                android:paddingEnd="9dp"
+                android:paddingBottom="3dp">
 
-                <com.google.android.material.textfield.TextInputEditText
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="14dp"
+                    android:includeFontPadding="false"
+                    android:maxLines="1"
+                    android:text="CODE"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="9sp" />
+
+                <EditText
                     android:id="@+id/editCode"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:background="@null"
+                    android:includeFontPadding="false"
                     android:inputType="text"
                     android:maxLines="1"
+                    android:padding="0dp"
+                    android:singleLine="true"
                     android:textSize="14sp" />
-            </com.google.android.material.textfield.TextInputLayout>
+            </LinearLayout>
 
             <Button
                 android:id="@+id/btnSave"
-                android:layout_width="64dp"
-                android:layout_height="48dp"
-                android:layout_marginStart="7dp"
+                android:layout_width="72dp"
+                android:layout_height="56dp"
+                android:layout_marginStart="8dp"
                 android:backgroundTint="@color/accent"
+                android:insetBottom="0dp"
+                android:insetTop="0dp"
+                android:maxLines="1"
                 android:minHeight="0dp"
                 android:minWidth="0dp"
-                android:paddingStart="6dp"
-                android:paddingEnd="6dp"
+                android:paddingStart="4dp"
+                android:paddingEnd="4dp"
+                android:singleLine="true"
                 android:text="Save"
                 android:textSize="13sp" />
         </LinearLayout>
@@ -213,6 +350,7 @@
         android:layout_marginTop="10dp"
         android:layout_weight="1"
         android:background="@drawable/bg_card"
+        android:clipToOutline="true"
         android:orientation="vertical">
 
         <LinearLayout
