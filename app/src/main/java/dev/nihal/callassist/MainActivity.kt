@@ -26,9 +26,7 @@ import android.text.style.StyleSpan
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
-import android.view.MotionEvent
 import android.view.View
-import android.view.ViewConfiguration
 import android.widget.Button
 import android.widget.EditText
 import android.widget.GridLayout
@@ -574,46 +572,6 @@ class MainActivity : AppCompatActivity() {
         findViewById<RecyclerView>(R.id.logList).apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = logAdapter
-            // The card lives in a ScrollView. Nested scrolling is off in the
-            // layout so the list never hands leftover scroll up to the page —
-            // that chaining is what made one swipe scroll the log and then the
-            // whole Gate tab.
-            //
-            // Decide ownership once, after the finger has crossed touch slop.
-            // If the log can move in that direction it keeps the entire gesture;
-            // otherwise the page gets it. This avoids dead swipes at either end
-            // without letting one swipe move both independent scroll regions.
-            val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
-            var downY = 0f
-            var logOwnsGesture: Boolean? = null
-            setOnTouchListener { v, e ->
-                when (e.actionMasked) {
-                    MotionEvent.ACTION_DOWN -> {
-                        downY = e.y
-                        logOwnsGesture = null
-                        // Hold the gesture until its direction is intentional.
-                        v.parent.requestDisallowInterceptTouchEvent(true)
-                    }
-                    MotionEvent.ACTION_MOVE -> {
-                        if (logOwnsGesture == null) {
-                            val scrollDelta = downY - e.y
-                            if (kotlin.math.abs(scrollDelta) > touchSlop) {
-                                val direction = if (scrollDelta > 0) 1 else -1
-                                logOwnsGesture = canScrollVertically(direction)
-                                v.parent.requestDisallowInterceptTouchEvent(logOwnsGesture == true)
-                            }
-                        } else if (logOwnsGesture == true) {
-                            // Keep ownership even if this drag reaches an edge.
-                            v.parent.requestDisallowInterceptTouchEvent(true)
-                        }
-                    }
-                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                        logOwnsGesture = null
-                        v.parent.requestDisallowInterceptTouchEvent(false)
-                    }
-                }
-                false
-            }
         }
         val switchEnabled = findViewById<Switch>(R.id.switchEnabled)
         val editContact = findViewById<EditText>(R.id.editContact)
@@ -645,8 +603,8 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Saved", Toast.LENGTH_SHORT).show()
             refreshGate()
         }
-        findViewById<Button>(R.id.btnRefreshLog).setOnClickListener { refreshGate() }
-        findViewById<Button>(R.id.btnClearLog).setOnClickListener {
+        findViewById<View>(R.id.btnRefreshLog).setOnClickListener { refreshGate() }
+        findViewById<View>(R.id.btnClearLog).setOnClickListener {
             Prefs.clearLog(this)
             refreshGate()
         }
