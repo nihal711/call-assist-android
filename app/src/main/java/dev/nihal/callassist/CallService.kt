@@ -45,6 +45,11 @@ class CallService : InCallService() {
                 }
                 OngoingCall.set(call, label, info.photoUri)
                 Notifications.showCall(this, label, state == Call.STATE_RINGING)
+                // Incoming: let SystemUI launch the full-screen intent itself, as the
+                // platform intends. Launching the activity ourselves occludes the keyguard,
+                // so SystemUI then thinks the device is in use and shows a heads-up
+                // banner on top of our call screen. Locked → full screen; in use → banner.
+                if (state == Call.STATE_RINGING) return@post
                 try {
                     startActivity(
                         Intent(this, InCallActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
