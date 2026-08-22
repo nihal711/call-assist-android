@@ -4,8 +4,10 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.Person
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 
 object Notifications {
     private const val CH_INCOMING = "incoming_calls_v2"
@@ -44,6 +46,13 @@ object Notifications {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+    private fun actionPending(ctx: Context, action: String, code: Int): PendingIntent =
+        PendingIntent.getBroadcast(
+            ctx, code,
+            Intent(ctx, CallActionReceiver::class.java).setAction(action),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
     fun showCall(ctx: Context, label: String, incoming: Boolean) {
         ensureChannels(ctx)
         val pi = inCallPending(ctx)
@@ -56,6 +65,23 @@ object Notifications {
             .setOnlyAlertOnce(true)
             .setContentIntent(pi)
         if (incoming) b.setFullScreenIntent(pi, true)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // CallStyle on purpose: the system treats a CallStyle notification
+            // as the in-call UI's own and doesn't stack a heads-up banner over the
+            // full-screen activity.
+            val person = Person.Builder().setName(label).setImportant(true).build()
+            val hangup = actionPending(ctx, CallActionReceiver.ACTION_HANGUP, 12)
+            val style = if (incoming) {
+                Notification.CallStyle.forIncomingCall(
+                    person,
+                    actionPending(ctx, CallActionReceiver.ACTION_DECLINE, 11),
+                    actionPending(ctx, CallActionReceiver.ACTION_ANSWER, 10)
+                )
+            } else {
+                Notification.CallStyle.forOngoingCall(person, hangup)
+            }
+            b.setStyle(style)
+        }
         notifySafe(ctx, ID_CALL, b.build())
     }
 
