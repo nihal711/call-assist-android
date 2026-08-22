@@ -7,6 +7,8 @@ import android.app.PendingIntent
 import android.app.Person
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.drawable.Icon
 import android.os.Build
 
 object Notifications {
@@ -68,23 +70,33 @@ object Notifications {
      * @param quiet post on the low-importance channel (no heads-up, no full-screen
      *   intent) because the caller is launching InCallActivity itself.
      */
-    fun showCall(ctx: Context, label: String, incoming: Boolean, quiet: Boolean = false) {
+    fun showCall(
+        ctx: Context,
+        label: String,
+        incoming: Boolean,
+        quiet: Boolean = false,
+        number: String? = null,
+        photo: Bitmap? = null
+    ) {
         ensureChannels(ctx)
         val pi = inCallPending(ctx)
+        val subtitle = if (number != null && number != label) number else if (incoming) "Incoming call" else "Call in progress"
         val b = Notification.Builder(ctx, if (quiet) CH_QUIET else CH_INCOMING)
             .setSmallIcon(android.R.drawable.sym_call_incoming)
-            .setContentTitle(if (incoming) "Incoming call" else "Call in progress")
-            .setContentText(label)
+            .setContentTitle(label)
+            .setContentText(subtitle)
             .setCategory(Notification.CATEGORY_CALL)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(pi)
         if (incoming && !quiet) b.setFullScreenIntent(pi, true)
+        val icon = photo?.let { Icon.createWithBitmap(it) }
+        if (icon != null) b.setLargeIcon(icon)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             // CallStyle on purpose: the system treats a CallStyle notification
             // as the in-call UI's own and doesn't stack a heads-up banner over the
             // full-screen activity.
-            val person = Person.Builder().setName(label).setImportant(true).build()
+            val person = Person.Builder().setName(label).setIcon(icon).setImportant(true).build()
             val hangup = actionPending(ctx, CallActionReceiver.ACTION_HANGUP, 12)
             val style = if (incoming) {
                 Notification.CallStyle.forIncomingCall(

@@ -38,6 +38,7 @@ class CallService : InCallService() {
         Thread {
             val info = ContactHelper.lookup(this, number)
             val label = info.name ?: number ?: "Unknown"
+            val photo = ContactHelper.loadPhoto(this, info.photoUri)
             Handler(mainLooper).post {
                 val state = call.stateCompat()
                 if (state == Call.STATE_DISCONNECTED) return@post
@@ -56,10 +57,10 @@ class CallService : InCallService() {
                 val pm = getSystemService(PowerManager::class.java)
                 val deviceInUse = pm.isInteractive && !km.isKeyguardLocked
                 if (ringing && deviceInUse) {
-                    Notifications.showCall(this, label, incoming = true)
+                    Notifications.showCall(this, label, incoming = true, number = number, photo = photo)
                     return@post
                 }
-                Notifications.showCall(this, label, incoming = ringing, quiet = ringing)
+                Notifications.showCall(this, label, incoming = ringing, quiet = ringing, number = number, photo = photo)
                 try {
                     startActivity(
                         Intent(this, InCallActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -83,10 +84,14 @@ class CallService : InCallService() {
         val number = remaining.details.handle?.schemeSpecificPart
         Thread {
             val info = ContactHelper.lookup(this, number)
+            val photo = ContactHelper.loadPhoto(this, info.photoUri)
             Handler(mainLooper).post {
                 if (calls.contains(remaining) && remaining.stateCompat() != Call.STATE_DISCONNECTED) {
                     OngoingCall.set(remaining, info.name ?: number ?: "Unknown", info.photoUri)
-                    Notifications.showCall(this, OngoingCall.label, remaining.stateCompat() == Call.STATE_RINGING)
+                    Notifications.showCall(
+                        this, OngoingCall.label, remaining.stateCompat() == Call.STATE_RINGING,
+                        number = number, photo = photo
+                    )
                 }
             }
         }.start()

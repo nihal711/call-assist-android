@@ -53,6 +53,16 @@ object ContactHelper {
 
     fun lookupName(ctx: Context, number: String?): String? = lookup(ctx, number).name
 
+    /** Decodes the contact photo for use as a notification icon. Blocking — call off the main thread. */
+    fun loadPhoto(ctx: Context, photoUri: Uri?): android.graphics.Bitmap? {
+        if (photoUri == null) return null
+        return try {
+            ctx.contentResolver.openInputStream(photoUri)?.use { android.graphics.BitmapFactory.decodeStream(it) }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     /** Lookup URI for the contact owning this number, for ACTION_VIEW. */
     fun lookupContactUri(ctx: Context, number: String?): Uri? {
         if (number.isNullOrBlank()) return null
