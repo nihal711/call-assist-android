@@ -11,6 +11,9 @@ import android.os.Build
 
 object Notifications {
     private const val CH_INCOMING = "incoming_calls_v2"
+    // Used while our own InCallActivity is on screen: low importance so the
+    // system never stacks a heads-up banner over the full-screen call UI.
+    private const val CH_QUIET = "incoming_calls_quiet"
     private const val CH_GATE = "gate_events"
     const val ID_CALL = 1
     const val ID_AUTOMATION = 2
@@ -23,6 +26,14 @@ object Notifications {
             // importance is still required for the full-screen intent to fire.
             NotificationChannel(CH_INCOMING, "Calls", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "Incoming and ongoing calls"
+                setSound(null, null)
+                enableVibration(false)
+                enableLights(false)
+            }
+        )
+        nm.createNotificationChannel(
+            NotificationChannel(CH_QUIET, "Calls (call screen shown)", NotificationManager.IMPORTANCE_LOW).apply {
+                description = "Call notification while the full-screen call UI is already showing"
                 setSound(null, null)
                 enableVibration(false)
                 enableLights(false)
@@ -53,10 +64,14 @@ object Notifications {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-    fun showCall(ctx: Context, label: String, incoming: Boolean) {
+    /**
+     * @param quiet post on the low-importance channel (no heads-up, no full-screen
+     *   intent) because the caller is launching InCallActivity itself.
+     */
+    fun showCall(ctx: Context, label: String, incoming: Boolean, quiet: Boolean = false) {
         ensureChannels(ctx)
         val pi = inCallPending(ctx)
-        val b = Notification.Builder(ctx, CH_INCOMING)
+        val b = Notification.Builder(ctx, if (quiet) CH_QUIET else CH_INCOMING)
             .setSmallIcon(android.R.drawable.sym_call_incoming)
             .setContentTitle(if (incoming) "Incoming call" else "Call in progress")
             .setContentText(label)
@@ -64,7 +79,7 @@ object Notifications {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(pi)
-        if (incoming) b.setFullScreenIntent(pi, true)
+        if (incoming && !quiet) b.setFullScreenIntent(pi, true)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             // CallStyle on purpose: the system treats a CallStyle notification
             // as the in-call UI's own and doesn't stack a heads-up banner over the

@@ -1,6 +1,8 @@
 package dev.nihal.callassist
 
+import android.app.KeyguardManager
 import android.content.Intent
+import android.os.PowerManager
 import android.os.Handler
 import android.telecom.Call
 import android.telecom.InCallService
@@ -44,12 +46,20 @@ class CallService : InCallService() {
                     return@post
                 }
                 OngoingCall.set(call, label, info.photoUri)
-                Notifications.showCall(this, label, state == Call.STATE_RINGING)
-                // Incoming: let SystemUI launch the full-screen intent itself, as the
-                // platform intends. Launching the activity ourselves occludes the keyguard,
-                // so SystemUI then thinks the device is in use and shows a heads-up
-                // banner on top of our call screen. Locked → full screen; in use → banner.
-                if (state == Call.STATE_RINGING) return@post
+                // Conventional dialer behaviour, done deterministically (Samsung phones don't reliably
+                // fire our full-screen intent while locked):
+                //  - locked / screen off → we show the call screen ourselves and post the
+                //    notification quietly so no heads-up banner stacks on top of it;
+                //  - unlocked & in use → heads-up with Answer/Decline via the system.
+                val ringing = state == Call.STATE_RINGING
+                val km = getSystemService(KeyguardManager::class.java)
+                val pm = getSystemService(PowerManager::class.java)
+                val deviceInUse = pm.isInteractive && !km.isKeyguardLocked
+                if (ringing && deviceInUse) {
+                    Notifications.showCall(this, label, incoming = true)
+                    return@post
+                }
+                Notifications.showCall(this, label, incoming = ringing, quiet = ringing)
                 try {
                     startActivity(
                         Intent(this, InCallActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
