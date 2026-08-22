@@ -8,7 +8,7 @@ import android.content.Context
 import android.content.Intent
 
 object Notifications {
-    private const val CH_INCOMING = "incoming_calls"
+    private const val CH_INCOMING = "incoming_calls_v2"
     private const val CH_GATE = "gate_events"
     const val ID_CALL = 1
     const val ID_AUTOMATION = 2
@@ -16,10 +16,18 @@ object Notifications {
     fun ensureChannels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
+            // Silent on purpose: ringing (sound / vibrate / mute) is done by the
+            // system ringer, which already follows the phone's ringer mode. HIGH
+            // importance is still required for the full-screen intent to fire.
             NotificationChannel(CH_INCOMING, "Calls", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "Incoming and ongoing calls"
+                setSound(null, null)
+                enableVibration(false)
+                enableLights(false)
             }
         )
+        // Old channel had the default notification sound; settings are frozen per id.
+        nm.deleteNotificationChannel("incoming_calls")
         // Own channel so its sound/vibration can be customized independently of calls.
         nm.createNotificationChannel(
             NotificationChannel(CH_GATE, "Gate opened", NotificationManager.IMPORTANCE_HIGH).apply {
@@ -45,6 +53,7 @@ object Notifications {
             .setContentText(label)
             .setCategory(Notification.CATEGORY_CALL)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
             .setContentIntent(pi)
         if (incoming) b.setFullScreenIntent(pi, true)
         notifySafe(ctx, ID_CALL, b.build())
