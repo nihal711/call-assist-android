@@ -8,6 +8,7 @@ import android.app.Person
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.media.AudioManager
 import android.graphics.drawable.Icon
 import android.os.Build
 
@@ -17,6 +18,10 @@ object Notifications {
     // system never stacks a heads-up banner over the full-screen call UI.
     private const val CH_QUIET = "incoming_calls_quiet"
     private const val CH_GATE = "gate_events"
+    // Twin of CH_GATE with no sound. The gate event fires mid-call, and Android
+    // plays an in-call notification beep for any channel that has a sound even
+    // when the ringer is on vibrate/silent — so we pick the channel by ringer mode.
+    private const val CH_GATE_QUIET = "gate_events_quiet"
     const val ID_CALL = 1
     const val ID_AUTOMATION = 2
 
@@ -47,6 +52,13 @@ object Notifications {
         nm.createNotificationChannel(
             NotificationChannel(CH_GATE, "Gate opened", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "Fires when the intercom gate code is auto-executed"
+            }
+        )
+        nm.createNotificationChannel(
+            NotificationChannel(CH_GATE_QUIET, "Gate opened (ringer off)", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Same as Gate opened, used while the phone is on vibrate or mute"
+                setSound(null, null)
+                enableVibration(false)
             }
         )
         nm.deleteNotificationChannel("automation_status")
@@ -125,7 +137,8 @@ object Notifications {
     fun automation(ctx: Context, text: String) {
         if (!Prefs.notifyGate(ctx)) return
         ensureChannels(ctx)
-        val n = Notification.Builder(ctx, CH_GATE)
+        val ringerOn = ctx.getSystemService(AudioManager::class.java).ringerMode == AudioManager.RINGER_MODE_NORMAL
+        val n = Notification.Builder(ctx, if (ringerOn) CH_GATE else CH_GATE_QUIET)
             .setSmallIcon(android.R.drawable.sym_call_incoming)
             .setContentTitle("Call Assist")
             .setContentText(text)
