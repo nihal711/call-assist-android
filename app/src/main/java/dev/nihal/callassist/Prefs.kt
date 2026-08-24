@@ -65,6 +65,11 @@ object Prefs {
     fun keyHaptics(ctx: Context): Boolean = sp(ctx).getBoolean("keyHaptics", true)
     fun setKeyHaptics(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("keyHaptics", v).apply()
 
+    // Manual override for SIMs that don't provision one (e.g. Singtel prepaid).
+    fun voicemailNumber(ctx: Context): String = sp(ctx).getString("voicemailNumber", "")!!
+    fun setVoicemailNumber(ctx: Context, v: String) =
+        sp(ctx).edit().putString("voicemailNumber", v.trim()).apply()
+
     private val DEFAULT_REPLIES = arrayOf(
         "Can't talk right now — I'll call you back.",
         "I'm on my way.",

@@ -19,6 +19,8 @@ import android.provider.Settings
 import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import android.telephony.PhoneNumberUtils
+import android.telephony.TelephonyManager
+import android.text.InputType
 import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.ForegroundColorSpan
@@ -266,12 +268,7 @@ class MainActivity : AppCompatActivity() {
                     dialInput.append('+'); renderDialInput(); true
                 }
                 '1' -> cell.setOnLongClickListener {
-                    try {
-                        getSystemService(TelecomManager::class.java)
-                            .placeCall(Uri.fromParts("voicemail", "", null), Bundle())
-                    } catch (e: Exception) {
-                        Toast.makeText(this, "No voicemail configured", Toast.LENGTH_SHORT).show()
-                    }
+                    dialVoicemail()
                     true
                 }
                 else -> {}
@@ -292,6 +289,46 @@ class MainActivity : AppCompatActivity() {
             if (n.isNotEmpty()) confirmCall(n)
         }
         renderDialInput()
+    }
+
+    /**
+     * Dials voicemail as a plain tel: call. placeCall(voicemail:) is avoided on
+     * purpose: on a SIM with no provisioned number (e.g. Singtel prepaid)
+     * Samsung's telecom pops its own "Add voicemail number?" dialog and the
+     * hand-off crashes us.
+     */
+    private fun dialVoicemail() {
+        val saved = Prefs.voicemailNumber(this)
+        if (saved.isNotEmpty()) {
+            confirmCall(saved, "Voicemail")
+            return
+        }
+        val simVm = try {
+            getSystemService(TelephonyManager::class.java).voiceMailNumber
+        } catch (_: Exception) {
+            null
+        }
+        if (!simVm.isNullOrEmpty()) {
+            confirmCall(simVm, "Voicemail")
+            return
+        }
+        val input = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_PHONE
+            hint = "e.g. 1311"
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Set voicemail number")
+            .setMessage("Your SIM doesn't report a voicemail number. Enter your carrier's access number (Singtel: 1311) and it'll be saved for next time.")
+            .setView(input)
+            .setPositiveButton("Save & call") { _, _ ->
+                val n = input.text.toString().trim()
+                if (n.isNotEmpty()) {
+                    Prefs.setVoicemailNumber(this, n)
+                    confirmCall(n, "Voicemail")
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun renderDialInput() {
