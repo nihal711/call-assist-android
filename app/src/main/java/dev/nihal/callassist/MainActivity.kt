@@ -222,6 +222,10 @@ class MainActivity : AppCompatActivity() {
         val ripple = TypedValue().also {
             theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, it, true)
         }
+        // Samsung phones ship a lighter system face under this family name; on other
+        // devices Typeface.create silently falls back to the system default.
+        val dialFont = Typeface.create("sec-roboto-light", Typeface.NORMAL)
+        numberDisplay.typeface = dialFont
         for (k in keys) {
             val cell = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
@@ -230,18 +234,26 @@ class MainActivity : AppCompatActivity() {
                 layoutParams = GridLayout.LayoutParams(
                     GridLayout.spec(GridLayout.UNDEFINED, 1f),
                     GridLayout.spec(GridLayout.UNDEFINED, 1f)
-                ).apply { width = 0; height = dp(84) }
+                ).apply { width = 0; height = dp(92) }
             }
             cell.addView(TextView(this).apply {
                 text = k.digit.toString()
-                textSize = 34f
+                textSize = 36f
+                typeface = dialFont
                 gravity = Gravity.CENTER
             })
             if (k.letters.isNotEmpty()) cell.addView(TextView(this).apply {
                 text = k.letters
                 textSize = 11f
+                typeface = dialFont
                 alpha = 0.6f
                 gravity = Gravity.CENTER
+            })
+            if (k.digit == '1') cell.addView(ImageView(this).apply {
+                setImageResource(R.drawable.ic_voicemail)
+                imageTintList = ColorStateList.valueOf(getColor(R.color.textPrimary))
+                alpha = 0.6f
+                layoutParams = LinearLayout.LayoutParams(dp(17), dp(13))
             })
             cell.setOnClickListener {
                 if (Prefs.keyHaptics(this)) it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
