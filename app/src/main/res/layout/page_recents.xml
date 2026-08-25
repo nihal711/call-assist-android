@@ -5,32 +5,153 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <FrameLayout
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingStart="16dp"
-        android:paddingTop="40dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="16dp">
+        android:gravity="center"
+        android:paddingTop="36dp"
+        android:paddingBottom="12dp"
+        android:text="Phone"
+        android:textSize="30sp"
+        android:textStyle="bold" />
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:text="Phone"
-            android:textSize="30sp"
-            android:textStyle="bold" />
+    <!-- Action strip: filter, search, settings -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end|center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="12dp">
+
+        <ImageButton
+            android:id="@+id/btnRecentsFilter"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Filter calls"
+            android:src="@drawable/ic_filter"
+            app:tint="@color/textSecondary" />
+
+        <ImageButton
+            android:id="@+id/btnRecentsSearch"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Search calls"
+            android:src="@drawable/ic_search"
+            app:tint="@color/textSecondary" />
 
         <ImageButton
             android:id="@+id/gearRecents"
             android:layout_width="44dp"
             android:layout_height="44dp"
-            android:layout_gravity="end|center_vertical"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:contentDescription="Settings"
             android:src="@drawable/ic_settings"
             app:tint="@color/textSecondary" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/recentsSearchPanel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="16dp"
+        android:visibility="gone">
+
+        <EditText
+            android:id="@+id/recentsSearch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_search"
+            android:drawableStart="@drawable/ic_search"
+            android:drawablePadding="12dp"
+            android:drawableTint="@color/textSecondary"
+            android:hint="Search calls"
+            android:imeOptions="actionSearch"
+            android:inputType="text"
+            android:paddingStart="18dp"
+            android:paddingTop="12dp"
+            android:paddingEnd="48dp"
+            android:paddingBottom="12dp"
+            android:singleLine="true"
+            android:textColorHint="@color/textSecondary"
+            android:textSize="15sp" />
+
+        <ImageButton
+            android:id="@+id/btnRecentsSearchClose"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_gravity="end|center_vertical"
+            android:layout_marginEnd="6dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Close search"
+            android:src="@drawable/ic_close"
+            app:tint="@color/textSecondary" />
     </FrameLayout>
+
+    <!-- Active filters: call type (dismissable) + call time (single choice) -->
+    <HorizontalScrollView
+        android:id="@+id/recentsChipsScroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:clipToPadding="false"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:scrollbars="none"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <com.google.android.material.chip.Chip
+                android:id="@+id/chipType"
+                style="@style/AppChip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checkable="false"
+                android:visibility="gone"
+                app:closeIconEnabled="true"
+                app:closeIconTint="@color/accent" />
+
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/chipTimeGroup"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:chipSpacingHorizontal="8dp"
+                app:selectionRequired="false"
+                app:singleLine="true"
+                app:singleSelection="true">
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chipToday"
+                    style="@style/AppChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Today" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip7"
+                    style="@style/AppChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Past 7 days" />
+
+                <com.google.android.material.chip.Chip
+                    android:id="@+id/chip30"
+                    style="@style/AppChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Past 30 days" />
+            </com.google.android.material.chip.ChipGroup>
+        </LinearLayout>
+    </HorizontalScrollView>
 
     <TextView
         android:id="@+id/recentsEmpty"

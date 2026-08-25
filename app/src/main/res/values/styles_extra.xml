@@ -79,4 +79,20 @@
         <item name="android:textSize">16sp</item>
         <item name="android:letterSpacing">0</item>
     </style>
+
+    <!-- Outlined filter pill: hairline stroke, soft accent fill when checked -->
+    <style name="AppChip" parent="Widget.Material3.Chip.Filter">
+        <item name="chipBackgroundColor">@color/chip_bg</item>
+        <item name="chipStrokeColor">@color/chip_stroke</item>
+        <item name="chipStrokeWidth">1dp</item>
+        <item name="android:textColor">@color/chip_text</item>
+        <item name="android:textSize">14sp</item>
+        <item name="chipCornerRadius">20dp</item>
+        <item name="chipMinHeight">38dp</item>
+        <item name="checkedIconVisible">false</item>
+        <item name="chipStartPadding">14dp</item>
+        <item name="chipEndPadding">14dp</item>
+        <item name="ensureMinTouchTargetSize">false</item>
+        <item name="rippleColor">@color/accentSoft</item>
+    </style>
 </resources>

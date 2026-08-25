@@ -29,7 +29,8 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.View
-import android.widget.Button
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
 import android.widget.GridLayout
 import android.widget.ImageButton
@@ -46,6 +47,8 @@ import androidx.core.widget.doAfterTextChanged
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
+import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -74,10 +77,38 @@ class MainActivity : AppCompatActivity() {
     // Recents / contacts
     private lateinit var recentsAdapter: RecentsAdapter
     private lateinit var recentsEmpty: TextView
-    private lateinit var contactsAdapter: RowAdapter
+    private lateinit var contactsAdapter: ContactsAdapter
     private lateinit var contactsEmpty: TextView
     private lateinit var contactSearch: EditText
     private var callLog: List<ContactsRepo.CallEntry> = emptyList()
+
+    // Recents search / filters
+    private lateinit var recentsSearch: EditText
+    private lateinit var recentsSearchPanel: View
+    private lateinit var recentsChips: View
+    private lateinit var chipType: Chip
+    private lateinit var btnRecentsFilter: ImageButton
+    private var recentsSearchOpen = false
+
+    /** Call-type filter; index into [TYPE_FILTERS], 0 = all calls. */
+    private var recentsTypeFilter = 0
+
+    /** Call-time filter in days (1 = today), 0 = any time. */
+    private var recentsDays = 0
+
+    private data class TypeFilter(val label: String, val types: IntArray?)
+
+    private val TYPE_FILTERS = listOf(
+        TypeFilter("All calls", null),
+        TypeFilter("Missed calls", intArrayOf(CallLog.Calls.MISSED_TYPE)),
+        TypeFilter("Rejected calls", intArrayOf(CallLog.Calls.REJECTED_TYPE)),
+        TypeFilter("Blocked calls", intArrayOf(CallLog.Calls.BLOCKED_TYPE)),
+        TypeFilter("Outgoing calls", intArrayOf(CallLog.Calls.OUTGOING_TYPE)),
+        TypeFilter(
+            "Incoming calls",
+            intArrayOf(CallLog.Calls.INCOMING_TYPE, CallLog.Calls.ANSWERED_EXTERNALLY_TYPE)
+        )
+    )
 
     // Gate
     private lateinit var logAdapter: GateLogAdapter
@@ -95,6 +126,7 @@ class MainActivity : AppCompatActivity() {
     private val backCallback = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() {
             when {
+                currentTab == 1 && recentsSearchOpen -> setRecentsSearchOpen(false)
                 keypadCollapsed -> setKeypadCollapsed(false)
                 dialInput.isNotEmpty() -> {
                     dialInput.clear()
@@ -403,7 +435,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateBackState() {
         backCallback.isEnabled =
-            currentTab == 0 && (keypadCollapsed || dialInput.isNotEmpty())
+            (currentTab == 0 && (keypadCollapsed || dialInput.isNotEmpty())) ||
+                (currentTab == 1 && recentsSearchOpen)
     }
 
     private fun playKeyTone(digit: Char) {
@@ -444,6 +477,119 @@ class MainActivity : AppCompatActivity() {
             // Rows are cheap but numerous; a deeper cache means switching back
             // to this tab rebinds instead of re-inflating.
             setItemViewCacheSize(12)
+        }
+
+        recentsSearch = findViewById(R.id.recentsSearch)
+        recentsSearchPanel = findViewById(R.id.recentsSearchPanel)
+        recentsChips = findViewById(R.id.recentsChipsScroll)
+        chipType = findViewById(R.id.chipType)
+        btnRecentsFilter = findViewById(R.id.btnRecentsFilter)
+
+        findViewById<View>(R.id.btnRecentsSearch).setOnClickListener {
+            setRecentsSearchOpen(!recentsSearchOpen)
+        }
+        findViewById<View>(R.id.btnRecentsSearchClose).setOnClickListener {
+            setRecentsSearchOpen(false)
+        }
+        recentsSearch.doAfterTextChanged { renderRecents() }
+        recentsSearch.setOnEditorActionListener { v, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                hideKeyboard(v)
+                true
+            } else false
+        }
+
+        btnRecentsFilter.setOnClickListener { showRecentsFilterDialog() }
+        chipType.setOnCloseIconClickListener { setRecentsTypeFilter(0) }
+
+        val chipDays = mapOf(R.id.chipToday to 1, R.id.chip7 to 7, R.id.chip30 to 30)
+        findViewById<ChipGroup>(R.id.chipTimeGroup).setOnCheckedStateChangeListener { _, checked ->
+            recentsDays = checked.firstOrNull()?.let { chipDays[it] } ?: 0
+            renderRecents()
+        }
+    }
+
+    private fun setRecentsSearchOpen(open: Boolean) {
+        if (recentsSearchOpen == open) return
+        recentsSearchOpen = open
+        recentsSearchPanel.visibility = if (open) View.VISIBLE else View.GONE
+        if (open) {
+            recentsSearch.requestFocus()
+            getSystemService(InputMethodManager::class.java)
+                .showSoftInput(recentsSearch, InputMethodManager.SHOW_IMPLICIT)
+        } else {
+            hideKeyboard(recentsSearch)
+            recentsSearch.setText("")
+        }
+        updateRecentsChips()
+        renderRecents()
+        updateBackState()
+    }
+
+    private fun setRecentsTypeFilter(idx: Int) {
+        recentsTypeFilter = idx
+        val active = idx != 0
+        btnRecentsFilter.imageTintList = ColorStateList.valueOf(
+            getColor(if (active) R.color.accent else R.color.textSecondary)
+        )
+        chipType.text = TYPE_FILTERS[idx].label
+        chipType.visibility = if (active) View.VISIBLE else View.GONE
+        updateRecentsChips()
+        renderRecents()
+    }
+
+    /**
+     * The chip strip shows while searching or while a type filter is on. When
+     * it hides, any time chip goes with it — a filter the user can't see
+     * shouldn't keep narrowing the list.
+     */
+    private fun updateRecentsChips() {
+        val show = recentsSearchOpen || recentsTypeFilter != 0
+        recentsChips.visibility = if (show) View.VISIBLE else View.GONE
+        // clearCheck() fires the group listener, which resets recentsDays.
+        if (!show && recentsDays != 0) findViewById<ChipGroup>(R.id.chipTimeGroup).clearCheck()
+    }
+
+    /** "Filter calls" single-choice dialog. */
+    private fun showRecentsFilterDialog() {
+        var picked = recentsTypeFilter
+        AlertDialog.Builder(this)
+            .setTitle("Filter calls")
+            .setSingleChoiceItems(
+                TYPE_FILTERS.map { it.label }.toTypedArray(), picked
+            ) { _, i -> picked = i }
+            .setPositiveButton("OK") { _, _ -> setRecentsTypeFilter(picked) }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun hideKeyboard(v: View) {
+        getSystemService(InputMethodManager::class.java)
+            .hideSoftInputFromWindow(v.windowToken, 0)
+    }
+
+    /** Display name for a log entry, the same way the list resolves it. */
+    private fun entryName(e: ContactsRepo.CallEntry): String? =
+        e.name?.takeIf { it.isNotBlank() } ?: ContactsRepo.lookupNameCached(e.number)
+
+    private fun filteredCallLog(): List<ContactsRepo.CallEntry> {
+        val types = TYPE_FILTERS[recentsTypeFilter].types
+        val cutoff = if (recentsDays > 0) {
+            Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                add(Calendar.DAY_OF_YEAR, -(recentsDays - 1))
+            }.timeInMillis
+        } else 0L
+        val q = if (recentsSearchOpen) recentsSearch.text.toString().trim().lowercase() else ""
+        val qDigits = q.filter { it.isDigit() }
+        if (types == null && cutoff == 0L && q.isEmpty()) return callLog
+        return callLog.filter { e ->
+            (types == null || e.type in types) &&
+                e.date >= cutoff &&
+                (q.isEmpty() ||
+                    entryName(e)?.lowercase()?.contains(q) == true ||
+                    (qDigits.isNotEmpty() && e.number.filter { it.isDigit() }.contains(qDigits)))
         }
     }
 
@@ -542,12 +688,7 @@ class MainActivity : AppCompatActivity() {
                 val name = g.e.name?.takeIf { it.isNotBlank() }
                     ?: ContactsRepo.lookupNameCached(g.e.number)
                     ?: fmt(g.e.number)
-                val bg = when {
-                    j - i == 1 -> R.drawable.bg_group_single
-                    k == i -> R.drawable.bg_group_top
-                    k == j - 1 -> R.drawable.bg_group_bottom
-                    else -> R.drawable.bg_group_mid
-                }
+                val bg = groupBg(k - i, j - i)
                 items.add(
                     RecentsAdapter.Item.Entry(
                         title = name,
@@ -566,11 +707,24 @@ class MainActivity : AppCompatActivity() {
         return items
     }
 
+    /** Rounded-corner background for row [index] of a card holding [size] rows. */
+    private fun groupBg(index: Int, size: Int): Int = when {
+        size == 1 -> R.drawable.bg_group_single
+        index == 0 -> R.drawable.bg_group_top
+        index == size - 1 -> R.drawable.bg_group_bottom
+        else -> R.drawable.bg_group_mid
+    }
+
     private fun renderRecents() {
-        recentsAdapter.items = buildRecentsItems(callLog)
+        val shown = filteredCallLog()
+        recentsAdapter.items = buildRecentsItems(shown)
         val hasPerm = checkSelfPermission(Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED
-        recentsEmpty.visibility = if (callLog.isEmpty()) View.VISIBLE else View.GONE
-        recentsEmpty.text = if (hasPerm) "No calls yet" else "Call log permission needed — grant it in the Gate tab"
+        recentsEmpty.visibility = if (shown.isEmpty()) View.VISIBLE else View.GONE
+        recentsEmpty.text = when {
+            !hasPerm -> "Call log permission needed — grant it in the Gate tab"
+            callLog.isEmpty() -> "No calls yet"
+            else -> "No matching calls"
+        }
     }
 
     // ---------------- Contacts ----------------
@@ -578,39 +732,131 @@ class MainActivity : AppCompatActivity() {
     private fun setupContacts() {
         contactsEmpty = findViewById(R.id.contactsEmpty)
         contactSearch = findViewById(R.id.contactSearch)
-        contactsAdapter = RowAdapter { row ->
-            showContactSheet(row.payload as ContactsRepo.Contact)
-        }
+        contactsAdapter = ContactsAdapter(
+            onCall = { c, n ->
+                if (n != null) confirmCall(n.number, c.name)
+                else pickNumber(c, "Call which number?") { confirmCall(it.number, c.name) }
+            },
+            onMessage = { c -> pickNumber(c, "Message which number?") { openSms(it.number) } },
+            onEdit = { editContact(it) },
+            onBlock = { c -> pickNumber(c, "Block which number?") { confirmBlock(it.number) } }
+        )
         findViewById<RecyclerView>(R.id.contactsList).apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = contactsAdapter
             setHasFixedSize(true)
             setItemViewCacheSize(12)
         }
-        contactSearch.doAfterTextChanged { renderContacts() }
+        val clear = findViewById<View>(R.id.contactSearchClear)
+        clear.setOnClickListener { contactSearch.setText("") }
+        contactSearch.doAfterTextChanged {
+            clear.visibility = if (it.isNullOrEmpty()) View.GONE else View.VISIBLE
+            renderContacts()
+        }
+        contactSearch.setOnEditorActionListener { v, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                hideKeyboard(v)
+                true
+            } else false
+        }
+    }
+
+    /** Runs [then] with the contact's only number, or asks which one first. */
+    private fun pickNumber(
+        c: ContactsRepo.Contact,
+        title: String,
+        then: (ContactsRepo.PhoneEntry) -> Unit
+    ) {
+        if (c.numbers.size == 1) {
+            then(c.numbers[0])
+            return
+        }
+        val items = c.numbers.map { "${it.label.ifBlank { "Phone" }}  ${fmt(it.number)}" }.toTypedArray()
+        AlertDialog.Builder(this)
+            .setTitle(title)
+            .setItems(items) { _, i -> then(c.numbers[i]) }
+            .show()
+    }
+
+    private fun editContact(contact: ContactsRepo.Contact) {
+        try {
+            startActivity(
+                Intent(Intent.ACTION_EDIT).setData(
+                    ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contact.id)
+                )
+            )
+        } catch (_: Exception) {
+            Toast.makeText(this, "Could not open contact editor", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun renderContacts() {
         val q = contactSearch.text.toString().trim().lowercase()
         val qDigits = q.filter { it.isDigit() }
+        val numberSearch = qDigits.length >= 3
+        val accent = getColor(R.color.accent)
         val list = ContactsRepo.contacts.filter { c ->
             q.isEmpty() ||
                 c.name.lowercase().contains(q) ||
-                (qDigits.length >= 3 && c.numbers.any { it.digits.contains(qDigits) })
+                (numberSearch && c.numbers.any { it.digits.contains(qDigits) })
         }
-        contactsAdapter.rows = list.map { c ->
-            RowAdapter.Row(
-                title = c.name,
-                subtitle = c.numbers.joinToString("  ·  ") { fmt(it.number) },
-                meta = if (c.starred) "★" else "",
-                avatarSeed = c.name,
-                payload = c,
-                metaColor = 0xFFFFC107.toInt()
+
+        fun entry(c: ContactsRepo.Contact, index: Int, size: Int): ContactsAdapter.Item.Entry {
+            // Highlight what matched: the name run, or else the
+            // digits inside the matching number.
+            val nameHit = if (q.isEmpty()) -1 else c.name.lowercase().indexOf(q)
+            val title: CharSequence = if (nameHit >= 0) {
+                SpannableString(c.name).apply {
+                    setSpan(ForegroundColorSpan(accent), nameHit, nameHit + q.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    setSpan(StyleSpan(Typeface.BOLD), nameHit, nameHit + q.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+            } else c.name
+            val subtitle: CharSequence = if (nameHit < 0 && numberSearch) {
+                val parts = c.numbers.map { n ->
+                    val at = n.digits.indexOf(qDigits)
+                    if (at >= 0) highlightNumber(fmt(n.number), at until at + qDigits.length, accent)
+                    else fmt(n.number)
+                }
+                android.text.TextUtils.concat(*parts.flatMapIndexed { i, p ->
+                    if (i == 0) listOf(p) else listOf("  ·  ", p)
+                }.toTypedArray())
+            } else c.numbers.joinToString("  ·  ") { fmt(it.number) }
+            return ContactsAdapter.Item.Entry(
+                contact = c,
+                title = title,
+                subtitle = subtitle,
+                bg = groupBg(index, size),
+                divider = index < size - 1
             )
         }
+
+        val items = ArrayList<ContactsAdapter.Item>()
+        fun addGroup(header: String, group: List<ContactsRepo.Contact>, count: String = "") {
+            if (group.isEmpty()) return
+            items.add(ContactsAdapter.Item.Header(header, count))
+            group.forEachIndexed { i, c -> items.add(entry(c, i, group.size)) }
+        }
+        if (q.isEmpty()) {
+            addGroup("Favourites", list.filter { it.starred })
+            // Contacts arrive starred-first from the provider; regroup by
+            // initial so every letter gets its own card, '#' last.
+            val byLetter = list.sortedBy { it.name.lowercase() }
+                .groupBy { Ui.initial(it.name) }
+            for ((letter, group) in byLetter.entries.sortedWith(
+                compareBy({ it.key == "#" }, { it.key })
+            )) addGroup(letter, group)
+        } else {
+            addGroup("Contacts", list.sortedBy { it.name.lowercase() }, "${list.size} found")
+        }
+        contactsAdapter.items = items
+
         val hasPerm = checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
         contactsEmpty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
-        contactsEmpty.text = if (hasPerm) "No contacts" else "Contacts permission needed — grant it in the Gate tab"
+        contactsEmpty.text = when {
+            !hasPerm -> "Contacts permission needed — grant it in the Gate tab"
+            q.isEmpty() -> "No contacts"
+            else -> "No matching contacts"
+        }
     }
 
     // ---------------- Gate / settings ----------------
@@ -954,91 +1200,6 @@ class MainActivity : AppCompatActivity() {
         } catch (e: Exception) {
             Toast.makeText(this, "Could not place call: ${e.message}", Toast.LENGTH_LONG).show()
         }
-    }
-
-    private fun showContactSheet(contact: ContactsRepo.Contact) {
-        val dialog = BottomSheetDialog(this)
-        val v = layoutInflater.inflate(R.layout.sheet_contact, null)
-        dialog.setContentView(v)
-
-        v.findViewById<TextView>(R.id.sheetName).text = contact.name
-        v.findViewById<TextView>(R.id.sheetStar).text = if (contact.starred) "★" else ""
-        val av = v.findViewById<TextView>(R.id.sheetAvatar)
-        av.text = Ui.initial(contact.name)
-        av.backgroundTintList = ColorStateList.valueOf(Ui.avatarColor(contact.name))
-
-        val container = v.findViewById<LinearLayout>(R.id.numbersContainer)
-        for (n in contact.numbers) {
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-            }
-            (row.layoutParams ?: LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
-            )).also { lp ->
-                (lp as LinearLayout.LayoutParams).topMargin = dp(6)
-                row.layoutParams = lp
-            }
-            row.addView(TextView(this).apply {
-                text = "${n.label}\n${fmt(n.number)}"
-                textSize = 14f
-                setLineSpacing(0f, 1.15f)
-            }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
-            row.addView(roundIconButton(R.drawable.ic_message, getColor(R.color.card2), getColor(R.color.accent)) {
-                dialog.dismiss()
-                try {
-                    startActivity(Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:${n.number}")))
-                } catch (_: Exception) {
-                    Toast.makeText(this@MainActivity, "No messaging app found", Toast.LENGTH_SHORT).show()
-                }
-            })
-            row.addView(roundIconButton(R.drawable.ic_phone, getColor(R.color.green), 0xFFFFFFFF.toInt()) {
-                dialog.dismiss()
-                confirmCall(n.number, contact.name)
-            })
-            container.addView(row)
-        }
-
-        v.findViewById<Button>(R.id.btnEditContact).setOnClickListener {
-            dialog.dismiss()
-            try {
-                startActivity(
-                    Intent(Intent.ACTION_EDIT).setData(
-                        ContentUris.withAppendedId(ContactsContract.Contacts.CONTENT_URI, contact.id)
-                    )
-                )
-            } catch (_: Exception) {
-                Toast.makeText(this, "Could not open contact editor", Toast.LENGTH_SHORT).show()
-            }
-        }
-        v.findViewById<Button>(R.id.btnBlockContact).setOnClickListener {
-            dialog.dismiss()
-            if (contact.numbers.size == 1) {
-                confirmBlock(contact.numbers[0].number)
-            } else {
-                val items = contact.numbers.map { fmt(it.number) }.toTypedArray()
-                AlertDialog.Builder(this)
-                    .setTitle("Block which number?")
-                    .setItems(items) { _, i -> confirmBlock(contact.numbers[i].number) }
-                    .show()
-            }
-        }
-        dialog.show()
-    }
-
-    private fun roundIconButton(
-        iconRes: Int,
-        bgColor: Int,
-        iconColor: Int,
-        onClick: () -> Unit
-    ): ImageButton = ImageButton(this).apply {
-        setImageResource(iconRes)
-        setBackgroundResource(R.drawable.bg_circle)
-        backgroundTintList = ColorStateList.valueOf(bgColor)
-        imageTintList = ColorStateList.valueOf(iconColor)
-        scaleType = android.widget.ImageView.ScaleType.CENTER
-        layoutParams = LinearLayout.LayoutParams(dp(46), dp(46)).apply { marginStart = dp(12) }
-        setOnClickListener { onClick() }
     }
 
     private fun confirmBlock(number: String) {

@@ -18,6 +18,10 @@ object Ui {
     fun avatarColor(seed: String): Int =
         palette[Math.abs(seed.hashCode()) % palette.size]
 
+    fun fmt(number: String): String =
+        android.telephony.PhoneNumberUtils.formatNumber(number, java.util.Locale.getDefault().country)
+            ?: number
+
     fun initial(name: String): String {
         val t = name.trim()
         if (t.isEmpty()) return "#"
