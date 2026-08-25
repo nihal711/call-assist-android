@@ -22,4 +22,6 @@
     <color name="amber">#FFC107</color>
     <!-- Ripple/pressed fill for the tappable status issue rows -->
     <color name="rowPressed">#E0E0E8</color>
+    <!-- Bottom sheet surface -->
+    <color name="sheetBg">#FFFFFF</color>
 </resources>

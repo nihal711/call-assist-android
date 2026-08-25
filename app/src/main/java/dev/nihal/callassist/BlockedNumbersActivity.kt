@@ -8,7 +8,6 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -25,10 +24,11 @@ class BlockedNumbersActivity : AppCompatActivity() {
         empty = findViewById(R.id.blockedEmpty)
         adapter = RowAdapter { row ->
             val id = row.payload as Long
-            AlertDialog.Builder(this)
-                .setTitle(row.title)
-                .setMessage("Unblock this number?")
-                .setPositiveButton("Unblock") { _, _ ->
+            Sheet(this)
+                .title(row.title)
+                .message("Unblock this number?")
+                .negative()
+                .positive("Unblock") {
                     try {
                         contentResolver.delete(
                             ContentUris.withAppendedId(
@@ -41,7 +41,6 @@ class BlockedNumbersActivity : AppCompatActivity() {
                     }
                     load()
                 }
-                .setNegativeButton("Cancel", null)
                 .show()
         }
         findViewById<RecyclerView>(R.id.blockedList).apply {

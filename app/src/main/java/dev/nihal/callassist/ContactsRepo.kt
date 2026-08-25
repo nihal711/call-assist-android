@@ -32,7 +32,8 @@ object ContactsRepo {
         val name: String?,
         val type: Int,
         val date: Long,
-        val duration: Long
+        val duration: Long,
+        val id: Long = 0
     )
 
     @Volatile
@@ -190,7 +191,8 @@ object ContactsRepo {
                 CallLog.Calls.CONTENT_URI,
                 arrayOf(
                     CallLog.Calls.NUMBER, CallLog.Calls.CACHED_NAME,
-                    CallLog.Calls.TYPE, CallLog.Calls.DATE, CallLog.Calls.DURATION
+                    CallLog.Calls.TYPE, CallLog.Calls.DATE, CallLog.Calls.DURATION,
+                    CallLog.Calls._ID
                 ),
                 null, null,
                 CallLog.Calls.DATE + " DESC LIMIT $limit"
@@ -202,7 +204,8 @@ object ContactsRepo {
                             name = c.getString(1),
                             type = c.getInt(2),
                             date = c.getLong(3),
-                            duration = c.getLong(4)
+                            duration = c.getLong(4),
+                            id = c.getLong(5)
                         )
                     )
                 }

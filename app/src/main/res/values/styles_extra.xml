@@ -95,4 +95,15 @@
         <item name="ensureMinTouchTargetSize">false</item>
         <item name="rippleColor">@color/accentSoft</item>
     </style>
+
+    <style name="AppSheet" parent="ThemeOverlay.Material3.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/AppSheetPanel</item>
+        <item name="android:backgroundDimAmount">0.5</item>
+    </style>
+
+    <style name="AppSheetPanel" parent="Widget.Material3.BottomSheet.Modal">
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="android:background">@android:color/transparent</item>
+        <item name="shapeAppearance">@null</item>
+    </style>
 </resources>

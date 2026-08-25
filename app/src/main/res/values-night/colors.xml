@@ -13,4 +13,6 @@
     <color name="glassStroke">#1FFFFFFF</color>
     <color name="glassBlurFill">#99202024</color>
     <color name="rowPressed">#3A3A3E</color>
+    <!-- Bottom sheet surface -->
+    <color name="sheetBg">#28282C</color>
 </resources>

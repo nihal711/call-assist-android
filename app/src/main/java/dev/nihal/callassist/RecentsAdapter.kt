@@ -36,11 +36,56 @@ class RecentsAdapter(
             val number: String,
             val duration: Long,
             val bg: Int,
-            val divider: Boolean
+            val divider: Boolean,
+            /** Call-log row ids merged into this entry; the first is its key. */
+            val ids: List<Long> = emptyList()
         ) : Item()
     }
 
     private var expandedPos = -1
+
+    /** Long-press on a row asks the host to enter selection mode. */
+    var onLongPress: ((Item.Entry) -> Unit)? = null
+    var onSelectionChanged: (() -> Unit)? = null
+
+    var selectionMode = false
+        private set
+
+    /** Keys ([Item.Entry.ids].first()) of the selected entries. */
+    private val selected = LinkedHashSet<Long>()
+
+    private fun key(e: Item.Entry): Long = e.ids.firstOrNull() ?: e.hashCode().toLong()
+
+    private fun entries(): List<Item.Entry> = items.filterIsInstance<Item.Entry>()
+
+    @Suppress("NotifyDataSetChanged")
+    fun setSelectionMode(on: Boolean) {
+        if (selectionMode == on) return
+        selectionMode = on
+        selected.clear()
+        expandedPos = -1
+        notifyDataSetChanged()
+        onSelectionChanged?.invoke()
+    }
+
+    fun toggle(e: Item.Entry) {
+        val k = key(e)
+        if (!selected.remove(k)) selected.add(k)
+        notifyItemChanged(items.indexOf(e))
+        onSelectionChanged?.invoke()
+    }
+
+    @Suppress("NotifyDataSetChanged")
+    fun selectAll(all: Boolean) {
+        selected.clear()
+        if (all) entries().forEach { selected.add(key(it)) }
+        notifyDataSetChanged()
+        onSelectionChanged?.invoke()
+    }
+
+    fun selectedEntries(): List<Item.Entry> = entries().filter { key(it) in selected }
+    fun selectedCount(): Int = selectedEntries().size
+    fun allSelected(): Boolean = entries().isNotEmpty() && selectedCount() == entries().size
 
     var items: List<Item> = emptyList()
         @Suppress("NotifyDataSetChanged")
@@ -58,6 +103,7 @@ class RecentsAdapter(
 
     class EntryVH(v: View) : RecyclerView.ViewHolder(v) {
         val row: View = v.findViewById(R.id.recentRow)
+        val check: ImageView = v.findViewById(R.id.recentCheck)
         val icon: ImageView = v.findViewById(R.id.recentIcon)
         val title: TextView = v.findViewById(R.id.recentTitle)
         val time: TextView = v.findViewById(R.id.recentTime)
@@ -118,7 +164,7 @@ class RecentsAdapter(
                 h as EntryVH
                 val red = ContextCompat.getColor(ctx, R.color.red)
                 val gray = ContextCompat.getColor(ctx, R.color.textSecondary)
-                val isExpanded = pos == expandedPos
+                val isExpanded = pos == expandedPos && !selectionMode
                 val (iconRes, tint) = iconFor(ctx, item.type)
 
                 h.itemView.findViewById<View>(R.id.recentRow).visibility =
@@ -133,15 +179,30 @@ class RecentsAdapter(
                     h.title.text = if (item.count > 1) "${item.title} (${item.count})" else item.title
                     h.time.text = item.time
                     h.time.setTextColor(if (item.type == CallLog.Calls.MISSED_TYPE) red else gray)
+                    h.check.visibility = if (selectionMode) View.VISIBLE else View.GONE
+                    if (selectionMode) {
+                        val on = key(item) in selected
+                        h.check.setImageResource(if (on) R.drawable.ic_check_circle else R.drawable.ic_circle)
+                        h.check.imageTintList = ColorStateList.valueOf(
+                            if (on) ContextCompat.getColor(ctx, R.color.accent) else gray
+                        )
+                    }
                     h.row.setOnClickListener {
-                        if (!expandable) {
-                            onCall(item.number)
-                            return@setOnClickListener
+                        when {
+                            selectionMode -> toggle(item)
+                            !expandable -> onCall(item.number)
+                            else -> {
+                                val old = expandedPos
+                                expandedPos = h.bindingAdapterPosition
+                                if (old >= 0) notifyItemChanged(old)
+                                notifyItemChanged(expandedPos)
+                            }
                         }
-                        val old = expandedPos
-                        expandedPos = h.bindingAdapterPosition
-                        if (old >= 0) notifyItemChanged(old)
-                        notifyItemChanged(expandedPos)
+                    }
+                    h.row.setOnLongClickListener {
+                        if (!expandable || selectionMode) return@setOnLongClickListener false
+                        onLongPress?.invoke(item) ?: return@setOnLongClickListener false
+                        true
                     }
                 } else {
                     h.expName.text = if (item.count > 1) "${item.title} (${item.count})" else item.title

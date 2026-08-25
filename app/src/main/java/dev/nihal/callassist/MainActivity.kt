@@ -3,6 +3,8 @@ package dev.nihal.callassist
 import android.Manifest
 import android.app.NotificationManager
 import android.app.role.RoleManager
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ContentUris
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -90,6 +92,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnRecentsFilter: ImageButton
     private var recentsSearchOpen = false
 
+    // Recents selection mode (long-press)
+    private lateinit var recentsTitle: TextView
+    private lateinit var recentsSelectBar: View
+    private lateinit var selectAllIcon: ImageView
+    private var pendingDeleteIds: List<Long>? = null
+
     /** Call-type filter; index into [TYPE_FILTERS], 0 = all calls. */
     private var recentsTypeFilter = 0
 
@@ -126,6 +134,7 @@ class MainActivity : AppCompatActivity() {
     private val backCallback = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() {
             when {
+                currentTab == 1 && recentsAdapter.selectionMode -> setRecentsSelection(false)
                 currentTab == 1 && recentsSearchOpen -> setRecentsSearchOpen(false)
                 keypadCollapsed -> setKeypadCollapsed(false)
                 dialInput.isNotEmpty() -> {
@@ -143,6 +152,12 @@ class MainActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
             refreshGate()
             reloadData()
+            // A delete that was waiting on WRITE_CALL_LOG.
+            pendingDeleteIds?.let { ids ->
+                pendingDeleteIds = null
+                if (has(Manifest.permission.WRITE_CALL_LOG)) deleteCallLogs(ids)
+                else Toast.makeText(this, "Call log permission needed to delete", Toast.LENGTH_SHORT).show()
+            }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -348,18 +363,18 @@ class MainActivity : AppCompatActivity() {
             inputType = InputType.TYPE_CLASS_PHONE
             hint = "e.g. 1311"
         }
-        AlertDialog.Builder(this)
-            .setTitle("Set voicemail number")
-            .setMessage("Your SIM doesn't report a voicemail number. Enter your carrier's access number (Singtel: 1311) and it'll be saved for next time.")
-            .setView(input)
-            .setPositiveButton("Save & call") { _, _ ->
+        Sheet(this)
+            .title("Set voicemail number")
+            .message("Your SIM doesn't report a voicemail number. Enter your carrier's access number (Singtel: 1311) and it'll be saved for next time.")
+            .view(input)
+            .negative()
+            .positive("Save & call") {
                 val n = input.text.toString().trim()
                 if (n.isNotEmpty()) {
                     Prefs.setVoicemailNumber(this, n)
                     confirmCall(n, "Voicemail")
                 }
             }
-            .setNegativeButton("Cancel", null)
             .show()
     }
 
@@ -436,7 +451,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateBackState() {
         backCallback.isEnabled =
             (currentTab == 0 && (keypadCollapsed || dialInput.isNotEmpty())) ||
-                (currentTab == 1 && recentsSearchOpen)
+                (currentTab == 1 && (recentsSearchOpen || recentsAdapter.selectionMode))
     }
 
     private fun playKeyTone(digit: Char) {
@@ -500,12 +515,122 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnRecentsFilter.setOnClickListener { showRecentsFilterDialog() }
+
+        recentsTitle = findViewById(R.id.recentsTitle)
+        recentsSelectBar = findViewById(R.id.recentsSelectBar)
+        selectAllIcon = findViewById(R.id.selectAllIcon)
+        recentsAdapter.onLongPress = { e ->
+            setRecentsSelection(true)
+            recentsAdapter.toggle(e)
+        }
+        recentsAdapter.onSelectionChanged = { renderSelectionState() }
+        findViewById<View>(R.id.btnSelectAll).setOnClickListener {
+            recentsAdapter.selectAll(!recentsAdapter.allSelected())
+        }
+        findViewById<View>(R.id.btnSelectCancel).setOnClickListener { setRecentsSelection(false) }
+        findViewById<View>(R.id.btnSelCopy).setOnClickListener { copySelectedNumbers() }
+        findViewById<View>(R.id.btnSelDelete).setOnClickListener { confirmDeleteSelected() }
         chipType.setOnCloseIconClickListener { setRecentsTypeFilter(0) }
 
         val chipDays = mapOf(R.id.chipToday to 1, R.id.chip7 to 7, R.id.chip30 to 30)
         findViewById<ChipGroup>(R.id.chipTimeGroup).setOnCheckedStateChangeListener { _, checked ->
             recentsDays = checked.firstOrNull()?.let { chipDays[it] } ?: 0
             renderRecents()
+        }
+    }
+
+    // ---- Selection mode ----
+
+    private fun setRecentsSelection(on: Boolean) {
+        if (recentsAdapter.selectionMode == on) return
+        recentsAdapter.setSelectionMode(on)
+        val vis = if (on) View.VISIBLE else View.GONE
+        val hidden = if (on) View.GONE else View.VISIBLE
+        findViewById<View>(R.id.btnSelectAll).visibility = vis
+        findViewById<View>(R.id.btnSelectCancel).visibility = vis
+        btnRecentsFilter.visibility = hidden
+        findViewById<View>(R.id.gearRecents).visibility = hidden
+        recentsSelectBar.visibility = vis
+        navBar.visibility = hidden
+        renderSelectionState()
+        updateBackState()
+    }
+
+    private fun renderSelectionState() {
+        if (!recentsAdapter.selectionMode) {
+            recentsTitle.text = "Phone"
+            return
+        }
+        val n = recentsAdapter.selectedCount()
+        recentsTitle.text = if (n == 0) "Select calls" else "$n selected"
+        val all = recentsAdapter.allSelected()
+        selectAllIcon.setImageResource(if (all) R.drawable.ic_check_circle else R.drawable.ic_circle)
+        selectAllIcon.imageTintList = ColorStateList.valueOf(
+            getColor(if (all) R.color.accent else R.color.textSecondary)
+        )
+    }
+
+    private fun copySelectedNumbers() {
+        val numbers = recentsAdapter.selectedEntries().map { fmt(it.number) }.distinct()
+        if (numbers.isEmpty()) {
+            Toast.makeText(this, "Nothing selected", Toast.LENGTH_SHORT).show()
+            return
+        }
+        getSystemService(ClipboardManager::class.java)
+            .setPrimaryClip(ClipData.newPlainText("Phone number", numbers.joinToString("\n")))
+        Toast.makeText(
+            this,
+            if (numbers.size == 1) "Copied ${numbers[0]}" else "Copied ${numbers.size} numbers",
+            Toast.LENGTH_SHORT
+        ).show()
+        setRecentsSelection(false)
+    }
+
+    private fun confirmDeleteSelected() {
+        val entries = recentsAdapter.selectedEntries()
+        val ids = entries.flatMap { it.ids }
+        if (ids.isEmpty()) {
+            Toast.makeText(this, "Nothing selected", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val n = ids.size
+        Sheet(this)
+            .title(if (n == 1) "Delete call log?" else "Delete $n call logs?")
+            .message("This removes ${if (n == 1) "it" else "them"} from the phone's call history.")
+            .negative()
+            .positive("Delete", destructive = true) {
+                if (has(Manifest.permission.WRITE_CALL_LOG)) {
+                    deleteCallLogs(ids)
+                } else {
+                    pendingDeleteIds = ids
+                    permLauncher.launch(arrayOf(Manifest.permission.WRITE_CALL_LOG))
+                }
+            }
+            .show()
+    }
+
+    private fun deleteCallLogs(ids: List<Long>) {
+        if (bg.isShutdown) return
+        bg.execute {
+            val deleted = try {
+                contentResolver.delete(
+                    CallLog.Calls.CONTENT_URI,
+                    "${CallLog.Calls._ID} IN (${ids.joinToString(",")})",
+                    null
+                )
+            } catch (e: Exception) {
+                -1
+            }
+            runOnUiThread {
+                Toast.makeText(
+                    this,
+                    if (deleted < 0) "Could not delete call logs"
+                    else if (deleted == 1) "Call log deleted" else "$deleted call logs deleted",
+                    Toast.LENGTH_SHORT
+                ).show()
+                setRecentsSelection(false)
+                reloadData()
+            }
         }
     }
 
@@ -550,16 +675,13 @@ class MainActivity : AppCompatActivity() {
         if (!show && recentsDays != 0) findViewById<ChipGroup>(R.id.chipTimeGroup).clearCheck()
     }
 
-    /** "Filter calls" single-choice dialog. */
+    /** "Filter calls" sheet: radio rows, Cancel | OK. */
     private fun showRecentsFilterDialog() {
-        var picked = recentsTypeFilter
-        AlertDialog.Builder(this)
-            .setTitle("Filter calls")
-            .setSingleChoiceItems(
-                TYPE_FILTERS.map { it.label }.toTypedArray(), picked
-            ) { _, i -> picked = i }
-            .setPositiveButton("OK") { _, _ -> setRecentsTypeFilter(picked) }
-            .setNegativeButton("Cancel", null)
+        Sheet(this)
+            .title("Filter calls")
+            .singleChoice(TYPE_FILTERS.map { it.label }, recentsTypeFilter) { setRecentsTypeFilter(it) }
+            .negative()
+            .positive("OK")
             .show()
     }
 
@@ -621,29 +743,19 @@ class MainActivity : AppCompatActivity() {
     private fun showHistorySheet(number: String, title: String) {
         val digits = number.filter { it.isDigit() }
         val history = callLog.filter { it.number.filter { d -> d.isDigit() } == digits }
-        val dialog = BottomSheetDialog(this)
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(20), dp(16), dp(16))
-        }
-        root.addView(TextView(this).apply {
-            text = title
-            textSize = 21f
-            setTypeface(typeface, Typeface.BOLD)
-            setPadding(dp(8), 0, dp(8), dp(4))
-        })
+        var dialog: BottomSheetDialog? = null
         val sheetAdapter = RecentsAdapter(expandable = false, onCall = {
-            dialog.dismiss()
+            dialog?.dismiss()
             confirmCall(it, title)
         })
-        root.addView(RecyclerView(this).apply {
+        val list = RecyclerView(this).apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = sheetAdapter
             overScrollMode = View.OVER_SCROLL_NEVER
-        }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(440)))
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(440))
+        }
         sheetAdapter.items = buildRecentsItems(history)
-        dialog.setContentView(root)
-        dialog.show()
+        dialog = Sheet(this).title(title).view(list).show()
     }
 
     private fun dayLabel(ts: Long): String {
@@ -661,7 +773,7 @@ class MainActivity : AppCompatActivity() {
     private fun buildRecentsItems(log: List<ContactsRepo.CallEntry>): List<RecentsAdapter.Item> {
         val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
         // Merge consecutive entries with the same number, type, and day.
-        class Group(val e: ContactsRepo.CallEntry, var count: Int)
+        class Group(val e: ContactsRepo.CallEntry, var count: Int, val ids: MutableList<Long>)
 
         val merged = ArrayList<Group>()
         for (e in log) {
@@ -671,8 +783,9 @@ class MainActivity : AppCompatActivity() {
                 dayLabel(last.e.date) == dayLabel(e.date)
             ) {
                 last.count++
+                last.ids.add(e.id)
             } else {
-                merged.add(Group(e, 1))
+                merged.add(Group(e, 1, mutableListOf(e.id)))
             }
         }
 
@@ -698,7 +811,8 @@ class MainActivity : AppCompatActivity() {
                         number = g.e.number,
                         duration = g.e.duration,
                         bg = bg,
-                        divider = k < j - 1
+                        divider = k < j - 1,
+                        ids = g.ids
                     )
                 )
             }
@@ -771,11 +885,8 @@ class MainActivity : AppCompatActivity() {
             then(c.numbers[0])
             return
         }
-        val items = c.numbers.map { "${it.label.ifBlank { "Phone" }}  ${fmt(it.number)}" }.toTypedArray()
-        AlertDialog.Builder(this)
-            .setTitle(title)
-            .setItems(items) { _, i -> then(c.numbers[i]) }
-            .show()
+        val items = c.numbers.map { "${it.label.ifBlank { "Phone" }}  ${fmt(it.number)}" }
+        Sheet(this).title(title).items(items) { then(c.numbers[it]) }.negative().show()
     }
 
     private fun editContact(contact: ContactsRepo.Contact) {
@@ -1094,6 +1205,7 @@ class MainActivity : AppCompatActivity() {
             if (v.visibility != want) v.visibility = want
         }
         if (idx == 0) setKeypadCollapsed(false)
+        if (idx != 1 && recentsAdapter.selectionMode) setRecentsSelection(false)
         updateBackState()
 
         pendingReload?.let { navBar.removeCallbacks(it) }
@@ -1182,11 +1294,9 @@ class MainActivity : AppCompatActivity() {
             Prefs.SIM_FIXED -> accounts.firstOrNull { it.id == Prefs.simId(this) }
             Prefs.SIM_ASK -> {
                 if (accounts.size > 1) {
-                    val labels = accounts.mapIndexed { i, h -> SimUtil.label(this, h, i) }.toTypedArray()
-                    AlertDialog.Builder(this)
-                        .setTitle("Call with")
-                        .setItems(labels) { _, i -> placeCall(number, accounts[i]) }
-                        .show()
+                    val labels = accounts.mapIndexed { i, h -> SimUtil.label(this, h, i) }
+                    Sheet(this).title("Call with").items(labels) { placeCall(number, accounts[it]) }
+                        .negative().show()
                     return
                 }
                 null
@@ -1203,11 +1313,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun confirmBlock(number: String) {
-        AlertDialog.Builder(this)
-            .setTitle("Block ${fmt(number)}?")
-            .setMessage("Calls from this number will be rejected system-wide. You can unblock it in Settings → Blocked numbers.")
-            .setPositiveButton("Block") { _, _ -> BlockedNumbersActivity.block(this, number) }
-            .setNegativeButton("Cancel", null)
+        Sheet(this)
+            .title("Block ${fmt(number)}?")
+            .message("Calls from this number will be rejected system-wide. You can unblock it in Settings → Blocked numbers.")
+            .negative()
+            .positive("Block", destructive = true) { BlockedNumbersActivity.block(this, number) }
             .show()
     }
 

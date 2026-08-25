@@ -6,7 +6,6 @@ import android.telecom.PhoneAccountHandle
 import android.telecom.TelecomManager
 import android.telephony.PhoneNumberUtils
 import java.util.Locale
-import androidx.appcompat.app.AlertDialog
 
 object SimUtil {
 
@@ -35,9 +34,9 @@ object SimUtil {
         val accts = accounts(activity)
         val labels = mutableListOf("System default", "Ask every time")
         accts.forEachIndexed { i, h -> labels.add(label(activity, h, i)) }
-        AlertDialog.Builder(activity)
-            .setTitle("Default SIM for calls")
-            .setItems(labels.toTypedArray()) { _, which ->
+        Sheet(activity)
+            .title("Default SIM for calls")
+            .items(labels) { which ->
                 when (which) {
                     0 -> Prefs.setSim(activity, Prefs.SIM_SYSTEM, "", "System default")
                     1 -> Prefs.setSim(activity, Prefs.SIM_ASK, "", "Ask every time")
@@ -48,6 +47,7 @@ object SimUtil {
                 }
                 onDone()
             }
+            .negative()
             .show()
     }
 }

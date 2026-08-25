@@ -10,7 +10,6 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.Switch
 import android.widget.TextView
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 
 class SettingsActivity : AppCompatActivity() {
@@ -119,13 +118,10 @@ class SettingsActivity : AppCompatActivity() {
         current: Int,
         onPick: (Int) -> Unit
     ) {
-        AlertDialog.Builder(this)
-            .setTitle(title)
-            .setSingleChoiceItems(labels.toTypedArray(), choices.indexOf(current)) { d, which ->
-                onPick(choices[which])
-                d.dismiss()
-            }
-            .setNegativeButton("Cancel", null)
+        Sheet(this)
+            .title(title)
+            .singleChoice(labels, choices.indexOf(current)) { onPick(choices[it]) }
+            .negative()
             .show()
     }
 
@@ -139,24 +135,23 @@ class SettingsActivity : AppCompatActivity() {
         val modes = arrayOf("dark", "light", "system")
         val labels = arrayOf("Dark", "Light", "Follow device")
         val current = modes.indexOf(Prefs.themeMode(this)).coerceAtLeast(0)
-        AlertDialog.Builder(this)
-            .setTitle("Theme")
-            .setSingleChoiceItems(labels, current) { d, which ->
+        Sheet(this)
+            .title("Theme")
+            .singleChoice(labels.toList(), current) { which ->
                 Prefs.setThemeMode(this, modes[which])
                 CallAssistApp.applyTheme(this)
                 btn.text = "Theme: ${themeLabel()}"
-                d.dismiss()
             }
-            .setNegativeButton("Cancel", null)
+            .negative()
             .show()
     }
 
     private fun showReplies() {
         val replies = Prefs.quickReplies(this)
-        AlertDialog.Builder(this)
-            .setTitle("Quick reply messages")
-            .setItems(replies) { _, i -> editReply(i) }
-            .setNegativeButton("Close", null)
+        Sheet(this)
+            .title("Quick reply messages")
+            .items(replies.toList()) { editReply(it) }
+            .negative("Close")
             .show()
     }
 
@@ -166,13 +161,11 @@ class SettingsActivity : AppCompatActivity() {
             setText(Prefs.quickReplies(this@SettingsActivity)[i])
             setSelection(text.length)
         }
-        AlertDialog.Builder(this)
-            .setTitle("Edit reply ${i + 1}")
-            .setView(input)
-            .setPositiveButton("Save") { _, _ ->
-                Prefs.setQuickReply(this, i, input.text.toString().trim())
-            }
-            .setNegativeButton("Cancel", null)
+        Sheet(this)
+            .title("Edit reply ${i + 1}")
+            .view(input)
+            .negative()
+            .positive("Save") { Prefs.setQuickReply(this, i, input.text.toString().trim()) }
             .show()
     }
 }

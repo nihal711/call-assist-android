@@ -30,7 +30,6 @@ import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 
 class InCallActivity : AppCompatActivity() {
@@ -179,16 +178,16 @@ class InCallActivity : AppCompatActivity() {
 
     private fun showQuickReplies() {
         val replies = Prefs.quickReplies(this)
-        AlertDialog.Builder(this)
-            .setTitle("Decline with message")
-            .setItems(replies) { _, i ->
+        Sheet(this)
+            .title("Decline with message")
+            .items(replies.toList()) { i ->
                 try {
                     boundCall?.reject(true, replies[i])
                 } catch (_: Exception) {
                     boundCall?.reject(false, null)
                 }
             }
-            .setNegativeButton("Cancel", null)
+            .negative()
             .show()
     }
 
