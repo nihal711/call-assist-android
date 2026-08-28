@@ -218,7 +218,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleDialIntent(intent: Intent?) {
-        val number = intent?.data?.takeIf { it.scheme == "tel" }?.schemeSpecificPart ?: return
+        val raw = intent?.data?.takeIf { it.scheme == "tel" }?.schemeSpecificPart ?: return
+        // Web tel: links often carry spaces/dashes ("tel:3125 0007")
+        val number = PhoneNumberUtils.stripSeparators(raw)
+        if (number.isEmpty()) return
         dialInput.clear()
         dialInput.append(number)
         navBar.select(0)
