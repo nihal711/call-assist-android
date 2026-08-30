@@ -68,8 +68,9 @@ class MainActivity : AppCompatActivity() {
     private val bg = Executors.newSingleThreadExecutor()
 
     // Keypad
-    private val dialInput = StringBuilder()
-    private lateinit var numberDisplay: TextView
+    private lateinit var numberDisplay: EditText
+    /** True while renderDialInput() is writing to numberDisplay itself. */
+    private var renderingDial = false
     private lateinit var btnBackspace: ImageButton
     private lateinit var suggestionsList: RecyclerView
     private lateinit var suggestionsEmpty: TextView
@@ -137,10 +138,7 @@ class MainActivity : AppCompatActivity() {
                 currentTab == 1 && recentsAdapter.selectionMode -> setRecentsSelection(false)
                 currentTab == 1 && recentsSearchOpen -> setRecentsSearchOpen(false)
                 keypadCollapsed -> setKeypadCollapsed(false)
-                dialInput.isNotEmpty() -> {
-                    dialInput.clear()
-                    renderDialInput()
-                }
+                dialRaw().isNotEmpty() -> setDial("")
             }
         }
     }
@@ -222,11 +220,9 @@ class MainActivity : AppCompatActivity() {
         // Web tel: links often carry spaces/dashes ("tel:3125 0007")
         val number = PhoneNumberUtils.stripSeparators(raw)
         if (number.isEmpty()) return
-        dialInput.clear()
-        dialInput.append(number)
         navBar.select(0)
         setKeypadCollapsed(false)
-        renderDialInput()
+        setDial(number)
     }
 
     override fun onResume() {
@@ -278,6 +274,13 @@ class MainActivity : AppCompatActivity() {
         // devices Typeface.create silently falls back to the system default.
         val dialFont = Typeface.create("sec-roboto-light", Typeface.NORMAL)
         numberDisplay.typeface = dialFont
+        numberDisplay.showSoftInputOnFocus = false
+        // Paste / hardware keys bypass the keypad: re-normalise whatever landed.
+        numberDisplay.doAfterTextChanged { s ->
+            if (renderingDial) return@doAfterTextChanged
+            val text = s?.toString().orEmpty()
+            setDial(PhoneNumberUtils.stripSeparators(text), rawCursorAt(text, numberDisplay.selectionStart))
+        }
         for (k in keys) {
             val cell = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
@@ -310,12 +313,11 @@ class MainActivity : AppCompatActivity() {
             cell.setOnClickListener {
                 if (Prefs.keyHaptics(this)) it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 playKeyTone(k.digit)
-                dialInput.append(k.digit)
-                renderDialInput()
+                insertDial(k.digit)
             }
             when (k.digit) {
                 '0' -> cell.setOnLongClickListener {
-                    dialInput.append('+'); renderDialInput(); true
+                    insertDial('+'); true
                 }
                 '1' -> cell.setOnLongClickListener {
                     dialVoicemail()
@@ -326,18 +328,66 @@ class MainActivity : AppCompatActivity() {
             grid.addView(cell)
         }
 
-        btnBackspace.setOnClickListener {
-            if (dialInput.isNotEmpty()) dialInput.deleteCharAt(dialInput.length - 1)
-            renderDialInput()
-        }
-        btnBackspace.setOnLongClickListener {
-            dialInput.clear(); renderDialInput(); true
-        }
+        btnBackspace.setOnClickListener { backspaceDial() }
+        btnBackspace.setOnLongClickListener { setDial(""); true }
 
         findViewById<View>(R.id.btnDial).setOnClickListener {
-            val n = dialInput.toString()
+            val n = dialRaw()
             if (n.isNotEmpty()) confirmCall(n)
         }
+        setDial("")
+    }
+
+    // The EditText is the source of truth for the dialled number; these helpers
+    // edit it in "raw" (separator-free) space so the cursor survives reformatting.
+
+    /** Dialable chars (digits, plus, star, hash) currently in the display, formatting stripped. */
+    private fun dialRaw(): String = PhoneNumberUtils.stripSeparators(numberDisplay.text.toString())
+
+    /** Number of dialable chars before [pos] in the formatted [text]. */
+    private fun rawCursorAt(text: CharSequence, pos: Int): Int {
+        var n = 0
+        for (i in 0 until pos.coerceIn(0, text.length)) if (PhoneNumberUtils.isNonSeparator(text[i])) n++
+        return n
+    }
+
+    private fun insertDial(c: Char) {
+        val raw = dialRaw()
+        val text = numberDisplay.text
+        val start = rawCursorAt(text, numberDisplay.selectionStart.takeIf { it >= 0 } ?: text.length)
+        val end = rawCursorAt(text, numberDisplay.selectionEnd.takeIf { it >= 0 } ?: text.length)
+        setDial(raw.substring(0, start) + c + raw.substring(end), start + 1)
+    }
+
+    private fun backspaceDial() {
+        val raw = dialRaw()
+        if (raw.isEmpty()) return
+        val text = numberDisplay.text
+        var start = rawCursorAt(text, numberDisplay.selectionStart.takeIf { it >= 0 } ?: text.length)
+        val end = rawCursorAt(text, numberDisplay.selectionEnd.takeIf { it >= 0 } ?: text.length)
+        if (start == end) {
+            if (start == 0) return
+            start--
+        }
+        setDial(raw.substring(0, start) + raw.substring(end), start)
+    }
+
+    /** Replaces the number with [raw], placing the cursor after [rawCursor] dialable chars (default: end). */
+    private fun setDial(raw: String, rawCursor: Int = raw.length) {
+        val formatted =
+            if (raw.all { it.isDigit() || it == '+' })
+                PhoneNumberUtils.formatNumber(raw, Locale.getDefault().country) ?: raw
+            else raw
+        var pos = formatted.length
+        var seen = 0
+        for (i in formatted.indices) {
+            if (seen == rawCursor) { pos = i; break }
+            if (PhoneNumberUtils.isNonSeparator(formatted[i])) seen++
+        }
+        renderingDial = true
+        numberDisplay.setText(formatted)
+        numberDisplay.setSelection(pos.coerceIn(0, formatted.length))
+        renderingDial = false
         renderDialInput()
     }
 
@@ -382,11 +432,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderDialInput() {
-        val raw = dialInput.toString()
-        numberDisplay.text =
-            if (raw.all { it.isDigit() || it == '+' })
-                PhoneNumberUtils.formatNumber(raw, Locale.getDefault().country) ?: raw
-            else raw
+        val raw = dialRaw()
         btnBackspace.visibility = if (raw.isEmpty()) View.INVISIBLE else View.VISIBLE
 
         val accent = getColor(R.color.accent)
@@ -453,7 +499,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateBackState() {
         backCallback.isEnabled =
-            (currentTab == 0 && (keypadCollapsed || dialInput.isNotEmpty())) ||
+            (currentTab == 0 && (keypadCollapsed || dialRaw().isNotEmpty())) ||
                 (currentTab == 1 && (recentsSearchOpen || recentsAdapter.selectionMode))
     }
 

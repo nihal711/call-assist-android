@@ -43,13 +43,18 @@
                 android:paddingStart="56dp"
                 android:paddingEnd="12dp">
 
-                <TextView
+                <!-- EditText so the user can place the cursor mid-number (e.g. to
+                     prepend an IDD prefix or drop a '+'); the keypad feeds it
+                     directly and the soft keyboard is suppressed in code -->
+                <EditText
                     android:id="@+id/numberDisplay"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:ellipsize="start"
+                    android:background="@null"
                     android:gravity="center"
+                    android:importantForAutofill="no"
+                    android:inputType="phone"
                     android:maxLines="1"
                     android:minHeight="60dp"
                     android:textSize="34sp" />
