@@ -36,6 +36,19 @@ class SettingsActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btnReplies).setOnClickListener { showReplies() }
 
+        val switchIdd = findViewById<Switch>(R.id.switchIdd)
+        val btnIddCode = findViewById<Button>(R.id.btnIddCode)
+        switchIdd.isChecked = Prefs.iddEnabled(this)
+        btnIddCode.isEnabled = switchIdd.isChecked
+        refreshIddHint()
+        switchIdd.setOnCheckedChangeListener { _, checked ->
+            Prefs.setIddEnabled(this, checked)
+            btnIddCode.isEnabled = checked
+            refreshIddHint()
+        }
+        btnIddCode.text = "IDD code: ${Prefs.iddCode(this)}"
+        btnIddCode.setOnClickListener { editIddCode(btnIddCode) }
+
         val btnRetryWait = findViewById<Button>(R.id.btnRetryWait)
         btnRetryWait.text = "Wait for gate: ${Prefs.retryWaitSeconds(this)}s"
         btnRetryWait.setOnClickListener {
@@ -143,6 +156,35 @@ class SettingsActivity : AppCompatActivity() {
                 btn.text = "Theme: ${themeLabel()}"
             }
             .negative()
+            .show()
+    }
+
+    private fun refreshIddHint() {
+        val code = Prefs.iddCode(this)
+        findViewById<TextView>(R.id.iddHint).text =
+            if (Prefs.iddEnabled(this))
+                "Numbers opened from Chrome and other apps have their + replaced with $code (e.g. +60 16… becomes ${code}60 16…). Keypad and contacts are untouched."
+            else
+                "Numbers opened from Chrome and other apps are dialled as-is, with the + kept."
+    }
+
+    private fun editIddCode(btn: Button) {
+        val input = EditText(this).apply {
+            inputType = InputType.TYPE_CLASS_PHONE
+            hint = Prefs.DEFAULT_IDD_CODE
+            setText(Prefs.iddCode(this@SettingsActivity))
+            setSelection(text.length)
+        }
+        Sheet(this)
+            .title("IDD code")
+            .message("Dialled in place of the + on numbers opened from other apps. Singtel: 019 (budget) or 001.")
+            .view(input)
+            .negative()
+            .positive("Save") {
+                Prefs.setIddCode(this, input.text.toString())
+                btn.text = "IDD code: ${Prefs.iddCode(this)}"
+                refreshIddHint()
+            }
             .show()
     }
 

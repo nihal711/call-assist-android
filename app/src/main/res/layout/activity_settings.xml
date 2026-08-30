@@ -75,6 +75,28 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Quick reply messages" />
+
+            <Switch
+                android:id="@+id/switchIdd"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:minHeight="44dp"
+                android:text="Use IDD code for web links" />
+
+            <TextView
+                android:id="@+id/iddHint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/textSecondary"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btnIddCode"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="IDD code: 019" />
         </LinearLayout>
 
         <LinearLayout

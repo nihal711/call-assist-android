@@ -70,6 +70,17 @@ object Prefs {
     fun setVoicemailNumber(ctx: Context, v: String) =
         sp(ctx).edit().putString("voicemailNumber", v.trim()).apply()
 
+    // Numbers handed to us by other apps (Chrome tel: links etc.) arrive in
+    // +country form; carriers like Singtel route "019" cheaper than "+".
+    const val DEFAULT_IDD_CODE = "019"
+
+    fun iddEnabled(ctx: Context): Boolean = sp(ctx).getBoolean("iddEnabled", false)
+    fun setIddEnabled(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("iddEnabled", v).apply()
+
+    fun iddCode(ctx: Context): String = sp(ctx).getString("iddCode", DEFAULT_IDD_CODE)!!
+    fun setIddCode(ctx: Context, v: String) =
+        sp(ctx).edit().putString("iddCode", v.trim().ifEmpty { DEFAULT_IDD_CODE }).apply()
+
     private val DEFAULT_REPLIES = arrayOf(
         "Can't talk right now — I'll call you back.",
         "I'm on my way.",
