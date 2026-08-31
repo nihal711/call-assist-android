@@ -115,6 +115,8 @@ object ContactsRepo {
      *       2 = number prefix, 3 = number substring.
      */
     fun search(query: String, limit: Int = 20): List<Match> {
+        // MMI/USSD input (*100#, *#06#…) addresses the network, not a contact.
+        if (query.any { it == '*' || it == '#' }) return emptyList()
         val q = query.filter { it.isDigit() }
         if (q.isEmpty()) return emptyList()
         val nameSearch = query.all { it.isDigit() }
@@ -174,8 +176,15 @@ object ContactsRepo {
     }
 
     fun lookupCached(number: String): Contact? {
+        // MMI/USSD input (*100#, *#06#…) addresses the network, not a contact.
+        if (number.any { it == '*' || it == '#' }) return null
         val digits = number.filter { it.isDigit() }
         if (digits.isEmpty()) return null
+        // Suffix matching a short code (100, 999…) would claim any contact whose
+        // number merely ends in those digits; short inputs must match exactly.
+        if (digits.length < 7) {
+            return contacts.firstOrNull { c -> c.numbers.any { it.digits == digits } }
+        }
         val tail = digits.takeLast(9)
         return contacts.firstOrNull { c -> c.numbers.any { it.digits.endsWith(tail) } }
     }
