@@ -90,15 +90,17 @@ object Notifications {
         )
 
     /**
-     * The call notification. Android 12+ gets CallStyle — Answer / Decline
-     * while ringing, Hang up plus our Mute and Speaker actions once connected.
-     * Android 14+ only accepts CallStyle from a foreground service or with a
-     * full-screen intent, so [CallService] posts this through startForeground
-     * (type phoneCall); [postPlainCall] is the fallback if that is refused.
+     * The call notification.
      *
-     * @param quiet low-importance channel (no heads-up, no full-screen intent)
-     *   — used while our own InCallActivity is on screen and for every
-     *   outgoing / connected call.
+     * Ringing: CallStyle on Android 12+ — the system's own Answer / Decline
+     * treatment. Android 14+ only accepts CallStyle from a foreground service
+     * or with a full-screen intent, so [CallService] posts this through
+     * startForeground (type phoneCall); [postPlainCall] is the fallback.
+     *
+     * Ongoing: a custom layout instead of CallStyle, because Samsung's
+     * shade hides CallStyle's buttons until the notification is expanded. This
+     * keeps the round Mute / Speaker / Hang up controls visible even when
+     * collapsed, with a Chronometer ticking live without re-posts.
      */
     fun buildCall(
         ctx: Context,
@@ -109,32 +111,90 @@ object Notifications {
         photo: Bitmap?,
         sim: String?,
         muted: Boolean,
-        speaker: Boolean
+        speaker: Boolean,
+        bluetooth: Boolean = false,
+        stateLabel: String = "",
+        connectedAt: Long = 0L
     ): Notification {
         val icon = photo?.let { Icon.createWithBitmap(it) }
         val b = baseCall(ctx, label, incoming, quiet, number, icon, sim)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // CallStyle on purpose: the system treats a CallStyle notification
-            // as the in-call UI's own and doesn't stack a heads-up banner over the
-            // full-screen activity.
-            val person = Person.Builder().setName(label).setIcon(icon).setImportant(true).build()
-            val style = if (incoming) {
-                Notification.CallStyle.forIncomingCall(
-                    person,
-                    actionPending(ctx, CallActionReceiver.ACTION_DECLINE, 11),
-                    actionPending(ctx, CallActionReceiver.ACTION_ANSWER, 10)
+        if (incoming) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val person = Person.Builder().setName(label).setIcon(icon).setImportant(true).build()
+                b.setStyle(
+                    Notification.CallStyle.forIncomingCall(
+                        person,
+                        actionPending(ctx, CallActionReceiver.ACTION_DECLINE, 11),
+                        actionPending(ctx, CallActionReceiver.ACTION_ANSWER, 10)
+                    )
                 )
-            } else {
-                Notification.CallStyle.forOngoingCall(person, actionPending(ctx, CallActionReceiver.ACTION_HANGUP, 12))
             }
-            b.setStyle(style)
-            if (!incoming) {
-                // CallStyle shows these alongside its own Hang up (three buttons max).
-                b.addAction(action(ctx, if (muted) R.drawable.ic_mic_off else R.drawable.ic_mic, if (muted) "Unmute" else "Mute", CallActionReceiver.ACTION_MUTE, 13))
-                b.addAction(action(ctx, R.drawable.ic_speaker, if (speaker) "Earpiece" else "Speaker", CallActionReceiver.ACTION_SPEAKER, 14))
-            }
+            return b.build()
         }
+        b.setStyle(Notification.DecoratedCustomViewStyle())
+        b.setCustomContentView(
+            callViews(ctx, R.layout.notification_call, label, number, sim, photo, muted, speaker, bluetooth, stateLabel, connectedAt)
+        )
+        b.setCustomBigContentView(
+            callViews(ctx, R.layout.notification_call_big, label, number, sim, photo, muted, speaker, bluetooth, stateLabel, connectedAt)
+        )
         return b.build()
+    }
+
+    private fun callViews(
+        ctx: Context,
+        layout: Int,
+        label: String,
+        number: String?,
+        sim: String?,
+        photo: Bitmap?,
+        muted: Boolean,
+        speaker: Boolean,
+        bluetooth: Boolean,
+        stateLabel: String,
+        connectedAt: Long
+    ): android.widget.RemoteViews {
+        val rv = android.widget.RemoteViews(ctx.packageName, layout)
+        if (photo != null) {
+            rv.setImageViewBitmap(R.id.notifPhoto, photo)
+        } else {
+            rv.setImageViewResource(R.id.notifPhoto, R.drawable.ic_person)
+            rv.setInt(R.id.notifPhoto, "setColorFilter", ctx.getColor(R.color.textSecondary))
+            val pad = (8 * ctx.resources.displayMetrics.density).toInt()
+            rv.setViewPadding(R.id.notifPhoto, pad, pad, pad, pad)
+        }
+        rv.setTextViewText(R.id.notifName, label)
+        val parts = mutableListOf<String>()
+        if (connectedAt <= 0L && stateLabel.isNotEmpty()) parts.add(stateLabel)
+        if (layout == R.layout.notification_call_big && number != null && number != label) parts.add(parts.size, number)
+        sim?.let { parts.add(it) }
+        if (connectedAt > 0L) {
+            rv.setViewVisibility(R.id.notifTimer, android.view.View.VISIBLE)
+            rv.setChronometer(
+                R.id.notifTimer,
+                android.os.SystemClock.elapsedRealtime() - (System.currentTimeMillis() - connectedAt),
+                null, true
+            )
+            rv.setTextViewText(
+                R.id.notifStatus,
+                if (parts.isEmpty()) "" else "  ·  " + parts.joinToString("  ·  ")
+            )
+        } else {
+            rv.setViewVisibility(R.id.notifTimer, android.view.View.GONE)
+            rv.setTextViewText(R.id.notifStatus, parts.joinToString("  ·  "))
+        }
+        val primary = ctx.getColor(R.color.textPrimary)
+        rv.setImageViewResource(R.id.notifMute, if (muted) R.drawable.ic_mic_off else R.drawable.ic_mic)
+        rv.setInt(R.id.notifMute, "setBackgroundResource", if (muted) R.drawable.bg_notif_btn_red else R.drawable.bg_notif_btn)
+        rv.setInt(R.id.notifMute, "setColorFilter", if (muted) 0xFFFFFFFF.toInt() else primary)
+        val routeOn = speaker || bluetooth
+        rv.setImageViewResource(R.id.notifSpeaker, if (bluetooth) R.drawable.ic_bluetooth else R.drawable.ic_speaker)
+        rv.setInt(R.id.notifSpeaker, "setBackgroundResource", if (routeOn) R.drawable.bg_notif_btn_accent else R.drawable.bg_notif_btn)
+        rv.setInt(R.id.notifSpeaker, "setColorFilter", if (routeOn) 0xFFFFFFFF.toInt() else primary)
+        rv.setOnClickPendingIntent(R.id.notifMute, actionPending(ctx, CallActionReceiver.ACTION_MUTE, 13))
+        rv.setOnClickPendingIntent(R.id.notifSpeaker, actionPending(ctx, CallActionReceiver.ACTION_SPEAKER, 14))
+        rv.setOnClickPendingIntent(R.id.notifHangup, actionPending(ctx, CallActionReceiver.ACTION_HANGUP, 12))
+        return rv
     }
 
     /** Style-less twin of [buildCall], posted with a plain notify(). */
@@ -178,9 +238,6 @@ object Notifications {
                 if (icon != null) b.setLargeIcon(icon)
             }
     }
-
-    private fun action(ctx: Context, icon: Int, title: String, act: String, code: Int): Notification.Action =
-        Notification.Action.Builder(Icon.createWithResource(ctx, icon), title, actionPending(ctx, act, code)).build()
 
     /** One per number (tagged); cleared when Recents opens. */
     fun missedCall(ctx: Context, label: String, number: String?, photo: Bitmap?) {

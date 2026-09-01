@@ -162,7 +162,8 @@ class CallService : InCallService() {
      * is refused for any reason, fall back to a plain notification.
      */
     private fun postNotification(call: Call) {
-        val incoming = call.stateCompat() == Call.STATE_RINGING
+        val st = call.stateCompat()
+        val incoming = st == Call.STATE_RINGING
         // Only a ringing call with the phone in use wants a heads-up; an
         // outgoing or connected call never does.
         val quiet = shownQuiet || !incoming
@@ -172,7 +173,10 @@ class CallService : InCallService() {
             val n = Notifications.buildCall(
                 this, shownLabel, incoming, quiet, shownNumber, shownPhoto, sim,
                 muted = audio?.isMuted == true,
-                speaker = audio?.route == CallAudioState.ROUTE_SPEAKER
+                speaker = audio?.route == CallAudioState.ROUTE_SPEAKER,
+                bluetooth = audio?.route == CallAudioState.ROUTE_BLUETOOTH,
+                stateLabel = stateName(st),
+                connectedAt = if (st == Call.STATE_ACTIVE) call.details.connectTimeMillis else 0L
             )
             startForeground(Notifications.ID_CALL, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL)
         } catch (_: Exception) {

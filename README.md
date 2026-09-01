@@ -72,6 +72,11 @@ button on the crash report.
 v3.31: R8 code + resource shrinking (obfuscation off, so crash reports stay
 readable) — smaller APK, faster cold start.
 
+v3.32: notification contact photo is circle-cropped (the rounded square read
+as clipped under the launcher's badge), and the ongoing-call notification is a
+custom layout with round Mute / Speaker / red Hang up buttons visible even
+collapsed, plus a live call timer.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key

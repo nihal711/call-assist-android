@@ -46,11 +46,11 @@ object Ui {
     }
 
     /**
-     * Centre-cropped rounded-square copy of [src], the same corner treatment
-     * the system gives notification bubbles — used for the call notification's
-     * contact photo, which would otherwise render as a hard square.
+     * Centre-cropped circular copy of [src] for the call notification —
+     * which sits cleanly in the shade. A pre-rounded square fought the shade's
+     * app-icon badge and its own icon handling and read as clipped.
      */
-    fun roundedSquare(src: android.graphics.Bitmap): android.graphics.Bitmap {
+    fun circleCrop(src: android.graphics.Bitmap): android.graphics.Bitmap {
         val size = minOf(src.width, src.height)
         val out = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
         val canvas = android.graphics.Canvas(out)
@@ -61,7 +61,7 @@ object Ui {
             postTranslate((size - src.width) / 2f, (size - src.height) / 2f)
         })
         val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { this.shader = shader }
-        val r = size * 0.28f
+        val r = size / 2f
         canvas.drawRoundRect(android.graphics.RectF(0f, 0f, size.toFloat(), size.toFloat()), r, r, paint)
         return out
     }

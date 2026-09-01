@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ongoing-call notification content. RemoteViews-safe views only; colours
+     reference theme resources so the shade adapts to system light/dark. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingTop="8dp"
+    android:paddingBottom="8dp">
+
+    <ImageView
+        android:id="@+id/notifPhoto"
+        android:layout_width="38dp"
+        android:layout_height="38dp"
+        android:background="@drawable/bg_notif_btn"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/notifName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="@color/textPrimary"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Chronometer
+                android:id="@+id/notifTimer"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/textSecondary"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/notifStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:textColor="@color/textSecondary"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <ImageButton
+        android:id="@+id/notifMute"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginStart="10dp"
+        android:background="@drawable/bg_notif_btn"
+        android:contentDescription="Mute"
+        android:padding="7dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_mic" />
+
+    <ImageButton
+        android:id="@+id/notifSpeaker"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/bg_notif_btn"
+        android:contentDescription="Speaker"
+        android:padding="7dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_speaker" />
+
+    <ImageButton
+        android:id="@+id/notifHangup"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/bg_notif_btn_red"
+        android:contentDescription="Hang up"
+        android:padding="7dp"
+        android:rotation="135"
+        android:scaleType="fitCenter"
+        android:src="@drawable/ic_phone"
+        android:tint="#FFFFFF" />
+</LinearLayout>
