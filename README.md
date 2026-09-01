@@ -36,6 +36,9 @@ SIM 1 | SIM 2 switcher for one-off overrides; the in-call screen and call
 notification show which SIM the call is on; and Recents badges every entry
 with its SIM. All of it hides itself on single-SIM phones.
 
+v3.24: crash reporting. If the app ever closes unexpectedly, Settings gains a
+red "Last crash report" row with the full stack trace and a Copy button.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key

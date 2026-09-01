@@ -8,6 +8,7 @@ import androidx.appcompat.app.AppCompatDelegate
 class CallAssistApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        CrashLog.install(this)
         applyTheme(this)
         // If something took the default-dialer role away, gate automation is
         // silently dead — surface it whenever our process comes up.

@@ -195,6 +195,14 @@
                 android:text="CALL PROTECTION" />
 
             <Button
+                android:id="@+id/btnCrash"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Last crash report"
+                android:textColor="@color/red"
+                android:visibility="gone" />
+
+            <Button
                 android:id="@+id/btnBlocked"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

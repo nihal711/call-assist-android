@@ -30,6 +30,7 @@ class Sheet(private val ctx: Context) {
     private var positiveDestructive = false
     private var positiveClick: (() -> Unit)? = null
     private var negativeText: CharSequence? = null
+    private var negativeClick: (() -> Unit)? = null
 
     private var itemLabels: List<CharSequence>? = null
     private var itemIcons: List<View?>? = null
@@ -68,7 +69,9 @@ class Sheet(private val ctx: Context) {
         positiveText = text; positiveDestructive = destructive; positiveClick = onClick
     }
 
-    fun negative(text: CharSequence = "Cancel") = apply { negativeText = text }
+    fun negative(text: CharSequence = "Cancel", onClick: (() -> Unit)? = null) = apply {
+        negativeText = text; negativeClick = onClick
+    }
 
     fun show(): BottomSheetDialog {
         val dialog = BottomSheetDialog(ctx, R.style.AppSheet)
@@ -156,7 +159,9 @@ class Sheet(private val ctx: Context) {
                     setOnClickListener { onClick() }
                 }
             val lp = LinearLayout.LayoutParams(0, dp(50), 1f)
-            negativeText?.let { bar.addView(button(it, primary, false) { dialog.dismiss() }, lp) }
+            negativeText?.let {
+                bar.addView(button(it, primary, false) { dialog.dismiss(); negativeClick?.invoke() }, lp)
+            }
             if (positiveText != null && negativeText != null) {
                 bar.addView(View(ctx).apply {
                     setBackgroundColor(ContextCompat.getColor(ctx, R.color.trackBg))

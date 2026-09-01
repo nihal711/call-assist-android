@@ -93,6 +93,10 @@ class SettingsActivity : AppCompatActivity() {
         switchHaptics.isChecked = Prefs.keyHaptics(this)
         switchHaptics.setOnCheckedChangeListener { _, checked -> Prefs.setKeyHaptics(this, checked) }
 
+        val btnCrash = findViewById<Button>(R.id.btnCrash)
+        btnCrash.visibility = if (CrashLog.read(this) != null) View.VISIBLE else View.GONE
+        btnCrash.setOnClickListener { showCrashReport(btnCrash) }
+
         findViewById<Button>(R.id.btnBlocked).setOnClickListener {
             startActivity(Intent(this, BlockedNumbersActivity::class.java))
         }
@@ -187,6 +191,42 @@ class SettingsActivity : AppCompatActivity() {
                 Prefs.setIddCode(this, input.text.toString())
                 btn.text = "IDD code: ${Prefs.iddCode(this)}"
                 refreshIddHint()
+            }
+            .show()
+    }
+
+    /** The stack trace of the last crash, with Copy so it can be pasted into a bug report. */
+    private fun showCrashReport(btn: Button) {
+        val report = CrashLog.read(this) ?: run {
+            btn.visibility = View.GONE
+            return
+        }
+        val text = TextView(this).apply {
+            this.text = report
+            typeface = android.graphics.Typeface.MONOSPACE
+            textSize = 11f
+            setTextColor(getColor(R.color.textSecondary))
+            setTextIsSelectable(true)
+        }
+        val scroll = android.widget.ScrollView(this).apply {
+            addView(text)
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                (resources.displayMetrics.heightPixels * 0.45f).toInt()
+            )
+        }
+        Sheet(this)
+            .title("Last crash report")
+            .message("Call Assist closed unexpectedly. Copy this and send it along so the bug can be fixed.")
+            .view(scroll)
+            .negative("Delete") {
+                CrashLog.clear(this)
+                btn.visibility = View.GONE
+            }
+            .positive("Copy") {
+                getSystemService(android.content.ClipboardManager::class.java)
+                    .setPrimaryClip(android.content.ClipData.newPlainText("Call Assist crash report", report))
+                android.widget.Toast.makeText(this, "Copied", android.widget.Toast.LENGTH_SHORT).show()
             }
             .show()
     }
