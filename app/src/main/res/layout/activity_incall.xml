@@ -76,6 +76,34 @@
             android:textColor="@color/textSecondary"
             android:textSize="16sp" />
 
+        <!-- Dual-SIM only: which SIM this call is on -->
+        <LinearLayout
+            android:id="@+id/simChip"
+            android:layout_width="wrap_content"
+            android:layout_height="30dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_sim_chip"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="7dp"
+            android:paddingEnd="11dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/simChipBadge"
+                android:layout_width="16dp"
+                android:layout_height="16dp" />
+
+            <TextView
+                android:id="@+id/simChipName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="7dp"
+                android:textColor="@color/textPrimary"
+                android:textSize="13sp" />
+        </LinearLayout>
+
         <Chronometer
             android:id="@+id/callTimer"
             android:layout_width="wrap_content"

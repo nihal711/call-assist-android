@@ -77,6 +77,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var suggestionsAdapter: RowAdapter
     private var toneGen: ToneGenerator? = null
 
+    // Dual-SIM selector beside the dial button
+    private lateinit var simChip: View
+    private lateinit var simChipBadge: TextView
+    private lateinit var simChipIcon: ImageView
+    private lateinit var simChipName: TextView
+
     // Recents / contacts
     private lateinit var recentsAdapter: RecentsAdapter
     private lateinit var recentsEmpty: TextView
@@ -150,6 +156,8 @@ class MainActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
             refreshGate()
             reloadData()
+            // READ_PHONE_STATE may have just arrived, which is what lists the SIMs.
+            refreshSim()
             // A delete that was waiting on WRITE_CALL_LOG.
             pendingDeleteIds?.let { ids ->
                 pendingDeleteIds = null
@@ -231,7 +239,14 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshGate()
+        refreshSim()
         reloadData()
+    }
+
+    /** Re-reads the SIM list (it can change in Settings → SIM manager) and repaints the chip. */
+    private fun refreshSim() {
+        SimUtil.refresh(this)
+        renderSimChip()
     }
 
     override fun onDestroy() {
@@ -338,7 +353,36 @@ class MainActivity : AppCompatActivity() {
             val n = dialRaw()
             if (n.isNotEmpty()) confirmCall(n)
         }
+
+        simChip = findViewById(R.id.simChip)
+        simChipBadge = findViewById(R.id.simChipBadge)
+        simChipIcon = findViewById(R.id.simChipIcon)
+        simChipName = findViewById(R.id.simChipName)
+        simChip.setOnClickListener { SimUtil.showPicker(this) { renderSimChip() } }
         setDial("")
+    }
+
+    /**
+     * Keypad SIM chip: the SIM the dial button will use, or a generic SIM
+     * glyph + "Ask" when each call prompts. Hidden entirely on single-SIM phones.
+     */
+    private fun renderSimChip() {
+        if (!SimUtil.isDual(this)) {
+            simChip.visibility = View.GONE
+            return
+        }
+        simChip.visibility = View.VISIBLE
+        val sim = SimUtil.selected(this)
+        if (sim != null) {
+            SimUtil.bind(simChipBadge, sim)
+            simChipBadge.visibility = View.VISIBLE
+            simChipIcon.visibility = View.GONE
+            simChipName.text = sim.name
+        } else {
+            simChipBadge.visibility = View.GONE
+            simChipIcon.visibility = View.VISIBLE
+            simChipName.text = "Ask"
+        }
     }
 
     // The EditText is the source of truth for the dialled number; these helpers
@@ -828,10 +872,12 @@ class MainActivity : AppCompatActivity() {
         class Group(val e: ContactsRepo.CallEntry, var count: Int, val ids: MutableList<Long>)
 
         val merged = ArrayList<Group>()
+        val dual = SimUtil.isDual(this)
         for (e in log) {
             val last = merged.lastOrNull()
             if (last != null && last.e.type == e.type &&
                 last.e.number.filter { it.isDigit() } == e.number.filter { it.isDigit() } &&
+                last.e.accountId == e.accountId &&
                 dayLabel(last.e.date) == dayLabel(e.date)
             ) {
                 last.count++
@@ -864,7 +910,8 @@ class MainActivity : AppCompatActivity() {
                         duration = g.e.duration,
                         bg = bg,
                         divider = k < j - 1,
-                        ids = g.ids
+                        ids = g.ids,
+                        sim = if (dual) SimUtil.byLogColumns(this, g.e.accountComponent, g.e.accountId) else null
                     )
                 )
             }
@@ -1310,17 +1357,38 @@ class MainActivity : AppCompatActivity() {
                 visibility = View.GONE
             }
         }
-        // Only worth showing when the user pinned a specific SIM.
-        view.findViewById<TextView>(R.id.dlgSim).apply {
-            if (Prefs.simMode(this@MainActivity) == Prefs.SIM_FIXED) {
-                text = "via ${Prefs.simLabel(this@MainActivity)}"
-                visibility = View.VISIBLE
+        // Dual SIM: segmented switcher, preselected to the app-wide choice. The
+        // pick is for this call only; the keypad chip / Settings change the default.
+        val callBtn = view.findViewById<View>(R.id.dlgCall)
+        val sims = SimUtil.sims(this)
+        var chosenSim: PhoneAccountHandle? = null
+        if (sims.size > 1) {
+            val simRow = view.findViewById<LinearLayout>(R.id.dlgSimRow)
+            simRow.visibility = View.VISIBLE
+            chosenSim = SimUtil.selected(this)?.handle
+            val segments = ArrayList<View>()
+            fun paint() {
+                segments.forEachIndexed { i, v -> v.isSelected = sims[i].handle == chosenSim }
+                // "Ask every time" starts with nothing picked; Call waits for a pick.
+                val ready = chosenSim != null
+                callBtn.isEnabled = ready
+                callBtn.alpha = if (ready) 1f else 0.45f
             }
+            for ((i, s) in sims.withIndex()) {
+                val seg = simSegment(s)
+                seg.setOnClickListener { chosenSim = s.handle; paint() }
+                simRow.addView(
+                    seg,
+                    LinearLayout.LayoutParams(0, dp(40), 1f).apply { if (i > 0) marginStart = dp(8) }
+                )
+                segments.add(seg)
+            }
+            paint()
         }
         view.findViewById<TextView>(R.id.dlgCancel).setOnClickListener { dialog.dismiss() }
-        view.findViewById<View>(R.id.dlgCall).setOnClickListener {
+        callBtn.setOnClickListener {
             dialog.dismiss()
-            placeCall(number)
+            placeCall(number, chosenSim)
         }
 
         // Real GPU blur of the content behind, when the system allows it.
@@ -1335,20 +1403,48 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    /** One pill of the confirmation dialog's SIM switcher: badge + name. */
+    private fun simSegment(sim: SimUtil.Sim): View =
+        LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER
+            setBackgroundResource(R.drawable.bg_sim_toggle)
+            setPadding(dp(12), 0, dp(14), 0)
+            addView(SimUtil.badge(this@MainActivity, sim))
+            addView(TextView(this@MainActivity).apply {
+                text = sim.name
+                textSize = 13f
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+                setTextColor(getColor(R.color.textPrimary))
+            }, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { marginStart = dp(7) })
+        }
+
+    /** "Ask every time" prompt, used when the confirmation dialog is off. */
+    private fun askSim(number: String) {
+        val sims = SimUtil.sims(this)
+        Sheet(this)
+            .title("Call with")
+            .items(sims.map { SimUtil.twoLine(this, it) }, sims.map { SimUtil.badge(this, it, 22) }) {
+                placeCall(number, sims[it].handle)
+            }
+            .negative()
+            .show()
+    }
+
     private fun placeCall(number: String, account: PhoneAccountHandle? = null) {
         if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
             permLauncher.launch(arrayOf(Manifest.permission.CALL_PHONE))
             return
         }
         val tm = getSystemService(TelecomManager::class.java)
-        val accounts = SimUtil.accounts(this)
         val chosen = account ?: when (Prefs.simMode(this)) {
-            Prefs.SIM_FIXED -> accounts.firstOrNull { it.id == Prefs.simId(this) }
+            Prefs.SIM_FIXED -> SimUtil.byId(this, Prefs.simId(this))?.handle
             Prefs.SIM_ASK -> {
-                if (accounts.size > 1) {
-                    val labels = accounts.mapIndexed { i, h -> SimUtil.label(this, h, i) }
-                    Sheet(this).title("Call with").items(labels) { placeCall(number, accounts[it]) }
-                        .negative().show()
+                if (SimUtil.isDual(this)) {
+                    askSim(number)
                     return
                 }
                 null

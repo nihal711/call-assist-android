@@ -29,6 +29,22 @@ object Ui {
         return if (c.isLetter()) c.uppercase() else "#"
     }
 
+    /** [title] with a smaller, secondary-coloured [sub] line under it, for list rows. */
+    fun twoLine(ctx: android.content.Context, title: CharSequence, sub: CharSequence): CharSequence {
+        val sb = android.text.SpannableStringBuilder(title).append("\n")
+        val start = sb.length
+        sb.append(sub)
+        val flags = android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        sb.setSpan(android.text.style.RelativeSizeSpan(0.8f), start, sb.length, flags)
+        sb.setSpan(
+            android.text.style.ForegroundColorSpan(
+                androidx.core.content.ContextCompat.getColor(ctx, R.color.textSecondary)
+            ),
+            start, sb.length, flags
+        )
+        return sb
+    }
+
     /** Avatars are small and repeat across rows, so decoded results are reused. */
     private const val AVATAR_PX = 160
     private val photoCache = object : android.util.LruCache<String, android.graphics.Bitmap>(32) {}

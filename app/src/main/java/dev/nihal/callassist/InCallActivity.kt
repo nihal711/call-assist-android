@@ -47,6 +47,9 @@ class InCallActivity : AppCompatActivity() {
     private lateinit var avatarPhoto: ImageView
     private lateinit var callerName: TextView
     private lateinit var callState: TextView
+    private lateinit var simChip: View
+    private lateinit var simChipBadge: TextView
+    private lateinit var simChipName: TextView
     private lateinit var callTimer: Chronometer
     private lateinit var ringingButtons: View
     private lateinit var ringingSlide: View
@@ -86,6 +89,9 @@ class InCallActivity : AppCompatActivity() {
         avatarPhoto = findViewById(R.id.avatarPhoto)
         callerName = findViewById(R.id.callerName)
         callState = findViewById(R.id.callState)
+        simChip = findViewById(R.id.simChip)
+        simChipBadge = findViewById(R.id.simChipBadge)
+        simChipName = findViewById(R.id.simChipName)
         callTimer = findViewById(R.id.callTimer)
         ringingButtons = findViewById(R.id.ringingButtons)
         ringingSlide = findViewById(R.id.ringingSlide)
@@ -273,6 +279,17 @@ class InCallActivity : AppCompatActivity() {
 
             val state = call.stateCompat()
             callState.text = stateName(state)
+
+            // Which SIM the call is on — for incoming calls this is what tells
+            // the user which of their numbers was rung.
+            val sim = if (SimUtil.isDual(this)) SimUtil.byHandle(this, call.details.accountHandle) else null
+            if (sim != null) {
+                SimUtil.bind(simChipBadge, sim)
+                simChipName.text = sim.name
+                simChip.visibility = View.VISIBLE
+            } else {
+                simChip.visibility = View.GONE
+            }
 
             val ringing = state == Call.STATE_RINGING
             val locked = getSystemService(KeyguardManager::class.java).isKeyguardLocked

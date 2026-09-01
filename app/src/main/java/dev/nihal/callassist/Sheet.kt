@@ -32,8 +32,10 @@ class Sheet(private val ctx: Context) {
     private var negativeText: CharSequence? = null
 
     private var itemLabels: List<CharSequence>? = null
+    private var itemIcons: List<View?>? = null
     private var itemClick: ((Int) -> Unit)? = null
     private var choiceLabels: List<CharSequence>? = null
+    private var choiceIcons: List<View?>? = null
     private var choiceChecked = -1
     private var choiceClick: ((Int) -> Unit)? = null
 
@@ -41,17 +43,25 @@ class Sheet(private val ctx: Context) {
     fun message(m: CharSequence) = apply { message = m }
     fun view(v: View) = apply { custom = v }
 
-    /** Plain rows; tapping one dismisses the sheet and reports its index. */
-    fun items(labels: List<CharSequence>, onPick: (Int) -> Unit) = apply {
-        itemLabels = labels; itemClick = onPick
+    /**
+     * Plain rows; tapping one dismisses the sheet and reports its index.
+     * [icons] are optional per-row views (e.g. a SIM badge) shown before the label.
+     */
+    fun items(labels: List<CharSequence>, icons: List<View?>? = null, onPick: (Int) -> Unit) = apply {
+        itemLabels = labels; itemIcons = icons; itemClick = onPick
     }
 
     /**
      * Radio rows. With a [positive] button the pick is reported when it is
      * tapped; without one, tapping a row reports and dismisses immediately.
      */
-    fun singleChoice(labels: List<CharSequence>, checked: Int, onPick: (Int) -> Unit) = apply {
-        choiceLabels = labels; choiceChecked = checked; choiceClick = onPick
+    fun singleChoice(
+        labels: List<CharSequence>,
+        checked: Int,
+        icons: List<View?>? = null,
+        onPick: (Int) -> Unit
+    ) = apply {
+        choiceLabels = labels; choiceChecked = checked; choiceIcons = icons; choiceClick = onPick
     }
 
     fun positive(text: CharSequence, destructive: Boolean = false, onClick: (() -> Unit)? = null) = apply {
@@ -97,7 +107,7 @@ class Sheet(private val ctx: Context) {
 
         itemLabels?.let { labels ->
             for ((i, label) in labels.withIndex()) {
-                root.addView(row(label, primary, null).apply {
+                root.addView(row(label, primary, null, itemIcons?.getOrNull(i)).apply {
                     setOnClickListener { dialog.dismiss(); itemClick?.invoke(i) }
                 })
             }
@@ -116,7 +126,7 @@ class Sheet(private val ctx: Context) {
             for ((i, label) in labels.withIndex()) {
                 val radio = ImageView(ctx)
                 radios.add(radio)
-                root.addView(row(label, primary, radio).apply {
+                root.addView(row(label, primary, radio, choiceIcons?.getOrNull(i)).apply {
                     setOnClickListener {
                         picked = i
                         paint()
@@ -173,7 +183,7 @@ class Sheet(private val ctx: Context) {
         return dialog
     }
 
-    private fun row(label: CharSequence, color: Int, lead: ImageView?): LinearLayout =
+    private fun row(label: CharSequence, color: Int, lead: ImageView?, icon: View? = null): LinearLayout =
         LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -182,6 +192,11 @@ class Sheet(private val ctx: Context) {
             setBackgroundResource(R.drawable.bg_sheet_row)
             lead?.let { iv ->
                 addView(iv, LinearLayout.LayoutParams(dp(24), dp(24)).apply { marginEnd = dp(20) })
+            }
+            icon?.let { v ->
+                val lp = (v.layoutParams as? LinearLayout.LayoutParams)
+                    ?: LinearLayout.LayoutParams(dp(22), dp(22))
+                addView(v, lp.apply { marginEnd = dp(14) })
             }
             addView(TextView(ctx).apply {
                 text = label

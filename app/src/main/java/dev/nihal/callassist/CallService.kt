@@ -56,11 +56,14 @@ class CallService : InCallService() {
                 val km = getSystemService(KeyguardManager::class.java)
                 val pm = getSystemService(PowerManager::class.java)
                 val deviceInUse = pm.isInteractive && !km.isKeyguardLocked
+                val sim = simLabel(call)
                 if (ringing && deviceInUse) {
-                    Notifications.showCall(this, label, incoming = true, number = number, photo = photo)
+                    Notifications.showCall(this, label, incoming = true, number = number, photo = photo, sim = sim)
                     return@post
                 }
-                Notifications.showCall(this, label, incoming = ringing, quiet = ringing, number = number, photo = photo)
+                Notifications.showCall(
+                    this, label, incoming = ringing, quiet = ringing, number = number, photo = photo, sim = sim
+                )
                 try {
                     startActivity(
                         Intent(this, InCallActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -90,10 +93,17 @@ class CallService : InCallService() {
                     OngoingCall.set(remaining, info.name ?: number ?: "Unknown", info.photoUri)
                     Notifications.showCall(
                         this, OngoingCall.label, remaining.stateCompat() == Call.STATE_RINGING,
-                        number = number, photo = photo
+                        number = number, photo = photo, sim = simLabel(remaining)
                     )
                 }
             }
         }.start()
+    }
+
+    /** "SIM 1 · Singtel" for the notification, or null on single-SIM phones. */
+    private fun simLabel(call: Call): String? {
+        if (!SimUtil.isDual(this)) return null
+        val sim = SimUtil.byHandle(this, call.details.accountHandle) ?: return null
+        return "SIM ${sim.slot + 1} · ${sim.name}"
     }
 }

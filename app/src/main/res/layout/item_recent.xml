@@ -44,6 +44,13 @@
             android:textSize="16sp" />
 
         <TextView
+            android:id="@+id/recentSim"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginStart="10dp"
+            android:visibility="gone" />
+
+        <TextView
             android:id="@+id/recentTime"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -141,6 +148,22 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/expSim"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_marginStart="10dp"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/expSimName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:textColor="@color/textSecondary"
+                android:textSize="13sp"
+                android:visibility="gone" />
         </LinearLayout>
 
         <TextView

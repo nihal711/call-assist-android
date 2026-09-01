@@ -33,7 +33,10 @@ object ContactsRepo {
         val type: Int,
         val date: Long,
         val duration: Long,
-        val id: Long = 0
+        val id: Long = 0,
+        /** Telecom account the call went through; resolved to a SIM by [SimUtil.byLogColumns]. */
+        val accountComponent: String? = null,
+        val accountId: String? = null
     )
 
     @Volatile
@@ -201,7 +204,8 @@ object ContactsRepo {
                 arrayOf(
                     CallLog.Calls.NUMBER, CallLog.Calls.CACHED_NAME,
                     CallLog.Calls.TYPE, CallLog.Calls.DATE, CallLog.Calls.DURATION,
-                    CallLog.Calls._ID
+                    CallLog.Calls._ID,
+                    CallLog.Calls.PHONE_ACCOUNT_COMPONENT_NAME, CallLog.Calls.PHONE_ACCOUNT_ID
                 ),
                 null, null,
                 CallLog.Calls.DATE + " DESC LIMIT $limit"
@@ -214,7 +218,9 @@ object ContactsRepo {
                             type = c.getInt(2),
                             date = c.getLong(3),
                             duration = c.getLong(4),
-                            id = c.getLong(5)
+                            id = c.getLong(5),
+                            accountComponent = c.getString(6),
+                            accountId = c.getString(7)
                         )
                     )
                 }

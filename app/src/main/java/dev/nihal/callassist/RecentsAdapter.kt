@@ -38,7 +38,9 @@ class RecentsAdapter(
             val bg: Int,
             val divider: Boolean,
             /** Call-log row ids merged into this entry; the first is its key. */
-            val ids: List<Long> = emptyList()
+            val ids: List<Long> = emptyList(),
+            /** SIM the call went through; null on single-SIM phones or when unknown. */
+            val sim: SimUtil.Sim? = null
         ) : Item()
     }
 
@@ -106,6 +108,7 @@ class RecentsAdapter(
         val check: ImageView = v.findViewById(R.id.recentCheck)
         val icon: ImageView = v.findViewById(R.id.recentIcon)
         val title: TextView = v.findViewById(R.id.recentTitle)
+        val sim: TextView = v.findViewById(R.id.recentSim)
         val time: TextView = v.findViewById(R.id.recentTime)
         val divider: View = v.findViewById(R.id.recentDivider)
         val expanded: View = v.findViewById(R.id.expandedBlock)
@@ -116,6 +119,8 @@ class RecentsAdapter(
         val expPhoto: ImageView = v.findViewById(R.id.expPhoto)
         val expStatusIcon: ImageView = v.findViewById(R.id.expStatusIcon)
         val expStatus: TextView = v.findViewById(R.id.expStatus)
+        val expSim: TextView = v.findViewById(R.id.expSim)
+        val expSimName: TextView = v.findViewById(R.id.expSimName)
         val expTime: TextView = v.findViewById(R.id.expTime)
         val btnCall: ImageButton = v.findViewById(R.id.btnExpCall)
         val btnMsg: ImageButton = v.findViewById(R.id.btnExpMsg)
@@ -179,6 +184,12 @@ class RecentsAdapter(
                     h.title.text = if (item.count > 1) "${item.title} (${item.count})" else item.title
                     h.time.text = item.time
                     h.time.setTextColor(if (item.type == CallLog.Calls.MISSED_TYPE) red else gray)
+                    if (item.sim != null) {
+                        SimUtil.bind(h.sim, item.sim)
+                        h.sim.visibility = View.VISIBLE
+                    } else {
+                        h.sim.visibility = View.GONE
+                    }
                     h.check.visibility = if (selectionMode) View.VISIBLE else View.GONE
                     if (selectionMode) {
                         val on = key(item) in selected
@@ -222,6 +233,13 @@ class RecentsAdapter(
                     h.expStatusIcon.imageTintList = ColorStateList.valueOf(tint)
                     h.expStatus.text = statusText(item)
                     h.expStatus.setTextColor(tint)
+                    val simVis = if (item.sim != null) View.VISIBLE else View.GONE
+                    if (item.sim != null) {
+                        SimUtil.bind(h.expSim, item.sim)
+                        h.expSimName.text = item.sim.name
+                    }
+                    h.expSim.visibility = simVis
+                    h.expSimName.visibility = simVis
                     h.expTime.text = item.time
                     h.expandedHeader.setOnClickListener {
                         val p = h.bindingAdapterPosition

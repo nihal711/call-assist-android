@@ -29,6 +29,13 @@ and full-width Cancel / green Call pill buttons. The rest of the app's dialogs
 (SIM chooser, settings pickers, block confirmations) pick up the same rounded
 glass treatment via the theme.
 
+v3.23: dual-SIM aware. On a phone with two active SIMs a SIM chip sits beside
+the dial button showing which SIM will be used (tap it to switch, ask every
+time, or follow the phone's setting); the call confirmation dialog gets a
+SIM 1 | SIM 2 switcher for one-off overrides; the in-call screen and call
+notification show which SIM the call is on; and Recents badges every entry
+with its SIM. All of it hides itself on single-SIM phones.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key

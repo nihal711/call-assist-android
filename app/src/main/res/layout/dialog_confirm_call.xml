@@ -56,14 +56,14 @@
         android:textColor="@color/textSecondary"
         android:textSize="15sp" />
 
-    <TextView
-        android:id="@+id/dlgSim"
+    <!-- Dual-SIM only: segmented switcher; the pick applies to this call. -->
+    <LinearLayout
+        android:id="@+id/dlgSimRow"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="10dp"
+        android:layout_marginTop="18dp"
         android:gravity="center"
-        android:textColor="@color/textSecondary"
-        android:textSize="13sp"
+        android:orientation="horizontal"
         android:visibility="gone" />
 
     <LinearLayout

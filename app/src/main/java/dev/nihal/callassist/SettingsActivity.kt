@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
 import android.text.InputType
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Switch
@@ -28,10 +29,12 @@ class SettingsActivity : AppCompatActivity() {
             Prefs.setConfirmCall(this, checked)
         }
 
+        // Nothing to choose on a single-SIM phone, so the row only appears for dual SIM.
         val btnSim = findViewById<Button>(R.id.btnSim)
-        btnSim.text = "Default SIM: ${Prefs.simLabel(this)}"
+        btnSim.visibility = if (SimUtil.isDual(this)) View.VISIBLE else View.GONE
+        btnSim.text = "Call with: ${SimUtil.modeLabel(this)}"
         btnSim.setOnClickListener {
-            SimUtil.showPicker(this) { btnSim.text = "Default SIM: ${Prefs.simLabel(this)}" }
+            SimUtil.showPicker(this) { btnSim.text = "Call with: ${SimUtil.modeLabel(this)}" }
         }
 
         findViewById<Button>(R.id.btnReplies).setOnClickListener { showReplies() }

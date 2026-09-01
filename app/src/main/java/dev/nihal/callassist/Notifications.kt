@@ -88,11 +88,14 @@ object Notifications {
         incoming: Boolean,
         quiet: Boolean = false,
         number: String? = null,
-        photo: Bitmap? = null
+        photo: Bitmap? = null,
+        /** "SIM 1 · Singtel" on dual-SIM phones; appended to the subtitle. */
+        sim: String? = null
     ) {
         ensureChannels(ctx)
         val pi = inCallPending(ctx)
-        val subtitle = if (number != null && number != label) number else if (incoming) "Incoming call" else "Call in progress"
+        val base = if (number != null && number != label) number else if (incoming) "Incoming call" else "Call in progress"
+        val subtitle = if (sim != null) "$base  ·  $sim" else base
         val b = Notification.Builder(ctx, if (quiet) CH_QUIET else CH_INCOMING)
             .setSmallIcon(android.R.drawable.sym_call_incoming)
             .setContentTitle(label)
