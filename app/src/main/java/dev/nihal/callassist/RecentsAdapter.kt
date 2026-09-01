@@ -58,6 +58,10 @@ class RecentsAdapter(
 
     private fun key(e: Item.Entry): Long = e.ids.firstOrNull() ?: e.hashCode().toLong()
 
+    /** Headers, the expanded card, and selection mode don't swipe. */
+    fun isSwipeable(pos: Int): Boolean =
+        !selectionMode && pos != expandedPos && items.getOrNull(pos) is Item.Entry
+
     private fun entries(): List<Item.Entry> = items.filterIsInstance<Item.Entry>()
 
     @Suppress("NotifyDataSetChanged")

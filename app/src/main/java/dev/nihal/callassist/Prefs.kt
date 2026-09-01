@@ -104,6 +104,24 @@ object Prefs {
         sp(ctx).edit().putString("simMode", mode).putString("simId", id)
             .putString("simLabel", label).apply()
 
+    /**
+     * Per-contact SIM override, keyed by the number's last 9 digits (the same
+     * normalisation contact lookup uses). Value is the PhoneAccountHandle id.
+     */
+    private fun contactSimKey(number: String): String? {
+        val digits = number.filter { it.isDigit() }
+        if (digits.length < 7) return null
+        return "contactSim:" + digits.takeLast(9)
+    }
+
+    fun contactSimId(ctx: Context, number: String): String? =
+        contactSimKey(number)?.let { sp(ctx).getString(it, null) }
+
+    fun setContactSim(ctx: Context, number: String, id: String?) {
+        val key = contactSimKey(number) ?: return
+        sp(ctx).edit().apply { if (id == null) remove(key) else putString(key, id) }.apply()
+    }
+
     private fun logFile(ctx: Context) = File(ctx.filesDir, "events.log")
 
     /**

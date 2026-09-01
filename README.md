@@ -64,6 +64,11 @@ v3.29: performance — contacts/call log reload only when they actually change
 call-log name resolution is indexed instead of scanning all contacts per row,
 and audio/state ticks no longer re-decode the caller photo on the call screen.
 
+v3.30: polish — app's own status-bar icon on notifications, contact photos in
+keypad suggestions, swipe a Recents row right to call / left to message,
+per-contact SIM pinning ("Always use for …" in the call dialog), and a Share
+button on the crash report.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key

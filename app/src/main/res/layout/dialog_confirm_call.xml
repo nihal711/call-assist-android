@@ -66,6 +66,18 @@
         android:orientation="horizontal"
         android:visibility="gone" />
 
+    <!-- Dual-SIM only: pins the picked SIM to this number for future calls -->
+    <CheckBox
+        android:id="@+id/dlgSimRemember"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="4dp"
+        android:buttonTint="@color/accent"
+        android:textColor="@color/textSecondary"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

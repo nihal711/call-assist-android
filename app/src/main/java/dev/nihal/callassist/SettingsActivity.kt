@@ -130,6 +130,8 @@ class SettingsActivity : AppCompatActivity() {
             else "Keeps Samsung's battery manager from ever interfering with gate automation."
     }
 
+    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
+
     /** Single-choice dialog over a fixed set of numbers. */
     private fun pick(
         title: String,
@@ -208,19 +210,48 @@ class SettingsActivity : AppCompatActivity() {
             setTextColor(getColor(R.color.textSecondary))
             setTextIsSelectable(true)
         }
-        val scroll = android.widget.ScrollView(this).apply {
-            addView(text)
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                // Leave room for title, message and the Copy | Delete bar — a
-                // taller viewer pushed the buttons off the bottom of the sheet.
-                (resources.displayMetrics.heightPixels * 0.28f).toInt()
+        val scroll = android.widget.ScrollView(this).apply { addView(text) }
+        val share = TextView(this).apply {
+            this.text = "Share…"
+            textSize = 15f
+            gravity = android.view.Gravity.CENTER
+            setTextColor(getColor(R.color.accent))
+            setBackgroundResource(R.drawable.bg_compact_tile)
+            setPadding(0, dp(11), 0, dp(11))
+            setOnClickListener {
+                startActivity(
+                    Intent.createChooser(
+                        Intent(Intent.ACTION_SEND).setType("text/plain")
+                            .putExtra(Intent.EXTRA_SUBJECT, "Call Assist crash report")
+                            .putExtra(Intent.EXTRA_TEXT, report),
+                        "Share crash report"
+                    )
+                )
+            }
+        }
+        val body = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            addView(
+                scroll,
+                android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                    // Leave room for title, message and the Copy | Delete bar — a
+                    // taller viewer pushed the buttons off the bottom of the sheet.
+                    (resources.displayMetrics.heightPixels * 0.26f).toInt()
+                )
+            )
+            addView(
+                share,
+                android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(12) }
             )
         }
         Sheet(this)
             .title("Last crash report")
-            .message("Copy this and send it along so the bug can be fixed.")
-            .view(scroll)
+            .message("Copy or share this so the bug can be fixed.")
+            .view(body)
             .negative("Delete") {
                 CrashLog.clear(this)
                 btn.visibility = View.GONE

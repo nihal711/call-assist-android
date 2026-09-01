@@ -165,7 +165,8 @@ object Notifications {
         val base = if (number != null && number != label) number else if (incoming) "Incoming call" else "Call in progress"
         val subtitle = if (sim != null) "$base  ·  $sim" else base
         return Notification.Builder(ctx, if (quiet) CH_QUIET else CH_INCOMING)
-            .setSmallIcon(android.R.drawable.sym_call_incoming)
+            .setSmallIcon(R.drawable.ic_phone)
+            .setColor(ctx.getColor(R.color.accent))
             .setContentTitle(label)
             .setContentText(subtitle)
             .setCategory(Notification.CATEGORY_CALL)
@@ -252,7 +253,8 @@ object Notifications {
         ensureChannels(ctx)
         val ringerOn = ctx.getSystemService(AudioManager::class.java).ringerMode == AudioManager.RINGER_MODE_NORMAL
         val n = Notification.Builder(ctx, if (ringerOn) CH_GATE else CH_GATE_QUIET)
-            .setSmallIcon(android.R.drawable.sym_call_incoming)
+            .setSmallIcon(R.drawable.ic_phone)
+            .setColor(ctx.getColor(R.color.green))
             .setContentTitle("Call Assist")
             .setContentText(text)
             .setStyle(Notification.BigTextStyle().bigText(text))

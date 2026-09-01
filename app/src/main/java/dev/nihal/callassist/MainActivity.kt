@@ -16,6 +16,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.database.ContentObserver
+import android.graphics.Canvas
 import android.os.Looper
 import android.os.SystemClock
 import android.telecom.Call
@@ -51,6 +52,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.widget.doAfterTextChanged
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -576,7 +578,8 @@ class MainActivity : AppCompatActivity() {
                 subtitle = "",
                 meta = highlightNumber(fmt(m.number.number), m.digitSpan, accent),
                 avatarSeed = m.contact.name,
-                payload = m.number.number
+                payload = m.number.number,
+                photoUri = m.contact.photoUri
             )
         }
         val showList = matches.isNotEmpty()
@@ -658,7 +661,8 @@ class MainActivity : AppCompatActivity() {
             onContact = { openOrAddContact(it) },
             onHistory = { showHistorySheet(it.number, it.title) }
         )
-        findViewById<RecyclerView>(R.id.recentsList).apply {
+        val recentsList = findViewById<RecyclerView>(R.id.recentsList)
+        recentsList.apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = recentsAdapter
             // The list's bounds never depend on its contents, so skip the
@@ -668,6 +672,40 @@ class MainActivity : AppCompatActivity() {
             // to this tab rebinds instead of re-inflating.
             setItemViewCacheSize(12)
         }
+
+        // Swipe a row right to call, left to message.
+        val swipeCap = dp(110).toFloat()
+        val swipe = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
+            override fun onMove(
+                rv: RecyclerView, vh: RecyclerView.ViewHolder, t: RecyclerView.ViewHolder
+            ) = false
+
+            override fun getSwipeDirs(rv: RecyclerView, vh: RecyclerView.ViewHolder): Int {
+                val pos = vh.bindingAdapterPosition
+                return if (pos >= 0 && recentsAdapter.isSwipeable(pos)) super.getSwipeDirs(rv, vh) else 0
+            }
+
+            // Below the travel cap, or a full swipe could never trigger.
+            override fun getSwipeThreshold(vh: RecyclerView.ViewHolder) = 0.25f
+
+            override fun onSwiped(vh: RecyclerView.ViewHolder, direction: Int) {
+                val pos = vh.bindingAdapterPosition
+                val e = recentsAdapter.items.getOrNull(pos) as? RecentsAdapter.Item.Entry ?: return
+                // Rebind snaps the row back into place; the action follows.
+                recentsAdapter.notifyItemChanged(pos)
+                if (direction == ItemTouchHelper.RIGHT) confirmCall(e.number) else openSms(e.number)
+            }
+
+            override fun onChildDraw(
+                c: Canvas, rv: RecyclerView, vh: RecyclerView.ViewHolder,
+                dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean
+            ) {
+                val x = dX.coerceIn(-swipeCap, swipeCap)
+                if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) drawSwipeHint(c, vh.itemView, x, swipeCap)
+                super.onChildDraw(c, rv, vh, x, dY, actionState, isCurrentlyActive)
+            }
+        }
+        ItemTouchHelper(swipe).attachToRecyclerView(recentsList)
 
         recentsSearch = findViewById(R.id.recentsSearch)
         recentsSearchPanel = findViewById(R.id.recentsSearchPanel)
@@ -712,6 +750,24 @@ class MainActivity : AppCompatActivity() {
             recentsDays = checked.firstOrNull()?.let { chipDays[it] } ?: 0
             renderRecents()
         }
+    }
+
+    /** Phone (right) or message (left) glyph fading in behind a swiped row. */
+    private fun drawSwipeHint(c: Canvas, item: View, dX: Float, cap: Float) {
+        if (dX == 0f) return
+        val icon = androidx.core.content.ContextCompat.getDrawable(
+            this, if (dX > 0) R.drawable.ic_phone else R.drawable.ic_message
+        ) ?: return
+        icon.setTint(getColor(if (dX > 0) R.color.green else R.color.accent))
+        icon.alpha = (kotlin.math.abs(dX) / cap * 255).toInt().coerceAtMost(255)
+        val size = dp(24)
+        val cy = (item.top + item.bottom) / 2
+        if (dX > 0) {
+            icon.setBounds(item.left + dp(30), cy - size / 2, item.left + dp(30) + size, cy + size / 2)
+        } else {
+            icon.setBounds(item.right - dp(30) - size, cy - size / 2, item.right - dp(30), cy + size / 2)
+        }
+        icon.draw(c)
     }
 
     // ---- Selection mode ----
@@ -1463,10 +1519,25 @@ class MainActivity : AppCompatActivity() {
         val callBtn = view.findViewById<View>(R.id.dlgCall)
         val sims = SimUtil.sims(this)
         var chosenSim: PhoneAccountHandle? = null
+        var onCallPicked: (() -> Unit)? = null
         if (sims.size > 1) {
             val simRow = view.findViewById<LinearLayout>(R.id.dlgSimRow)
             simRow.visibility = View.VISIBLE
-            chosenSim = SimUtil.selected(this)?.handle
+            val savedId = Prefs.contactSimId(this, number)
+            chosenSim = savedId?.let { id -> sims.firstOrNull { it.handle.id == id }?.handle }
+                ?: SimUtil.selected(this)?.handle
+            val remember = view.findViewById<android.widget.CheckBox>(R.id.dlgSimRemember)
+            remember.visibility = View.VISIBLE
+            remember.isChecked = savedId != null
+            remember.text = "Always use for $display"
+            onCallPicked = {
+                val pickedId = sims.firstOrNull { it.handle == chosenSim }?.handle?.id
+                if (remember.isChecked && pickedId != null) {
+                    Prefs.setContactSim(this, number, pickedId)
+                } else if (!remember.isChecked && savedId != null) {
+                    Prefs.setContactSim(this, number, null)
+                }
+            }
             val segments = ArrayList<View>()
             fun paint() {
                 segments.forEachIndexed { i, v -> v.isSelected = sims[i].handle == chosenSim }
@@ -1489,6 +1560,7 @@ class MainActivity : AppCompatActivity() {
         view.findViewById<TextView>(R.id.dlgCancel).setOnClickListener { dialog.dismiss() }
         callBtn.setOnClickListener {
             dialog.dismiss()
+            onCallPicked?.invoke()
             placeCall(number, chosenSim)
         }
 
@@ -1541,7 +1613,9 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val tm = getSystemService(TelecomManager::class.java)
-        val chosen = account ?: when (Prefs.simMode(this)) {
+        val chosen = account
+            ?: Prefs.contactSimId(this, number)?.let { id -> SimUtil.byId(this, id)?.handle }
+            ?: when (Prefs.simMode(this)) {
             Prefs.SIM_FIXED -> SimUtil.byId(this, Prefs.simId(this))?.handle
             Prefs.SIM_ASK -> {
                 if (SimUtil.isDual(this)) {

@@ -142,7 +142,8 @@ class RowAdapter(private val onClick: (Row) -> Unit) :
         val meta: CharSequence,
         val avatarSeed: String,
         val payload: Any?,
-        val metaColor: Int? = null
+        val metaColor: Int? = null,
+        val photoUri: String? = null
     )
 
     var rows: List<Row> = emptyList()
@@ -154,6 +155,7 @@ class RowAdapter(private val onClick: (Row) -> Unit) :
 
     class VH(v: View) : RecyclerView.ViewHolder(v) {
         val avatar: TextView = v.findViewById(R.id.avatar)
+        val photo: android.widget.ImageView = v.findViewById(R.id.avatarPhoto)
         val title: TextView = v.findViewById(R.id.title)
         val subtitle: TextView = v.findViewById(R.id.subtitle)
         val meta: TextView = v.findViewById(R.id.meta)
@@ -173,6 +175,8 @@ class RowAdapter(private val onClick: (Row) -> Unit) :
         h.meta.setTextColor(r.metaColor ?: Color.GRAY)
         h.avatar.text = Ui.initial(r.avatarSeed)
         h.avatar.backgroundTintList = ColorStateList.valueOf(Ui.avatarColor(r.avatarSeed))
+        // Cached + downsampled; hides itself (initial shows) when there is no photo.
+        Ui.loadPhoto(h.itemView.context, h.photo, r.photoUri)
         h.itemView.setOnClickListener { onClick(r) }
     }
 }
