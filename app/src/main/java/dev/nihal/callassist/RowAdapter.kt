@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.activity.enableEdgeToEdge
 import androidx.recyclerview.widget.RecyclerView
 
 object Ui {
@@ -64,6 +65,38 @@ object Ui {
         val r = size / 2f
         canvas.drawRoundRect(android.graphics.RectF(0f, 0f, size.toFloat(), size.toFloat()), r, r, paint)
         return out
+    }
+
+    /**
+     * Edge-to-edge (enforced from target SDK 35): transparent bars whose icon
+     * colour follows the app's own light/dark mode rather than the system's,
+     * since the app can be forced dark while the system is light.
+     */
+    fun edgeToEdge(a: androidx.activity.ComponentActivity) {
+        val night = (a.resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        val style = if (night) androidx.activity.SystemBarStyle.dark(Color.TRANSPARENT)
+        else androidx.activity.SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+        a.enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+    }
+
+    /** Adds the system-bar (and optionally keyboard) insets to [v]'s existing padding. */
+    fun applyInsets(v: View, top: Boolean = true, bottom: Boolean = true, ime: Boolean = false) {
+        val l = v.paddingLeft; val t = v.paddingTop; val r = v.paddingRight; val b = v.paddingBottom
+        androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(v) { view, insets ->
+            val bars = insets.getInsets(
+                androidx.core.view.WindowInsetsCompat.Type.systemBars() or
+                    androidx.core.view.WindowInsetsCompat.Type.displayCutout()
+            )
+            val keyboard = if (ime) insets.getInsets(androidx.core.view.WindowInsetsCompat.Type.ime()).bottom else 0
+            view.setPadding(
+                l,
+                t + if (top) bars.top else 0,
+                r,
+                b + maxOf(if (bottom) bars.bottom else 0, keyboard)
+            )
+            insets
+        }
     }
 
     /** Empty-state text with a large faded glyph above it. */

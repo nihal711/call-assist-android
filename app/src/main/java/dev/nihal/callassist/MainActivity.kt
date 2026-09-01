@@ -16,7 +16,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.database.ContentObserver
-import android.graphics.Canvas
 import android.os.Looper
 import android.os.SystemClock
 import android.telecom.Call
@@ -104,8 +103,7 @@ class MainActivity : AppCompatActivity() {
 
     // Keypad
     private lateinit var numberDisplay: EditText
-    /** True while renderDialInput() is writing to numberDisplay itself. */
-    private var renderingDial = false
+    private lateinit var dial: DialField
     private lateinit var btnBackspace: ImageButton
     private lateinit var suggestionsList: RecyclerView
     private lateinit var suggestionsEmpty: TextView
@@ -190,7 +188,7 @@ class MainActivity : AppCompatActivity() {
                 currentTab == 1 && recentsAdapter.selectionMode -> setRecentsSelection(false)
                 currentTab == 1 && recentsSearchOpen -> setRecentsSearchOpen(false)
                 keypadCollapsed -> setKeypadCollapsed(false)
-                dialRaw().isNotEmpty() -> setDial("")
+                dial.raw().isNotEmpty() -> dial.set("")
             }
         }
     }
@@ -217,7 +215,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Ui.edgeToEdge(this)
         setContentView(R.layout.activity_main)
+        Ui.applyInsets(findViewById(R.id.mainRoot), ime = true)
         Notifications.ensureChannels(this)
 
         navBar = findViewById(R.id.navBar)
@@ -261,11 +261,11 @@ class MainActivity : AppCompatActivity() {
         handleIntent(intent)
     }
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         // singleTask: the launch intent sticks around for later getIntent() calls,
         // so replace it with the one that actually brought us to the front.
-        intent?.let { setIntent(it) }
+        setIntent(intent)
         handleIntent(intent)
     }
 
@@ -302,7 +302,7 @@ class MainActivity : AppCompatActivity() {
         }
         navBar.select(0)
         setKeypadCollapsed(false)
-        setDial(number)
+        dial.set(number)
     }
 
     override fun onResume() {
@@ -442,8 +442,8 @@ class MainActivity : AppCompatActivity() {
         suggestionsEmptyBox = findViewById(R.id.suggestionsEmptyBox)
         keypadActions = findViewById(R.id.keypadActions)
         btnPaste = findViewById(R.id.btnPaste)
-        findViewById<View>(R.id.btnAddToContacts).setOnClickListener { openOrAddContact(dialRaw()) }
-        findViewById<View>(R.id.btnSendMessage).setOnClickListener { openSms(dialRaw()) }
+        findViewById<View>(R.id.btnAddToContacts).setOnClickListener { openOrAddContact(dial.raw()) }
+        findViewById<View>(R.id.btnSendMessage).setOnClickListener { openSms(dial.raw()) }
         btnPaste.setOnClickListener { pasteNumber() }
 
         suggestionsAdapter = RowAdapter { row -> confirmCall(row.payload as String, row.title.toString()) }
@@ -472,13 +472,7 @@ class MainActivity : AppCompatActivity() {
         // devices Typeface.create silently falls back to the system default.
         val dialFont = Typeface.create("sec-roboto-light", Typeface.NORMAL)
         numberDisplay.typeface = dialFont
-        numberDisplay.showSoftInputOnFocus = false
-        // Paste / hardware keys bypass the keypad: re-normalise whatever landed.
-        numberDisplay.doAfterTextChanged { s ->
-            if (renderingDial) return@doAfterTextChanged
-            val text = s?.toString().orEmpty()
-            setDial(PhoneNumberUtils.stripSeparators(text), rawCursorAt(text, numberDisplay.selectionStart))
-        }
+        dial = DialField(numberDisplay) { renderDialInput() }
         for (k in keys) {
             val cell = LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
@@ -511,11 +505,11 @@ class MainActivity : AppCompatActivity() {
             cell.setOnClickListener {
                 if (Prefs.keyHaptics(this)) it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 playKeyTone(k.digit)
-                insertDial(k.digit)
+                dial.insert(k.digit)
             }
             when (k.digit) {
                 '0' -> cell.setOnLongClickListener {
-                    insertDial('+'); true
+                    dial.insert('+'); true
                 }
                 '1' -> cell.setOnLongClickListener {
                     dialVoicemail()
@@ -526,11 +520,11 @@ class MainActivity : AppCompatActivity() {
             grid.addView(cell)
         }
 
-        btnBackspace.setOnClickListener { backspaceDial() }
-        btnBackspace.setOnLongClickListener { setDial(""); true }
+        btnBackspace.setOnClickListener { dial.backspace() }
+        btnBackspace.setOnLongClickListener { dial.set(""); true }
 
         findViewById<View>(R.id.btnDial).setOnClickListener {
-            val n = dialRaw()
+            val n = dial.raw()
             if (n.isNotEmpty()) confirmCall(n)
         }
 
@@ -539,7 +533,7 @@ class MainActivity : AppCompatActivity() {
         simChipIcon = findViewById(R.id.simChipIcon)
         simChipName = findViewById(R.id.simChipName)
         simChip.setOnClickListener { SimUtil.showPicker(this) { renderSimChip() } }
-        setDial("")
+        dial.set("")
     }
 
     /**
@@ -563,59 +557,6 @@ class MainActivity : AppCompatActivity() {
             simChipIcon.visibility = View.VISIBLE
             simChipName.text = "Ask"
         }
-    }
-
-    // The EditText is the source of truth for the dialled number; these helpers
-    // edit it in "raw" (separator-free) space so the cursor survives reformatting.
-
-    /** Dialable chars (digits, plus, star, hash) currently in the display, formatting stripped. */
-    private fun dialRaw(): String = PhoneNumberUtils.stripSeparators(numberDisplay.text.toString())
-
-    /** Number of dialable chars before [pos] in the formatted [text]. */
-    private fun rawCursorAt(text: CharSequence, pos: Int): Int {
-        var n = 0
-        for (i in 0 until pos.coerceIn(0, text.length)) if (PhoneNumberUtils.isNonSeparator(text[i])) n++
-        return n
-    }
-
-    private fun insertDial(c: Char) {
-        val raw = dialRaw()
-        val text = numberDisplay.text
-        val start = rawCursorAt(text, numberDisplay.selectionStart.takeIf { it >= 0 } ?: text.length)
-        val end = rawCursorAt(text, numberDisplay.selectionEnd.takeIf { it >= 0 } ?: text.length)
-        setDial(raw.substring(0, start) + c + raw.substring(end), start + 1)
-    }
-
-    private fun backspaceDial() {
-        val raw = dialRaw()
-        if (raw.isEmpty()) return
-        val text = numberDisplay.text
-        var start = rawCursorAt(text, numberDisplay.selectionStart.takeIf { it >= 0 } ?: text.length)
-        val end = rawCursorAt(text, numberDisplay.selectionEnd.takeIf { it >= 0 } ?: text.length)
-        if (start == end) {
-            if (start == 0) return
-            start--
-        }
-        setDial(raw.substring(0, start) + raw.substring(end), start)
-    }
-
-    /** Replaces the number with [raw], placing the cursor after [rawCursor] dialable chars (default: end). */
-    private fun setDial(raw: String, rawCursor: Int = raw.length) {
-        val formatted =
-            if (raw.all { it.isDigit() || it == '+' })
-                PhoneNumberUtils.formatNumber(raw, Locale.getDefault().country) ?: raw
-            else raw
-        var pos = formatted.length
-        var seen = 0
-        for (i in formatted.indices) {
-            if (seen == rawCursor) { pos = i; break }
-            if (PhoneNumberUtils.isNonSeparator(formatted[i])) seen++
-        }
-        renderingDial = true
-        numberDisplay.setText(formatted)
-        numberDisplay.setSelection(pos.coerceIn(0, formatted.length))
-        renderingDial = false
-        renderDialInput()
     }
 
     /**
@@ -659,7 +600,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderDialInput() {
-        val raw = dialRaw()
+        val raw = dial.raw()
         btnBackspace.visibility = if (raw.isEmpty()) View.INVISIBLE else View.VISIBLE
 
         val accent = getColor(R.color.accent)
@@ -715,13 +656,13 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "No phone number on the clipboard", Toast.LENGTH_SHORT).show()
             return
         }
-        setDial(number)
+        dial.set(number)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         // Clipboard contents are only visible to the focused app.
-        if (hasFocus && ::btnPaste.isInitialized && dialRaw().isEmpty()) {
+        if (hasFocus && ::btnPaste.isInitialized && dial.raw().isEmpty()) {
             btnPaste.visibility = if (clipboardHasText()) View.VISIBLE else View.GONE
         }
     }
@@ -765,7 +706,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateBackState() {
         backCallback.isEnabled =
-            (currentTab == 0 && (keypadCollapsed || dialRaw().isNotEmpty())) ||
+            (currentTab == 0 && (keypadCollapsed || dial.raw().isNotEmpty())) ||
                 (currentTab == 1 && (recentsSearchOpen || recentsAdapter.selectionMode))
     }
 
@@ -811,39 +752,8 @@ class MainActivity : AppCompatActivity() {
             setItemViewCacheSize(12)
         }
 
-        // Swipe a row right to call, left to message.
-        val swipeCap = dp(110).toFloat()
-        val swipe = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
-            override fun onMove(
-                rv: RecyclerView, vh: RecyclerView.ViewHolder, t: RecyclerView.ViewHolder
-            ) = false
-
-            override fun getSwipeDirs(rv: RecyclerView, vh: RecyclerView.ViewHolder): Int {
-                val pos = vh.bindingAdapterPosition
-                return if (pos >= 0 && recentsAdapter.isSwipeable(pos)) super.getSwipeDirs(rv, vh) else 0
-            }
-
-            // Below the travel cap, or a full swipe could never trigger.
-            override fun getSwipeThreshold(vh: RecyclerView.ViewHolder) = 0.25f
-
-            override fun onSwiped(vh: RecyclerView.ViewHolder, direction: Int) {
-                val pos = vh.bindingAdapterPosition
-                val e = recentsAdapter.items.getOrNull(pos) as? RecentsAdapter.Item.Entry ?: return
-                // Rebind snaps the row back into place; the action follows.
-                recentsAdapter.notifyItemChanged(pos)
-                if (direction == ItemTouchHelper.RIGHT) confirmCall(e.number) else openSms(e.number)
-            }
-
-            override fun onChildDraw(
-                c: Canvas, rv: RecyclerView, vh: RecyclerView.ViewHolder,
-                dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean
-            ) {
-                val x = dX.coerceIn(-swipeCap, swipeCap)
-                if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) drawSwipeHint(c, vh.itemView, x, swipeCap)
-                super.onChildDraw(c, rv, vh, x, dY, actionState, isCurrentlyActive)
-            }
-        }
-        ItemTouchHelper(swipe).attachToRecyclerView(recentsList)
+        ItemTouchHelper(RecentsSwipeCallback(this, recentsAdapter, { confirmCall(it) }, { openSms(it) }))
+            .attachToRecyclerView(recentsList)
 
         recentsSearch = findViewById(R.id.recentsSearch)
         recentsSearchPanel = findViewById(R.id.recentsSearchPanel)
@@ -890,24 +800,6 @@ class MainActivity : AppCompatActivity() {
             recentsDays = checked.firstOrNull()?.let { chipDays[it] } ?: 0
             renderRecents()
         }
-    }
-
-    /** Phone (right) or message (left) glyph fading in behind a swiped row. */
-    private fun drawSwipeHint(c: Canvas, item: View, dX: Float, cap: Float) {
-        if (dX == 0f) return
-        val icon = androidx.core.content.ContextCompat.getDrawable(
-            this, if (dX > 0) R.drawable.ic_phone else R.drawable.ic_message
-        ) ?: return
-        icon.setTint(getColor(if (dX > 0) R.color.green else R.color.accent))
-        icon.alpha = (kotlin.math.abs(dX) / cap * 255).toInt().coerceAtMost(255)
-        val size = dp(24)
-        val cy = (item.top + item.bottom) / 2
-        if (dX > 0) {
-            icon.setBounds(item.left + dp(30), cy - size / 2, item.left + dp(30) + size, cy + size / 2)
-        } else {
-            icon.setBounds(item.right - dp(30) - size, cy - size / 2, item.right - dp(30), cy + size / 2)
-        }
-        icon.draw(c)
     }
 
     // ---- Selection mode ----
@@ -1170,87 +1062,13 @@ class MainActivity : AppCompatActivity() {
             overScrollMode = View.OVER_SCROLL_NEVER
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(440))
         }
-        sheetAdapter.items = buildRecentsItems(history)
+        sheetAdapter.items = RecentsItems.build(this, history)
         dialog = Sheet(this).title(title).view(list).show()
-    }
-
-    private fun dayLabel(ts: Long): String {
-        val now = Calendar.getInstance()
-        val c = Calendar.getInstance().apply { timeInMillis = ts }
-        val sameYear = c.get(Calendar.YEAR) == now.get(Calendar.YEAR)
-        val dayDiff = now.get(Calendar.DAY_OF_YEAR) - c.get(Calendar.DAY_OF_YEAR)
-        return when {
-            sameYear && dayDiff == 0 -> "Today"
-            sameYear && dayDiff == 1 -> "Yesterday"
-            else -> SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(ts))
-        }
-    }
-
-    private fun buildRecentsItems(log: List<ContactsRepo.CallEntry>): List<RecentsAdapter.Item> {
-        val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
-        // Merge consecutive entries with the same number, type, and day.
-        class Group(val e: ContactsRepo.CallEntry, var count: Int, val ids: MutableList<Long>)
-
-        val merged = ArrayList<Group>()
-        val dual = SimUtil.isDual(this)
-        for (e in log) {
-            val last = merged.lastOrNull()
-            if (last != null && last.e.type == e.type &&
-                last.e.number.filter { it.isDigit() } == e.number.filter { it.isDigit() } &&
-                last.e.accountId == e.accountId &&
-                dayLabel(last.e.date) == dayLabel(e.date)
-            ) {
-                last.count++
-                last.ids.add(e.id)
-            } else {
-                merged.add(Group(e, 1, mutableListOf(e.id)))
-            }
-        }
-
-        val items = ArrayList<RecentsAdapter.Item>()
-        var i = 0
-        while (i < merged.size) {
-            val label = dayLabel(merged[i].e.date)
-            var j = i
-            while (j < merged.size && dayLabel(merged[j].e.date) == label) j++
-            items.add(RecentsAdapter.Item.Header(label))
-            for (k in i until j) {
-                val g = merged[k]
-                val name = g.e.name?.takeIf { it.isNotBlank() }
-                    ?: ContactsRepo.lookupNameCached(g.e.number)
-                    ?: fmt(g.e.number)
-                val bg = groupBg(k - i, j - i)
-                items.add(
-                    RecentsAdapter.Item.Entry(
-                        title = name,
-                        count = g.count,
-                        time = timeFmt.format(Date(g.e.date)),
-                        type = g.e.type,
-                        number = g.e.number,
-                        duration = g.e.duration,
-                        bg = bg,
-                        divider = k < j - 1,
-                        ids = g.ids,
-                        sim = if (dual) SimUtil.byLogColumns(this, g.e.accountComponent, g.e.accountId) else null
-                    )
-                )
-            }
-            i = j
-        }
-        return items
-    }
-
-    /** Rounded-corner background for row [index] of a card holding [size] rows. */
-    private fun groupBg(index: Int, size: Int): Int = when {
-        size == 1 -> R.drawable.bg_group_single
-        index == 0 -> R.drawable.bg_group_top
-        index == size - 1 -> R.drawable.bg_group_bottom
-        else -> R.drawable.bg_group_mid
     }
 
     private fun renderRecents() {
         val shown = filteredCallLog()
-        recentsAdapter.items = buildRecentsItems(shown)
+        recentsAdapter.items = RecentsItems.build(this, shown)
         val hasPerm = checkSelfPermission(Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED
         recentsEmpty.visibility = if (shown.isEmpty()) View.VISIBLE else View.GONE
         recentsEmpty.text = when {
@@ -1425,7 +1243,7 @@ class MainActivity : AppCompatActivity() {
                 contact = c,
                 title = title,
                 subtitle = subtitle,
-                bg = groupBg(index, size),
+                bg = RecentsItems.groupBg(index, size),
                 divider = index < size - 1
             )
         }
@@ -1508,104 +1326,17 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * One thing that has to be true for the gate to open. [blocking] separates
-     * "automation cannot run" from "it runs, but something is degraded" — the
-     * headline reports the worst of the two, and only the failures get a row.
-     */
-    private data class Check(
-        val title: String,
-        val detail: String,
-        val ok: Boolean,
-        val blocking: Boolean,
-        val fix: (() -> Unit)?
-    )
-
-    private fun gateChecks(): List<Check> {
-        val rm = getSystemService(RoleManager::class.java)
-        val fsi = Build.VERSION.SDK_INT < 34 ||
-            getSystemService(NotificationManager::class.java).canUseFullScreenIntent()
-        val missingPerms = mutableListOf<String>().apply {
-            if (!has(Manifest.permission.READ_CONTACTS)) add("Contacts")
-            if (!has(Manifest.permission.READ_CALL_LOG)) add("Call log")
-            if (Build.VERSION.SDK_INT >= 33 && !has(Manifest.permission.POST_NOTIFICATIONS)) add("Notifications")
-        }
-        return listOf(
-            Check(
-                "Set as default phone app",
-                "Required — the gate can't be answered without it",
-                rm.isRoleHeld(RoleManager.ROLE_DIALER),
-                blocking = true,
-                fix = {
-                    if (rm.isRoleAvailable(RoleManager.ROLE_DIALER) && !rm.isRoleHeld(RoleManager.ROLE_DIALER)) {
-                        roleLauncher.launch(rm.createRequestRoleIntent(RoleManager.ROLE_DIALER))
-                    }
+    private fun gateChecks(): List<GateSetup.Check> =
+        GateSetup.checks(
+            this,
+            requestRole = {
+                val rm = getSystemService(RoleManager::class.java)
+                if (rm.isRoleAvailable(RoleManager.ROLE_DIALER) && !rm.isRoleHeld(RoleManager.ROLE_DIALER)) {
+                    roleLauncher.launch(rm.createRequestRoleIntent(RoleManager.ROLE_DIALER))
                 }
-            ),
-            Check(
-                "Grant permissions",
-                if (missingPerms.isEmpty()) "" else "${missingPerms.joinToString(", ")} — tap to allow",
-                missingPerms.isEmpty(),
-                blocking = true,
-                fix = { requestGatePerms() }
-            ),
-            Check(
-                "Turn on automation",
-                "Auto-answer is switched off below",
-                Prefs.enabled(this),
-                blocking = true,
-                fix = null
-            ),
-            Check(
-                "Allow full-screen call alerts",
-                "Calls show as a banner only",
-                fsi,
-                blocking = false,
-                fix = { openFsiSettings() }
-            ),
-            Check(
-                "Exempt from battery optimization",
-                "Android may delay or kill the app",
-                getSystemService(android.os.PowerManager::class.java)
-                    .isIgnoringBatteryOptimizations(packageName),
-                blocking = false,
-                fix = { openBatterySettings() }
-            )
+            },
+            requestPerms = { permLauncher.launch(GateSetup.requiredPermissions()) }
         )
-    }
-
-    private fun requestGatePerms() {
-        val perms = mutableListOf(
-            Manifest.permission.READ_CONTACTS,
-            Manifest.permission.READ_CALL_LOG,
-            Manifest.permission.READ_PHONE_STATE,
-            Manifest.permission.CALL_PHONE
-        )
-        if (Build.VERSION.SDK_INT >= 33) perms.add(Manifest.permission.POST_NOTIFICATIONS)
-        permLauncher.launch(perms.toTypedArray())
-    }
-
-    /** Android 14+ full-screen-intent permission page. */
-    private fun openFsiSettings() {
-        try {
-            startActivity(
-                Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
-                    .setData(Uri.parse("package:$packageName"))
-            )
-        } catch (_: Exception) {
-            Toast.makeText(this, "Open Settings → Apps → Call Assist → Notifications", Toast.LENGTH_LONG).show()
-        }
-    }
-
-    private fun openBatterySettings() {
-        // The direct request dialog needs REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-        // which Play flags; the settings list gets there without it.
-        try {
-            startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
-        } catch (_: Exception) {
-            Toast.makeText(this, "Open Settings → Apps → Call Assist → Battery", Toast.LENGTH_LONG).show()
-        }
-    }
 
     private fun refreshGate() {
         val checks = gateChecks()

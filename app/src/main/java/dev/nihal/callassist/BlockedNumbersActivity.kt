@@ -19,7 +19,9 @@ class BlockedNumbersActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Ui.edgeToEdge(this)
         setContentView(R.layout.activity_blocked)
+        Ui.applyInsets(findViewById(R.id.blockedRoot), ime = true)
 
         empty = findViewById(R.id.blockedEmpty)
         Ui.emptyState(empty, R.drawable.ic_block)

@@ -111,7 +111,10 @@ class InCallActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Ui.edgeToEdge(this)
         setContentView(R.layout.activity_incall)
+        // The photo backdrop runs under the bars; only the controls column steps in.
+        Ui.applyInsets(findViewById(R.id.contentColumn))
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         registerReceiver(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
 

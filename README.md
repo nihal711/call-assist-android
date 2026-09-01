@@ -101,6 +101,10 @@ Contacts become list + detail panes, the keypad is a centred column, the nav
 bar and banners stop spanning edge to edge, and the call screen and Settings
 sit in a centred column. The outer display is unchanged.
 
+v3.38: targets Android 15 (SDK 35) with deliberate edge-to-edge insets on
+every screen; MainActivity's dial field, recents swipe, recents item builder
+and gate setup checklist moved into their own files (pure moves).
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key
@@ -133,7 +137,7 @@ the gate behavior).
 ## Build
 
 ```bash
-# needs JDK 17 + Android SDK (platform 34, build-tools 34.0.0)
+# needs JDK 17 + Android SDK (platform 35, build-tools 34.0.0)
 echo "sdk.dir=$ANDROID_HOME" > local.properties
 gradle assembleRelease
 ```

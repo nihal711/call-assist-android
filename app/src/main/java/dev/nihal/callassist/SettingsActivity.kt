@@ -24,7 +24,9 @@ class SettingsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Ui.edgeToEdge(this)
         setContentView(R.layout.activity_settings)
+        Ui.applyInsets(findViewById(R.id.settingsColumn))
         if (resources.configuration.smallestScreenWidthDp >= 600) {
             (findViewById<View>(R.id.settingsColumn).layoutParams as android.widget.FrameLayout.LayoutParams).apply {
                 width = dp(640)
