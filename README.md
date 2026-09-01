@@ -59,6 +59,11 @@ missed calls post a notification with Call back / Message; the speaker button
 becomes a route picker (Phone / Speaker / Bluetooth / Wired) when Bluetooth
 audio is available.
 
+v3.29: performance — contacts/call log reload only when they actually change
+(content observers instead of requerying on every resume and tab switch),
+call-log name resolution is indexed instead of scanning all contacts per row,
+and audio/state ticks no longer re-decode the caller photo on the call screen.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key

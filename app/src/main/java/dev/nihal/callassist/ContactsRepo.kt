@@ -43,6 +43,15 @@ object ContactsRepo {
     var contacts: List<Contact> = emptyList()
         private set
 
+    // Rebuilt on every load(). lookupCached used to scan every contact's
+    // numbers per call — O(contacts × log rows) for one Recents render.
+    @Volatile
+    private var exactIndex: Map<String, Contact> = emptyMap()
+
+    /** Keyed by the last 7, 8 and 9 digits of every stored number. */
+    @Volatile
+    private var suffixIndex: Map<String, Contact> = emptyMap()
+
     private val t9map: Map<Char, Char> = buildMap {
         "abc".forEach { put(it, '2') }
         "def".forEach { put(it, '3') }
@@ -108,6 +117,21 @@ object ContactsRepo {
         } catch (_: Exception) {
         }
         contacts = byId.values.filter { it.numbers.isNotEmpty() }
+        val exact = HashMap<String, Contact>()
+        val suffix = HashMap<String, Contact>()
+        for (c in contacts) {
+            for (n in c.numbers) {
+                if (n.digits.isEmpty()) continue
+                // putIfAbsent keeps the starred-first, alphabetical winner, the
+                // same contact firstOrNull used to find.
+                exact.putIfAbsent(n.digits, c)
+                for (k in 7..9) {
+                    if (n.digits.length >= k) suffix.putIfAbsent(n.digits.takeLast(k), c)
+                }
+            }
+        }
+        exactIndex = exact
+        suffixIndex = suffix
         // Photos may have been edited since the last load.
         Ui.clearPhotoCache()
     }
@@ -185,11 +209,8 @@ object ContactsRepo {
         if (digits.isEmpty()) return null
         // Suffix matching a short code (100, 999…) would claim any contact whose
         // number merely ends in those digits; short inputs must match exactly.
-        if (digits.length < 7) {
-            return contacts.firstOrNull { c -> c.numbers.any { it.digits == digits } }
-        }
-        val tail = digits.takeLast(9)
-        return contacts.firstOrNull { c -> c.numbers.any { it.digits.endsWith(tail) } }
+        if (digits.length < 7) return exactIndex[digits]
+        return suffixIndex[digits.takeLast(9)]
     }
 
     fun lookupNameCached(number: String): String? = lookupCached(number)?.name

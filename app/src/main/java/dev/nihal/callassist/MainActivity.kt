@@ -15,6 +15,8 @@ import android.media.ToneGenerator
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.database.ContentObserver
+import android.os.Looper
 import android.os.SystemClock
 import android.telecom.Call
 import android.widget.Chronometer
@@ -72,6 +74,27 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val bg = Executors.newSingleThreadExecutor()
+
+    /**
+     * Contacts and the call log used to be requeried on every resume and every
+     * visit to Recents. The observers mark the data dirty instead, so a clean
+     * resume or tab switch skips the load and the three list rebinds entirely.
+     */
+    private var dataDirty = true
+    private var observingContacts = false
+    private var observingCallLog = false
+    private val dataObserver = object : ContentObserver(android.os.Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) {
+            dataDirty = true
+            // Refresh live if the app is on screen (a call just ended, say);
+            // debounced because deletes/syncs fire in bursts.
+            if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
+                navBar.removeCallbacks(observerReload)
+                navBar.postDelayed(observerReload, 400)
+            }
+        }
+    }
+    private val observerReload = Runnable { reloadData() }
 
     // Keypad
     private lateinit var numberDisplay: EditText
@@ -164,7 +187,7 @@ class MainActivity : AppCompatActivity() {
     private val permLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
             refreshGate()
-            reloadData()
+            reloadData(force = true)
             // READ_PHONE_STATE may have just arrived, which is what lists the SIMs.
             refreshSim()
             // A delete that was waiting on WRITE_CALL_LOG.
@@ -300,7 +323,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        try {
+            contentResolver.unregisterContentObserver(dataObserver)
+        } catch (_: Exception) {
+        }
         OngoingCall.removeListener(callListener)
+        navBar.removeCallbacks(observerReload)
         pendingReload?.let { navBar.removeCallbacks(it) }
         toneGen?.release()
         bg.shutdown()
@@ -776,7 +804,7 @@ class MainActivity : AppCompatActivity() {
                     Toast.LENGTH_SHORT
                 ).show()
                 setRecentsSelection(false)
-                reloadData()
+                reloadData(force = true)
             }
         }
     }
@@ -1367,8 +1395,29 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun reloadData() {
+    private fun ensureObservers() {
+        try {
+            if (!observingContacts && has(Manifest.permission.READ_CONTACTS)) {
+                contentResolver.registerContentObserver(
+                    ContactsContract.CommonDataKinds.Phone.CONTENT_URI, true, dataObserver
+                )
+                observingContacts = true
+            }
+            if (!observingCallLog && has(Manifest.permission.READ_CALL_LOG)) {
+                contentResolver.registerContentObserver(CallLog.Calls.CONTENT_URI, true, dataObserver)
+                observingCallLog = true
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun reloadData(force: Boolean = false) {
         if (bg.isShutdown) return
+        ensureObservers()
+        // Until both observers are in place a clean flag can't be trusted.
+        if (!force && !dataDirty && observingContacts && observingCallLog) return
+        // Cleared before the load, so a change arriving mid-load re-dirties.
+        dataDirty = false
         bg.execute {
             ContactsRepo.load(this)
             val log = ContactsRepo.loadCallLog(this)

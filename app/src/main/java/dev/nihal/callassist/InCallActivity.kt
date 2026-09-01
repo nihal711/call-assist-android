@@ -65,7 +65,11 @@ class InCallActivity : AppCompatActivity() {
         override fun onStateChanged(call: Call, state: Int) = render()
     }
 
-    private val ongoingListener: () -> Unit = { runOnUiThread { bindCall() } }
+    // Full rebind (photo decode included) only when the call itself changes;
+    // state/audio ticks just re-render the widgets.
+    private val ongoingListener: () -> Unit = {
+        runOnUiThread { if (OngoingCall.call != boundCall) bindCall() else render() }
+    }
 
     // Power button while ringing: the screen turning off is our signal (apps
     // can't see the power key itself). FLAG_KEEP_SCREEN_ON below guarantees a
