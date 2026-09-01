@@ -157,6 +157,13 @@ class InCallActivity : AppCompatActivity() {
         btnSwap = findViewById(R.id.btnSwap)
         btnMerge = findViewById(R.id.btnMerge)
 
+        // Unfolded: keep the call UI a phone-width column in the middle.
+        if (resources.configuration.smallestScreenWidthDp >= 600) {
+            findViewById<View>(R.id.contentColumn).layoutParams =
+                android.widget.FrameLayout.LayoutParams(dp(480), android.widget.FrameLayout.LayoutParams.MATCH_PARENT)
+                    .apply { gravity = Gravity.CENTER_HORIZONTAL }
+        }
+
         avatarPhoto.outlineProvider = ViewOutlineProvider.BACKGROUND
         avatarPhoto.clipToOutline = true
 

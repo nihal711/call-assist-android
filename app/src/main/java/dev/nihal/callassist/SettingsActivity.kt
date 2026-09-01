@@ -25,6 +25,12 @@ class SettingsActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
+        if (resources.configuration.smallestScreenWidthDp >= 600) {
+            (findViewById<View>(R.id.settingsColumn).layoutParams as android.widget.FrameLayout.LayoutParams).apply {
+                width = dp(640)
+                gravity = android.view.Gravity.CENTER_HORIZONTAL
+            }
+        }
 
         value(R.id.valTheme, themeLabel())
         findViewById<View>(R.id.rowTheme).setOnClickListener { showThemePicker() }

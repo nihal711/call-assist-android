@@ -180,6 +180,13 @@ class RecentsAdapter(
         return if (withDuration) "$base, ${e.duration / 60} mins ${e.duration % 60} secs" else base
     }
 
+    /**
+     * Two-pane mode (wide screens): rows don't expand inline — the tap is
+     * reported here and the host binds the detail card via [bindDetail].
+     */
+    var onSelect: ((Item.Entry) -> Unit)? = null
+    private var selectedKey = -1L
+
     override fun onBindViewHolder(h: RecyclerView.ViewHolder, pos: Int) {
         val ctx = h.itemView.context
         when (val item = items[pos]) {
@@ -188,11 +195,10 @@ class RecentsAdapter(
                 h as EntryVH
                 val red = ContextCompat.getColor(ctx, R.color.red)
                 val gray = ContextCompat.getColor(ctx, R.color.textSecondary)
-                val isExpanded = pos == expandedPos && !selectionMode
+                val isExpanded = pos == expandedPos && !selectionMode && onSelect == null
                 val (iconRes, tint) = iconFor(ctx, item.type)
 
-                h.itemView.findViewById<View>(R.id.recentRow).visibility =
-                    if (isExpanded) View.GONE else View.VISIBLE
+                h.row.visibility = if (isExpanded) View.GONE else View.VISIBLE
                 h.expanded.visibility = if (isExpanded) View.VISIBLE else View.GONE
                 (h.row.parent as View).setBackgroundResource(item.bg)
                 h.divider.visibility = if (item.divider && !isExpanded) View.VISIBLE else View.GONE
@@ -217,9 +223,24 @@ class RecentsAdapter(
                             if (on) ContextCompat.getColor(ctx, R.color.accent) else gray
                         )
                     }
+                    if (onSelect != null && !selectionMode && key(item) == selectedKey) {
+                        h.row.setBackgroundResource(R.drawable.bg_row_selected)
+                    } else {
+                        val tv = android.util.TypedValue()
+                        ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, tv, true)
+                        h.row.setBackgroundResource(tv.resourceId)
+                    }
                     h.row.setOnClickListener {
                         when {
                             selectionMode -> toggle(item)
+                            onSelect != null -> {
+                                val oldKey = selectedKey
+                                selectedKey = key(item)
+                                items.indexOfFirst { it is Item.Entry && key(it) == oldKey }
+                                    .takeIf { it >= 0 }?.let { notifyItemChanged(it) }
+                                notifyItemChanged(h.bindingAdapterPosition)
+                                onSelect?.invoke(item)
+                            }
                             !expandable -> onCall(item.number)
                             else -> {
                                 val old = expandedPos
@@ -236,43 +257,58 @@ class RecentsAdapter(
                         true
                     }
                 } else {
-                    h.expName.text = if (item.count > 1) "${item.title} (${item.count})" else item.title
-                    h.expNumber.text =
-                        PhoneNumberUtils.formatNumber(item.number, Locale.getDefault().country)
-                            ?: item.number
-                    h.expAvatar.text = Ui.initial(item.title)
-                    h.expAvatar.backgroundTintList =
-                        ColorStateList.valueOf(Ui.avatarColor(item.title))
-                    // Only the expanded card shows the photo; collapsed rows stay
-                    // as plain icon + name.
-                    Ui.loadPhoto(
-                        ctx, h.expPhoto,
-                        ContactsRepo.lookupCached(item.number)?.photoUri
-                    )
-                    h.expStatusIcon.setImageResource(iconRes)
-                    h.expStatusIcon.imageTintList = ColorStateList.valueOf(tint)
-                    h.expStatus.text = statusText(item)
-                    h.expStatus.setTextColor(tint)
-                    val simVis = if (item.sim != null) View.VISIBLE else View.GONE
-                    if (item.sim != null) {
-                        SimUtil.bind(h.expSim, item.sim)
-                        h.expSimName.text = item.sim.name
-                    }
-                    h.expSim.visibility = simVis
-                    h.expSimName.visibility = simVis
-                    h.expTime.text = item.time
-                    h.expandedHeader.setOnClickListener {
-                        val p = h.bindingAdapterPosition
-                        expandedPos = -1
-                        animateExpand()
-                        notifyItemChanged(p)
-                    }
-                    h.btnCall.setOnClickListener { onCall(item.number) }
-                    h.btnMsg.setOnClickListener { onMessage(item.number) }
-                    h.btnContact.setOnClickListener { onContact(item.number) }
-                    h.btnHistory.setOnClickListener { onHistory(item) }
+                    bindExpanded(h, item, iconRes, tint, detail = false)
                 }
             }
         }
+    }
+
+    /** Binds a standalone item_recent as the detail card of the two-pane layout. */
+    fun bindDetail(view: View, item: Item.Entry) {
+        val h = EntryVH(view)
+        val (iconRes, tint) = iconFor(view.context, item.type)
+        h.row.visibility = View.GONE
+        h.expanded.visibility = View.VISIBLE
+        h.divider.visibility = View.GONE
+        (h.row.parent as View).setBackgroundResource(R.drawable.bg_group_single)
+        bindExpanded(h, item, iconRes, tint, detail = true)
+    }
+
+    private fun bindExpanded(h: EntryVH, item: Item.Entry, iconRes: Int, tint: Int, detail: Boolean) {
+        val ctx = h.itemView.context
+        h.expName.text = if (item.count > 1) "${item.title} (${item.count})" else item.title
+        h.expNumber.text =
+            PhoneNumberUtils.formatNumber(item.number, Locale.getDefault().country) ?: item.number
+        h.expAvatar.text = Ui.initial(item.title)
+        h.expAvatar.backgroundTintList = ColorStateList.valueOf(Ui.avatarColor(item.title))
+        // Only the expanded card shows the photo; collapsed rows stay
+        // as plain icon + name.
+        Ui.loadPhoto(ctx, h.expPhoto, ContactsRepo.lookupCached(item.number)?.photoUri)
+        h.expStatusIcon.setImageResource(iconRes)
+        h.expStatusIcon.imageTintList = ColorStateList.valueOf(tint)
+        h.expStatus.text = statusText(item)
+        h.expStatus.setTextColor(tint)
+        val simVis = if (item.sim != null) View.VISIBLE else View.GONE
+        if (item.sim != null) {
+            SimUtil.bind(h.expSim, item.sim)
+            h.expSimName.text = item.sim.name
+        }
+        h.expSim.visibility = simVis
+        h.expSimName.visibility = simVis
+        h.expTime.text = item.time
+        if (detail) {
+            h.expandedHeader.isClickable = false
+        } else {
+            h.expandedHeader.setOnClickListener {
+                val p = h.bindingAdapterPosition
+                expandedPos = -1
+                animateExpand()
+                notifyItemChanged(p)
+            }
+        }
+        h.btnCall.setOnClickListener { onCall(item.number) }
+        h.btnMsg.setOnClickListener { onMessage(item.number) }
+        h.btnContact.setOnClickListener { onContact(item.number) }
+        h.btnHistory.setOnClickListener { onHistory(item) }
     }
 }

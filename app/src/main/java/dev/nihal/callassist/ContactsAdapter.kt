@@ -103,6 +103,10 @@ class ContactsAdapter(
 
     override fun getItemCount() = items.size
 
+    /** Two-pane mode (wide screens): taps select instead of expanding inline; see [bindDetail]. */
+    var onSelect: ((Item.Entry) -> Unit)? = null
+    private var selectedId = -1L
+
     override fun onBindViewHolder(h: RecyclerView.ViewHolder, pos: Int) {
         val ctx = h.itemView.context
         when (val item = items[pos]) {
@@ -115,7 +119,7 @@ class ContactsAdapter(
             is Item.Entry -> {
                 h as EntryVH
                 val c = item.contact
-                val isExpanded = pos == expandedPos
+                val isExpanded = pos == expandedPos && onSelect == null
                 h.itemView.setBackgroundResource(item.bg)
                 h.row.visibility = if (isExpanded) View.GONE else View.VISIBLE
                 h.expanded.visibility = if (isExpanded) View.VISIBLE else View.GONE
@@ -128,33 +132,68 @@ class ContactsAdapter(
                     h.title.text = item.title
                     h.subtitle.text = item.subtitle
                     h.star.visibility = if (c.starred) View.VISIBLE else View.GONE
+                    if (onSelect != null && c.id == selectedId) {
+                        h.row.setBackgroundResource(R.drawable.bg_row_selected)
+                    } else {
+                        val tv = TypedValue()
+                        ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, tv, true)
+                        h.row.setBackgroundResource(tv.resourceId)
+                    }
                     h.row.setOnClickListener {
-                        val old = expandedPos
-                        expandedPos = h.bindingAdapterPosition
-                        animateExpand()
-                        if (old >= 0) notifyItemChanged(old)
-                        notifyItemChanged(expandedPos)
+                        if (onSelect != null) {
+                            val old = selectedId
+                            selectedId = c.id
+                            items.indexOfFirst { it is Item.Entry && it.contact.id == old }
+                                .takeIf { it >= 0 }?.let { notifyItemChanged(it) }
+                            notifyItemChanged(h.bindingAdapterPosition)
+                            onSelect?.invoke(item)
+                        } else {
+                            val old = expandedPos
+                            expandedPos = h.bindingAdapterPosition
+                            animateExpand()
+                            if (old >= 0) notifyItemChanged(old)
+                            notifyItemChanged(expandedPos)
+                        }
                     }
                 } else {
-                    h.expName.text = c.name
-                    h.expSub.text = Ui.fmt(c.numbers.first().number)
-                    h.expAvatar.text = Ui.initial(c.name)
-                    h.expAvatar.backgroundTintList = ColorStateList.valueOf(Ui.avatarColor(c.name))
-                    Ui.loadPhoto(ctx, h.expPhoto, c.photoUri)
-                    bindNumbers(h.expNumbers, c)
-                    h.expandedHeader.setOnClickListener {
-                        val p = h.bindingAdapterPosition
-                        expandedPos = -1
-                        animateExpand()
-                        notifyItemChanged(p)
-                    }
-                    h.btnCall.setOnClickListener { onCall(c, null) }
-                    h.btnMessage.setOnClickListener { onMessage(c) }
-                    h.btnEdit.setOnClickListener { onEdit(c) }
-                    h.btnBlock.setOnClickListener { onBlock(c) }
+                    bindExpanded(h, c, detail = false)
                 }
             }
         }
+    }
+
+    /** Binds a standalone item_contact as the detail card of the two-pane layout. */
+    fun bindDetail(view: View, entry: Item.Entry) {
+        val h = EntryVH(view)
+        view.setBackgroundResource(R.drawable.bg_group_single)
+        h.row.visibility = View.GONE
+        h.expanded.visibility = View.VISIBLE
+        h.divider.visibility = View.GONE
+        bindExpanded(h, entry.contact, detail = true)
+    }
+
+    private fun bindExpanded(h: EntryVH, c: ContactsRepo.Contact, detail: Boolean) {
+        val ctx = h.itemView.context
+        h.expName.text = c.name
+        h.expSub.text = Ui.fmt(c.numbers.first().number)
+        h.expAvatar.text = Ui.initial(c.name)
+        h.expAvatar.backgroundTintList = ColorStateList.valueOf(Ui.avatarColor(c.name))
+        Ui.loadPhoto(ctx, h.expPhoto, c.photoUri)
+        bindNumbers(h.expNumbers, c)
+        if (detail) {
+            h.expandedHeader.isClickable = false
+        } else {
+            h.expandedHeader.setOnClickListener {
+                val p = h.bindingAdapterPosition
+                expandedPos = -1
+                animateExpand()
+                notifyItemChanged(p)
+            }
+        }
+        h.btnCall.setOnClickListener { onCall(c, null) }
+        h.btnMessage.setOnClickListener { onMessage(c) }
+        h.btnEdit.setOnClickListener { onEdit(c) }
+        h.btnBlock.setOnClickListener { onBlock(c) }
     }
 
     /** "Mobile  +65 9123 4567" per number, each a tap-to-call line. */

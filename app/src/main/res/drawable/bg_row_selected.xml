@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Row highlighted as the one shown in the two-pane detail (wide screens). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/accentSoft" />
+    <corners android:radius="14dp" />
+</shape>

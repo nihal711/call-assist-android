@@ -96,6 +96,11 @@ Recents, Voicemail) and a themed (monochrome) icon; predictive back; animated
 expand/collapse in Recents and Contacts; illustrated empty states; a "Block
 unknown numbers" toggle; and a per-SIM filter in Recents.
 
+v3.37: foldable / wide-screen layouts — on the unfolded display Recents and
+Contacts become list + detail panes, the keypad is a centred column, the nav
+bar and banners stop spanning edge to edge, and the call screen and Settings
+sit in a centred column. The outer display is unchanged.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key

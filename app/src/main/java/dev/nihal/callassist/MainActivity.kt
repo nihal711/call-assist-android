@@ -242,6 +242,7 @@ class MainActivity : AppCompatActivity() {
         setupRecents()
         setupContacts()
         setupGate()
+        applyWideLayout()
 
         for (id in intArrayOf(R.id.gearRecents, R.id.gearContacts, R.id.gearGate)) {
             findViewById<ImageButton>(id).setOnClickListener {
@@ -361,6 +362,72 @@ class MainActivity : AppCompatActivity() {
         toneGen?.release()
         bg.shutdown()
         super.onDestroy()
+    }
+
+    // ---------------- Wide screens (unfolded foldables, tablets) ----------------
+
+    /** Decided per configuration: the activity is recreated on fold/unfold. */
+    private val wide: Boolean get() = resources.configuration.smallestScreenWidthDp >= 600
+
+    /**
+     * Phone layouts stretched across the inner display read as a giant phone.
+     * Here the keypad becomes a centred column, the bars stop spanning edge to
+     * edge, and Recents/Contacts switch to list + detail panes — the same
+     * layouts, just re-weighted, so the outer display is untouched.
+     */
+    private fun applyWideLayout() {
+        if (!wide) return
+        val keypadPanel = findViewById<View>(R.id.keypadPanel)
+        (keypadPanel.layoutParams as LinearLayout.LayoutParams).apply {
+            width = dp(440)
+            gravity = Gravity.CENTER_HORIZONTAL
+        }
+        val side = ((resources.displayMetrics.widthPixels - dp(680)) / 2).coerceAtLeast(0)
+        suggestionsList.setPadding(side, suggestionsList.paddingTop, side, suggestionsList.paddingBottom)
+
+        (navBar.layoutParams as android.widget.FrameLayout.LayoutParams).apply {
+            width = dp(460)
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            marginStart = 0
+            marginEnd = 0
+        }
+        (recentsSelectBar.layoutParams as android.widget.FrameLayout.LayoutParams).apply {
+            width = dp(460)
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            marginStart = 0
+            marginEnd = 0
+        }
+        (findViewById<View>(R.id.callBanner).layoutParams as LinearLayout.LayoutParams).apply {
+            width = dp(640)
+            gravity = Gravity.CENTER_HORIZONTAL
+        }
+
+        for (id in intArrayOf(R.id.recentsDetail, R.id.contactsDetail)) {
+            findViewById<View>(id).apply {
+                visibility = View.VISIBLE
+                (layoutParams as LinearLayout.LayoutParams).weight = 1.1f
+            }
+        }
+        recentsAdapter.onSelect = { e -> showRecentDetail(e) }
+        contactsAdapter.onSelect = { e -> showContactDetail(e) }
+    }
+
+    private fun showRecentDetail(e: RecentsAdapter.Item.Entry) {
+        val card = findViewById<android.widget.FrameLayout>(R.id.recentsDetailCard)
+        card.removeAllViews()
+        val v = layoutInflater.inflate(R.layout.item_recent, card, false)
+        recentsAdapter.bindDetail(v, e)
+        card.addView(v)
+        findViewById<View>(R.id.recentsDetailEmpty).visibility = View.GONE
+    }
+
+    private fun showContactDetail(e: ContactsAdapter.Item.Entry) {
+        val card = findViewById<android.widget.FrameLayout>(R.id.contactsDetailCard)
+        card.removeAllViews()
+        val v = layoutInflater.inflate(R.layout.item_contact, card, false)
+        contactsAdapter.bindDetail(v, e)
+        card.addView(v)
+        findViewById<View>(R.id.contactsDetailEmpty).visibility = View.GONE
     }
 
     // ---------------- Keypad ----------------
@@ -1763,7 +1830,7 @@ class MainActivity : AppCompatActivity() {
         // Floating dialogs default to a narrow platform width; widen to match
         // the app's card gutters.
         dialog.window?.setLayout(
-            (resources.displayMetrics.widthPixels * 0.86f).toInt(),
+            minOf((resources.displayMetrics.widthPixels * 0.86f).toInt(), dp(420)),
             android.view.ViewGroup.LayoutParams.WRAP_CONTENT
         )
     }

@@ -225,13 +225,47 @@
         android:textColor="@color/textSecondary"
         android:visibility="gone" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recentsList"
+    <!-- Wide screens: list on the left, detail card on the right -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:clipToPadding="false"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="93dp"
-        android:scrollbars="none" />
+        android:orientation="horizontal">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recentsList"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:clipToPadding="false"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="93dp"
+            android:scrollbars="none" />
+
+        <FrameLayout
+            android:id="@+id/recentsDetail"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="0"
+            android:paddingStart="4dp"
+            android:paddingTop="12dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="93dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/recentsDetailEmpty"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="Select a call"
+                android:textColor="@color/textSecondary"
+                android:textSize="15sp" />
+
+            <FrameLayout
+                android:id="@+id/recentsDetailCard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+        </FrameLayout>
+    </LinearLayout>
 </LinearLayout>
