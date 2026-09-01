@@ -117,7 +117,9 @@ object Notifications {
         connectedAt: Long = 0L
     ): Notification {
         val icon = photo?.let { Icon.createWithBitmap(it) }
-        val b = baseCall(ctx, label, incoming, quiet, number, icon, sim)
+        // The custom ongoing layout carries its own photo; a largeIcon too would
+        // double it and cost the whole right-hand column of the template.
+        val b = baseCall(ctx, label, incoming, quiet, number, if (incoming) icon else null, sim)
         if (incoming) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 val person = Person.Builder().setName(label).setIcon(icon).setImportant(true).build()

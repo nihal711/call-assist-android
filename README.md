@@ -77,6 +77,10 @@ as clipped under the launcher's badge), and the ongoing-call notification is a
 custom layout with round Mute / Speaker / red Hang up buttons visible even
 collapsed, plus a live call timer.
 
+v3.33: single contact photo in the call notification (the system was doubling it
+via the largeIcon), a restacked expanded layout that no longer truncates the
+name, and "Dialling…" spelt properly.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key

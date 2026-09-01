@@ -13,7 +13,7 @@ fun Call.stateCompat(): Int =
 
 fun stateName(state: Int): String = when (state) {
     Call.STATE_RINGING -> "Incoming call"
-    Call.STATE_DIALING -> "Dialing…"
+    Call.STATE_DIALING -> "Dialling…"
     Call.STATE_CONNECTING -> "Connecting…"
     Call.STATE_ACTIVE -> "In call"
     Call.STATE_HOLDING -> "On hold"
