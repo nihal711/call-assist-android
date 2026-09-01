@@ -21,16 +21,92 @@
         android:visibility="gone" />
 
     <LinearLayout
+        android:id="@+id/contentColumn"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_gravity="center_horizontal"
         android:orientation="vertical"
         android:padding="24dp">
 
+        <!-- Second call (held, or waiting behind the ringing one) -->
+        <LinearLayout
+            android:id="@+id/otherCallCard"
+            android:layout_width="match_parent"
+            android:layout_height="58dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_call_banner"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/otherAvatar"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/bg_circle"
+                android:gravity="center"
+                android:textColor="#FFFFFF"
+                android:textSize="15sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/otherName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/textPrimary"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/otherState"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/btnMerge"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_circle"
+                android:backgroundTint="@color/card2"
+                android:contentDescription="Merge calls"
+                android:scaleType="center"
+                android:src="@drawable/ic_merge"
+                android:visibility="gone"
+                app:tint="@color/textPrimary" />
+
+            <ImageButton
+                android:id="@+id/btnSwap"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_circle"
+                android:backgroundTint="@color/accent"
+                android:contentDescription="Swap calls"
+                android:scaleType="center"
+                android:src="@drawable/ic_swap"
+                app:tint="#FFFFFF" />
+        </LinearLayout>
+
         <FrameLayout
+            android:id="@+id/avatarFrame"
             android:layout_width="112dp"
             android:layout_height="112dp"
             android:layout_gravity="center_horizontal"
-            android:layout_marginTop="64dp">
+            android:layout_marginTop="48dp">
 
             <TextView
                 android:id="@+id/avatar"
@@ -57,8 +133,10 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="22dp"
             android:gravity="center"
+            android:maxLines="1"
+            android:ellipsize="end"
             android:shadowColor="#80000000"
             android:shadowRadius="8"
             android:textColor="@color/textPrimary"
@@ -114,63 +192,167 @@
             android:textSize="15sp"
             android:visibility="gone" />
 
+        <!-- Unknown number: one tap to save it -->
+        <LinearLayout
+            android:id="@+id/btnAddContact"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_sim_chip"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="14dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_person_add"
+                app:tint="@color/accent" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Add to contacts"
+                android:textColor="@color/accent"
+                android:textSize="13sp" />
+        </LinearLayout>
+
         <View
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:layout_weight="1" />
 
-        <GridLayout
-            android:id="@+id/keypad"
+        <!-- DTMF keypad, toggled from the Keypad tile -->
+        <LinearLayout
+            android:id="@+id/keypadPanel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:columnCount="3"
-            android:visibility="gone" />
+            android:layout_marginBottom="12dp"
+            android:orientation="vertical"
+            android:visibility="gone">
 
-        <!-- Unlocked: accept / decline buttons -->
+            <TextView
+                android:id="@+id/dtmfDisplay"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:ellipsize="start"
+                android:gravity="center"
+                android:maxLines="1"
+                android:textColor="@color/textPrimary"
+                android:textSize="26sp" />
+
+            <GridLayout
+                android:id="@+id/keypad"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:columnCount="3" />
+        </LinearLayout>
+
+        <!-- Unlocked: round decline / answer -->
         <LinearLayout
             android:id="@+id/ringingButtons"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="36dp"
+            android:layout_marginBottom="28dp"
             android:orientation="vertical"
             android:visibility="gone">
 
-            <Button
+            <TextView
+                android:id="@+id/btnEndAnswer"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="12dp"
+                android:background="@drawable/bg_sim_chip"
+                android:gravity="center"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:text="End current &amp; answer"
+                android:textColor="@color/textPrimary"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <TextView
                 android:id="@+id/btnMessageLocked"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="40dp"
                 android:layout_gravity="center_horizontal"
-                android:layout_marginBottom="16dp"
-                android:minWidth="160dp"
-                android:text="Message" />
+                android:layout_marginBottom="26dp"
+                android:background="@drawable/bg_sim_chip"
+                android:gravity="center"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:text="Send message"
+                android:textColor="@color/textPrimary"
+                android:textSize="14sp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center"
                 android:orientation="horizontal">
 
-                <Button
-                    android:id="@+id/btnDecline"
+                <LinearLayout
                     android:layout_width="0dp"
-                    android:layout_height="68dp"
-                    android:layout_marginEnd="10dp"
+                    android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:backgroundTint="@color/red"
-                    android:text="Decline"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
+                    android:gravity="center"
+                    android:orientation="vertical">
 
-                <Button
-                    android:id="@+id/btnAnswer"
+                    <ImageButton
+                        android:id="@+id/btnDecline"
+                        android:layout_width="76dp"
+                        android:layout_height="76dp"
+                        android:background="@drawable/bg_circle"
+                        android:backgroundTint="@color/red"
+                        android:contentDescription="Decline"
+                        android:padding="19dp"
+                        android:rotation="135"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_phone"
+                        app:tint="#FFFFFF" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="Decline"
+                        android:textColor="@color/textSecondary"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <LinearLayout
                     android:layout_width="0dp"
-                    android:layout_height="68dp"
-                    android:layout_marginStart="10dp"
+                    android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:backgroundTint="@color/green"
-                    android:text="Answer"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp" />
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageButton
+                        android:id="@+id/btnAnswer"
+                        android:layout_width="76dp"
+                        android:layout_height="76dp"
+                        android:background="@drawable/bg_circle"
+                        android:backgroundTint="@color/green"
+                        android:contentDescription="Answer"
+                        android:padding="19dp"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_phone"
+                        app:tint="#FFFFFF" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="Answer"
+                        android:textColor="@color/textSecondary"
+                        android:textSize="13sp" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 
@@ -183,14 +365,19 @@
             android:orientation="vertical"
             android:visibility="gone">
 
-            <Button
+            <TextView
                 android:id="@+id/btnMessageSlide"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="40dp"
                 android:layout_gravity="center_horizontal"
                 android:layout_marginBottom="18dp"
-                android:minWidth="160dp"
-                android:text="Message" />
+                android:background="@drawable/bg_sim_chip"
+                android:gravity="center"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:text="Send message"
+                android:textColor="@color/textPrimary"
+                android:textSize="14sp" />
 
             <FrameLayout
                 android:layout_width="match_parent"
@@ -223,37 +410,30 @@
             </FrameLayout>
         </LinearLayout>
 
+        <!-- In call: 2×3 action tiles + end -->
         <LinearLayout
             android:id="@+id/activeBar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="36dp"
+            android:layout_marginBottom="24dp"
             android:orientation="vertical"
             android:visibility="gone">
 
-            <Button
-                android:id="@+id/btnResume"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginBottom="16dp"
-                android:backgroundTint="@color/accent"
-                android:minWidth="180dp"
-                android:text="Resume call"
-                android:textColor="#FFFFFF"
-                android:visibility="gone" />
-
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:layout_marginBottom="24dp"
                 android:orientation="horizontal">
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
 
                 <ImageButton
                     android:id="@+id/btnMute"
-                    android:layout_width="60dp"
-                    android:layout_height="60dp"
+                    android:layout_width="62dp"
+                    android:layout_height="62dp"
                     android:background="@drawable/bg_circle"
                     android:backgroundTint="@color/card2"
                     android:contentDescription="Mute"
@@ -261,11 +441,53 @@
                     android:src="@drawable/ic_mic"
                     app:tint="@color/textPrimary" />
 
+                <TextView
+                    android:id="@+id/labelMute"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Mute"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <ImageButton
+                    android:id="@+id/btnKeypad"
+                    android:layout_width="62dp"
+                    android:layout_height="62dp"
+                    android:background="@drawable/bg_circle"
+                    android:backgroundTint="@color/card2"
+                    android:contentDescription="Keypad"
+                    android:scaleType="center"
+                    android:src="@drawable/ic_dialpad"
+                    app:tint="@color/textPrimary" />
+
+                <TextView
+                    android:id="@+id/labelKeypad"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Keypad"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
                 <ImageButton
                     android:id="@+id/btnSpeaker"
-                    android:layout_width="60dp"
-                    android:layout_height="60dp"
-                    android:layout_marginStart="28dp"
+                    android:layout_width="62dp"
+                    android:layout_height="62dp"
                     android:background="@drawable/bg_circle"
                     android:backgroundTint="@color/card2"
                     android:contentDescription="Speaker"
@@ -273,29 +495,117 @@
                     android:src="@drawable/ic_speaker"
                     app:tint="@color/textPrimary" />
 
+                <TextView
+                    android:id="@+id/labelSpeaker"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Speaker"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:orientation="horizontal">
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
                 <ImageButton
-                    android:id="@+id/btnKeypad"
-                    android:layout_width="60dp"
-                    android:layout_height="60dp"
-                    android:layout_marginStart="28dp"
+                    android:id="@+id/btnAddCall"
+                    android:layout_width="62dp"
+                    android:layout_height="62dp"
                     android:background="@drawable/bg_circle"
                     android:backgroundTint="@color/card2"
-                    android:contentDescription="Keypad"
+                    android:contentDescription="Add call"
                     android:scaleType="center"
-                    android:src="@drawable/ic_dialpad"
+                    android:src="@drawable/ic_add_call"
                     app:tint="@color/textPrimary" />
+
+                <TextView
+                    android:id="@+id/labelAddCall"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Add call"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <ImageButton
+                    android:id="@+id/btnHold"
+                    android:layout_width="62dp"
+                    android:layout_height="62dp"
+                    android:background="@drawable/bg_circle"
+                    android:backgroundTint="@color/card2"
+                    android:contentDescription="Hold"
+                    android:scaleType="center"
+                    android:src="@drawable/ic_pause"
+                    app:tint="@color/textPrimary" />
+
+                <TextView
+                    android:id="@+id/labelHold"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Hold"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <ImageButton
+                    android:id="@+id/btnContact"
+                    android:layout_width="62dp"
+                    android:layout_height="62dp"
+                    android:background="@drawable/bg_circle"
+                    android:backgroundTint="@color/card2"
+                    android:contentDescription="Contact"
+                    android:scaleType="center"
+                    android:src="@drawable/ic_person"
+                    app:tint="@color/textPrimary" />
+
+                <TextView
+                    android:id="@+id/labelContact"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Contact"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="12sp" />
+            </LinearLayout>
             </LinearLayout>
 
             <ImageButton
                 android:id="@+id/btnHangup"
-                android:layout_width="68dp"
-                android:layout_height="68dp"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
                 android:layout_gravity="center_horizontal"
+                android:layout_marginTop="26dp"
                 android:background="@drawable/bg_circle"
                 android:backgroundTint="@color/red"
                 android:contentDescription="End call"
+                android:padding="18dp"
                 android:rotation="135"
-                android:scaleType="center"
+                android:scaleType="fitCenter"
                 android:src="@drawable/ic_phone"
                 app:tint="#FFFFFF" />
         </LinearLayout>

@@ -81,6 +81,11 @@ v3.33: single contact photo in the call notification (the system was doubling it
 via the largeIcon), a restacked expanded layout that no longer truncates the
 name, and "Dialling…" spelt properly.
 
+v3.34: call screen — round Answer/Decline, 2×3 action tiles (Mute, Keypad,
+Speaker / Add call, Hold, Contact), a second-call card with Swap / Merge and
+"End current & answer" for call waiting, one-tap Add to contacts for unknown
+numbers, a proper DTMF keypad with a digit strip, and haptics on answer/end.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key

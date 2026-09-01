@@ -26,6 +26,33 @@ class CallService : InCallService() {
     private var shownPhoto: Bitmap? = null
     private var shownQuiet = false
 
+    /** Name + photo per live call, so a swap can put the other call on screen without a re-lookup. */
+    private val known = HashMap<Call, Pair<String, android.net.Uri?>>()
+
+    fun labelFor(call: Call): String? = known[call]?.first
+
+    /** Makes [call] the one InCallActivity and the notification show (after a swap). */
+    fun promote(call: Call) {
+        val info = known[call]
+        if (info != null) {
+            OngoingCall.set(call, info.first, info.second)
+            showNotification(call, info.first, call.details.handle?.schemeSpecificPart, null, quiet = true)
+            return
+        }
+        val number = call.details.handle?.schemeSpecificPart
+        Thread {
+            val i = ContactHelper.lookup(this, number)
+            val label = i.name ?: number ?: "Unknown"
+            val photo = ContactHelper.loadPhoto(this, i.photoUri)
+            Handler(mainLooper).post {
+                if (call.stateCompat() == Call.STATE_DISCONNECTED) return@post
+                known[call] = label to i.photoUri
+                OngoingCall.set(call, label, i.photoUri)
+                showNotification(call, label, number, photo, quiet = true)
+            }
+        }.start()
+    }
+
     private val stateCallback = object : Call.Callback() {
         override fun onStateChanged(call: Call, state: Int) {
             if (call != shownCall) return
@@ -67,7 +94,8 @@ class CallService : InCallService() {
         // Contact lookup does disk I/O — keep it off the ring path's main thread.
         Thread {
             val info = ContactHelper.lookup(this, number)
-            val label = info.name ?: number ?: "Unknown"
+            val conference = call.details.hasProperty(Call.Details.PROPERTY_CONFERENCE)
+            val label = if (conference) "Conference call" else info.name ?: number ?: "Unknown"
             val photo = ContactHelper.loadPhoto(this, info.photoUri)
             Handler(mainLooper).post {
                 val state = call.stateCompat()
@@ -77,6 +105,7 @@ class CallService : InCallService() {
                     AutomationEngine.start(this, call, label)
                     return@post
                 }
+                known[call] = label to info.photoUri
                 OngoingCall.set(call, label, info.photoUri)
                 // Conventional dialer behaviour, done deterministically (Samsung phones don't reliably
                 // fire our full-screen intent while locked):
@@ -111,6 +140,7 @@ class CallService : InCallService() {
                 Notifications.missedCall(this, info.name ?: missedNumber ?: "Unknown", missedNumber, photo)
             }.start()
         }
+        known.remove(call)
         OngoingCall.clear(call)
         if (OngoingCall.call != null) return
         // Surface a remaining call (e.g. one that was on hold behind the removed
