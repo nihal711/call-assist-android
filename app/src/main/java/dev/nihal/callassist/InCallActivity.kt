@@ -114,14 +114,14 @@ class InCallActivity : AppCompatActivity() {
         btnMute.setOnClickListener {
             muted = !muted
             CallService.instance?.setMuted(muted)
-            setToggle(btnMute, muted)
+            renderAudioToggles()
         }
         btnSpeaker.setOnClickListener {
             speaker = !speaker
             CallService.instance?.setAudioRoute(
                 if (speaker) CallAudioState.ROUTE_SPEAKER else CallAudioState.ROUTE_WIRED_OR_EARPIECE
             )
-            setToggle(btnSpeaker, speaker)
+            renderAudioToggles()
         }
         findViewById<ImageButton>(R.id.btnKeypad).setOnClickListener {
             keypad.visibility = if (keypad.visibility == View.VISIBLE) View.GONE else View.VISIBLE
@@ -171,6 +171,19 @@ class InCallActivity : AppCompatActivity() {
 
     private fun answer() {
         boundCall?.answer(VideoProfile.STATE_AUDIO_ONLY)
+    }
+
+    /** Muted reads as a warning — red with a crossed-out mic; speaker stays accent blue. */
+    private fun renderAudioToggles() {
+        btnMute.setImageResource(if (muted) R.drawable.ic_mic_off else R.drawable.ic_mic)
+        btnMute.contentDescription = if (muted) "Unmute" else "Mute"
+        btnMute.backgroundTintList = ColorStateList.valueOf(
+            getColor(if (muted) R.color.red else R.color.card2)
+        )
+        btnMute.imageTintList = ColorStateList.valueOf(
+            if (muted) 0xFFFFFFFF.toInt() else getColor(R.color.textPrimary)
+        )
+        setToggle(btnSpeaker, speaker)
     }
 
     private fun setToggle(btn: ImageButton, active: Boolean) {
@@ -285,9 +298,8 @@ class InCallActivity : AppCompatActivity() {
             CallService.instance?.callAudioState?.let { a ->
                 muted = a.isMuted
                 speaker = a.route == CallAudioState.ROUTE_SPEAKER
-                setToggle(btnMute, muted)
-                setToggle(btnSpeaker, speaker)
             }
+            renderAudioToggles()
 
             // Which SIM the call is on — for incoming calls this is what tells
             // the user which of their numbers was rung.

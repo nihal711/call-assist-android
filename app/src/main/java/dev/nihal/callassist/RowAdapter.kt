@@ -45,6 +45,27 @@ object Ui {
         return sb
     }
 
+    /**
+     * Centre-cropped rounded-square copy of [src], the same corner treatment
+     * the system gives notification bubbles — used for the call notification's
+     * contact photo, which would otherwise render as a hard square.
+     */
+    fun roundedSquare(src: android.graphics.Bitmap): android.graphics.Bitmap {
+        val size = minOf(src.width, src.height)
+        val out = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(out)
+        val shader = android.graphics.BitmapShader(
+            src, android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP
+        )
+        shader.setLocalMatrix(android.graphics.Matrix().apply {
+            postTranslate((size - src.width) / 2f, (size - src.height) / 2f)
+        })
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { this.shader = shader }
+        val r = size * 0.28f
+        canvas.drawRoundRect(android.graphics.RectF(0f, 0f, size.toFloat(), size.toFloat()), r, r, paint)
+        return out
+    }
+
     /** Avatars are small and repeat across rows, so decoded results are reused. */
     private const val AVATAR_PX = 160
     private val photoCache = object : android.util.LruCache<String, android.graphics.Bitmap>(32) {}

@@ -119,7 +119,7 @@ object Notifications {
             b.setStyle(style)
             if (!incoming) {
                 // CallStyle shows these alongside its own Hang up (three buttons max).
-                b.addAction(action(ctx, R.drawable.ic_mic, if (muted) "Unmute" else "Mute", CallActionReceiver.ACTION_MUTE, 13))
+                b.addAction(action(ctx, if (muted) R.drawable.ic_mic_off else R.drawable.ic_mic, if (muted) "Unmute" else "Mute", CallActionReceiver.ACTION_MUTE, 13))
                 b.addAction(action(ctx, R.drawable.ic_speaker, if (speaker) "Earpiece" else "Speaker", CallActionReceiver.ACTION_SPEAKER, 14))
             }
         }

@@ -50,6 +50,10 @@ over the call screen. The call screen lives in its own task so opening the
 app mid-call no longer kills it, and the dialer shows a "return to call" bar
 while a call is live.
 
+v3.27: the notification's contact photo is a rounded square matching the system's
+bubble corners, and mute on the call screen shows red with a crossed-out mic
+instead of the same blue as speaker.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key
