@@ -69,6 +69,9 @@ keypad suggestions, swipe a Recents row right to call / left to message,
 per-contact SIM pinning ("Always use for …" in the call dialog), and a Share
 button on the crash report.
 
+v3.31: R8 code + resource shrinking (obfuscation off, so crash reports stay
+readable) — smaller APK, faster cold start.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key

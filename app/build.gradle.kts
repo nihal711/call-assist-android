@@ -11,8 +11,8 @@ android {
         applicationId = "dev.nihal.callassist"
         minSdk = 29
         targetSdk = 34
-        versionCode = 60
-        versionName = "3.30"
+        versionCode = 61
+        versionName = "3.31"
     }
 
     // Release signing reads keystore.properties (gitignored); without it the
@@ -31,7 +31,11 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // Shrinks code + resources; names stay readable (see proguard-rules.pro)
+            // so the in-app crash reporter's traces remain useful.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.findByName("release")
         }
     }
