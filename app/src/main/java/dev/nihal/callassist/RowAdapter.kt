@@ -66,6 +66,18 @@ object Ui {
         return out
     }
 
+    /** Empty-state text with a large faded glyph above it. */
+    fun emptyState(tv: TextView, iconRes: Int) {
+        val ctx = tv.context
+        val size = (56 * ctx.resources.displayMetrics.density).toInt()
+        val d = androidx.core.content.ContextCompat.getDrawable(ctx, iconRes)?.mutate() ?: return
+        d.setBounds(0, 0, size, size)
+        d.setTint(androidx.core.content.ContextCompat.getColor(ctx, R.color.textSecondary))
+        d.alpha = 110
+        tv.setCompoundDrawables(null, d, null, null)
+        tv.compoundDrawablePadding = (14 * ctx.resources.displayMetrics.density).toInt()
+    }
+
     /** Avatars are small and repeat across rows, so decoded results are reused. */
     private const val AVATAR_PX = 160
     private val photoCache = object : android.util.LruCache<String, android.graphics.Bitmap>(32) {}

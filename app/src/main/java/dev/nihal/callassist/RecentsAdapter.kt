@@ -45,6 +45,21 @@ class RecentsAdapter(
     }
 
     private var expandedPos = -1
+    private var host: RecyclerView? = null
+
+    override fun onAttachedToRecyclerView(rv: RecyclerView) {
+        host = rv
+        // Rows grow/shrink instead of cross-fading when a card opens.
+        (rv.itemAnimator as? androidx.recyclerview.widget.SimpleItemAnimator)?.supportsChangeAnimations = false
+    }
+
+    private fun animateExpand() {
+        host?.let {
+            androidx.transition.TransitionManager.beginDelayedTransition(
+                it, androidx.transition.ChangeBounds().setDuration(220)
+            )
+        }
+    }
 
     /** Long-press on a row asks the host to enter selection mode. */
     var onLongPress: ((Item.Entry) -> Unit)? = null
@@ -209,6 +224,7 @@ class RecentsAdapter(
                             else -> {
                                 val old = expandedPos
                                 expandedPos = h.bindingAdapterPosition
+                                animateExpand()
                                 if (old >= 0) notifyItemChanged(old)
                                 notifyItemChanged(expandedPos)
                             }
@@ -248,6 +264,7 @@ class RecentsAdapter(
                     h.expandedHeader.setOnClickListener {
                         val p = h.bindingAdapterPosition
                         expandedPos = -1
+                        animateExpand()
                         notifyItemChanged(p)
                     }
                     h.btnCall.setOnClickListener { onCall(item.number) }

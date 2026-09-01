@@ -62,6 +62,10 @@ object Prefs {
     fun keyTones(ctx: Context): Boolean = sp(ctx).getBoolean("keyTones", true)
     fun setKeyTones(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("keyTones", v).apply()
 
+    /** Reject ringing calls that carry no number at all (private/withheld). */
+    fun blockUnknown(ctx: Context): Boolean = sp(ctx).getBoolean("blockUnknown", false)
+    fun setBlockUnknown(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("blockUnknown", v).apply()
+
     fun keyHaptics(ctx: Context): Boolean = sp(ctx).getBoolean("keyHaptics", true)
     fun setKeyHaptics(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("keyHaptics", v).apply()
 

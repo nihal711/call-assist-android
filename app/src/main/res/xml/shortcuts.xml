@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:icon="@drawable/shortcut_new_contact"
+        android:shortcutId="new_contact"
+        android:shortcutLongLabel="@string/shortcut_new_contact_long"
+        android:shortcutShortLabel="@string/shortcut_new_contact_short">
+        <intent
+            android:action="dev.nihal.callassist.NEW_CONTACT"
+            android:targetClass="dev.nihal.callassist.MainActivity"
+            android:targetPackage="dev.nihal.callassist" />
+    </shortcut>
+    <shortcut
+        android:icon="@drawable/shortcut_recents"
+        android:shortcutId="recents"
+        android:shortcutLongLabel="@string/shortcut_recents_long"
+        android:shortcutShortLabel="@string/shortcut_recents_short">
+        <intent
+            android:action="dev.nihal.callassist.SHOW_RECENTS"
+            android:targetClass="dev.nihal.callassist.MainActivity"
+            android:targetPackage="dev.nihal.callassist" />
+    </shortcut>
+    <shortcut
+        android:icon="@drawable/shortcut_voicemail"
+        android:shortcutId="voicemail"
+        android:shortcutLongLabel="@string/shortcut_voicemail_long"
+        android:shortcutShortLabel="@string/shortcut_voicemail_short">
+        <intent
+            android:action="dev.nihal.callassist.VOICEMAIL"
+            android:targetClass="dev.nihal.callassist.MainActivity"
+            android:targetPackage="dev.nihal.callassist" />
+    </shortcut>
+</shortcuts>

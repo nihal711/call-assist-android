@@ -286,6 +286,13 @@ object Notifications {
         }
     }
 
+    fun missedCount(ctx: Context): Int =
+        try {
+            ctx.getSystemService(NotificationManager::class.java).activeNotifications.count { it.id == ID_MISSED }
+        } catch (_: Exception) {
+            0
+        }
+
     fun clearMissed(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
         try {

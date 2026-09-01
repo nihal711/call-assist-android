@@ -7,54 +7,58 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.text.InputType
 import android.view.View
-import android.widget.Button
+import android.widget.CompoundButton
 import android.widget.EditText
-import android.widget.Switch
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 
 class SettingsActivity : AppCompatActivity() {
 
+    private fun value(id: Int, text: String) {
+        findViewById<TextView>(id).text = text
+    }
+
+    private fun rowEnabled(id: Int, enabled: Boolean) {
+        findViewById<View>(id).apply { isEnabled = enabled; alpha = if (enabled) 1f else 0.45f }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings)
 
-        val btnTheme = findViewById<Button>(R.id.btnTheme)
-        btnTheme.setOnClickListener { showThemePicker(btnTheme) }
-        btnTheme.text = "Theme: ${themeLabel()}"
+        value(R.id.valTheme, themeLabel())
+        findViewById<View>(R.id.rowTheme).setOnClickListener { showThemePicker() }
 
-        val switchConfirm = findViewById<Switch>(R.id.switchConfirm)
+        val switchConfirm = findViewById<CompoundButton>(R.id.switchConfirm)
         switchConfirm.isChecked = Prefs.confirmCall(this)
         switchConfirm.setOnCheckedChangeListener { _, checked ->
             Prefs.setConfirmCall(this, checked)
         }
 
         // Nothing to choose on a single-SIM phone, so the row only appears for dual SIM.
-        val btnSim = findViewById<Button>(R.id.btnSim)
-        btnSim.visibility = if (SimUtil.isDual(this)) View.VISIBLE else View.GONE
-        btnSim.text = "Call with: ${SimUtil.modeLabel(this)}"
-        btnSim.setOnClickListener {
-            SimUtil.showPicker(this) { btnSim.text = "Call with: ${SimUtil.modeLabel(this)}" }
+        val rowSim = findViewById<View>(R.id.rowSim)
+        rowSim.visibility = if (SimUtil.isDual(this)) View.VISIBLE else View.GONE
+        value(R.id.valSim, SimUtil.modeLabel(this))
+        rowSim.setOnClickListener {
+            SimUtil.showPicker(this) { value(R.id.valSim, SimUtil.modeLabel(this)) }
         }
 
-        findViewById<Button>(R.id.btnReplies).setOnClickListener { showReplies() }
+        findViewById<View>(R.id.rowReplies).setOnClickListener { showReplies() }
 
-        val switchIdd = findViewById<Switch>(R.id.switchIdd)
-        val btnIddCode = findViewById<Button>(R.id.btnIddCode)
+        val switchIdd = findViewById<CompoundButton>(R.id.switchIdd)
         switchIdd.isChecked = Prefs.iddEnabled(this)
-        btnIddCode.isEnabled = switchIdd.isChecked
+        rowEnabled(R.id.rowIddCode, switchIdd.isChecked)
         refreshIddHint()
         switchIdd.setOnCheckedChangeListener { _, checked ->
             Prefs.setIddEnabled(this, checked)
-            btnIddCode.isEnabled = checked
+            rowEnabled(R.id.rowIddCode, checked)
             refreshIddHint()
         }
-        btnIddCode.text = "IDD code: ${Prefs.iddCode(this)}"
-        btnIddCode.setOnClickListener { editIddCode(btnIddCode) }
+        value(R.id.valIddCode, Prefs.iddCode(this))
+        findViewById<View>(R.id.rowIddCode).setOnClickListener { editIddCode() }
 
-        val btnRetryWait = findViewById<Button>(R.id.btnRetryWait)
-        btnRetryWait.text = "Wait for gate: ${Prefs.retryWaitSeconds(this)}s"
-        btnRetryWait.setOnClickListener {
+        value(R.id.valRetryWait, "${Prefs.retryWaitSeconds(this)}s")
+        findViewById<View>(R.id.rowRetryWait).setOnClickListener {
             pick(
                 title = "Wait for gate",
                 choices = Prefs.RETRY_WAIT_CHOICES,
@@ -64,13 +68,12 @@ class SettingsActivity : AppCompatActivity() {
                 current = Prefs.retryWaitSeconds(this)
             ) { chosen ->
                 Prefs.setRetryWaitSeconds(this, chosen)
-                btnRetryWait.text = "Wait for gate: ${chosen}s"
+                value(R.id.valRetryWait, "${chosen}s")
             }
         }
 
-        val btnMaxAttempts = findViewById<Button>(R.id.btnMaxAttempts)
-        btnMaxAttempts.text = "Code attempts: ${Prefs.maxAttempts(this)}"
-        btnMaxAttempts.setOnClickListener {
+        value(R.id.valMaxAttempts, "${Prefs.maxAttempts(this)}")
+        findViewById<View>(R.id.rowMaxAttempts).setOnClickListener {
             pick(
                 title = "Code attempts",
                 choices = Prefs.MAX_ATTEMPT_CHOICES,
@@ -81,27 +84,31 @@ class SettingsActivity : AppCompatActivity() {
                 current = Prefs.maxAttempts(this)
             ) { chosen ->
                 Prefs.setMaxAttempts(this, chosen)
-                btnMaxAttempts.text = "Code attempts: $chosen"
+                value(R.id.valMaxAttempts, "$chosen")
             }
         }
 
-        val switchTones = findViewById<Switch>(R.id.switchTones)
+        val switchTones = findViewById<CompoundButton>(R.id.switchTones)
         switchTones.isChecked = Prefs.keyTones(this)
         switchTones.setOnCheckedChangeListener { _, checked -> Prefs.setKeyTones(this, checked) }
 
-        val switchHaptics = findViewById<Switch>(R.id.switchHaptics)
+        val switchHaptics = findViewById<CompoundButton>(R.id.switchHaptics)
         switchHaptics.isChecked = Prefs.keyHaptics(this)
         switchHaptics.setOnCheckedChangeListener { _, checked -> Prefs.setKeyHaptics(this, checked) }
 
-        val btnCrash = findViewById<Button>(R.id.btnCrash)
-        btnCrash.visibility = if (CrashLog.read(this) != null) View.VISIBLE else View.GONE
-        btnCrash.setOnClickListener { showCrashReport(btnCrash) }
+        val rowCrash = findViewById<View>(R.id.rowCrash)
+        rowCrash.visibility = if (CrashLog.read(this) != null) View.VISIBLE else View.GONE
+        rowCrash.setOnClickListener { showCrashReport(rowCrash) }
 
-        findViewById<Button>(R.id.btnBlocked).setOnClickListener {
+        val switchBlockUnknown = findViewById<CompoundButton>(R.id.switchBlockUnknown)
+        switchBlockUnknown.isChecked = Prefs.blockUnknown(this)
+        switchBlockUnknown.setOnCheckedChangeListener { _, checked -> Prefs.setBlockUnknown(this, checked) }
+
+        findViewById<View>(R.id.rowBlocked).setOnClickListener {
             startActivity(Intent(this, BlockedNumbersActivity::class.java))
         }
 
-        findViewById<Button>(R.id.btnBattery).setOnClickListener {
+        findViewById<View>(R.id.rowBattery).setOnClickListener {
             try {
                 @Suppress("BatteryLife")
                 startActivity(
@@ -124,9 +131,10 @@ class SettingsActivity : AppCompatActivity() {
         super.onResume()
         val ignoring = getSystemService(PowerManager::class.java)
             .isIgnoringBatteryOptimizations(packageName)
-        findViewById<Button>(R.id.btnBattery).isEnabled = !ignoring
+        rowEnabled(R.id.rowBattery, !ignoring)
+        value(R.id.valBattery, if (ignoring) "Exempt" else "")
         findViewById<TextView>(R.id.batteryHint).text =
-            if (ignoring) "✓ Already exempt — Samsung's battery manager won't interfere."
+            if (ignoring) "Already exempt — Samsung's battery manager won't interfere."
             else "Keeps Samsung's battery manager from ever interfering with gate automation."
     }
 
@@ -153,7 +161,7 @@ class SettingsActivity : AppCompatActivity() {
         else -> "Dark"
     }
 
-    private fun showThemePicker(btn: Button) {
+    private fun showThemePicker() {
         val modes = arrayOf("dark", "light", "system")
         val labels = arrayOf("Dark", "Light", "Follow device")
         val current = modes.indexOf(Prefs.themeMode(this)).coerceAtLeast(0)
@@ -162,7 +170,7 @@ class SettingsActivity : AppCompatActivity() {
             .singleChoice(labels.toList(), current) { which ->
                 Prefs.setThemeMode(this, modes[which])
                 CallAssistApp.applyTheme(this)
-                btn.text = "Theme: ${themeLabel()}"
+                value(R.id.valTheme, themeLabel())
             }
             .negative()
             .show()
@@ -177,7 +185,7 @@ class SettingsActivity : AppCompatActivity() {
                 "Numbers opened from Chrome and other apps are dialled as-is, with the + kept."
     }
 
-    private fun editIddCode(btn: Button) {
+    private fun editIddCode() {
         val input = EditText(this).apply {
             inputType = InputType.TYPE_CLASS_PHONE
             hint = Prefs.DEFAULT_IDD_CODE
@@ -191,14 +199,14 @@ class SettingsActivity : AppCompatActivity() {
             .negative()
             .positive("Save") {
                 Prefs.setIddCode(this, input.text.toString())
-                btn.text = "IDD code: ${Prefs.iddCode(this)}"
+                value(R.id.valIddCode, Prefs.iddCode(this))
                 refreshIddHint()
             }
             .show()
     }
 
     /** The stack trace of the last crash, with Copy so it can be pasted into a bug report. */
-    private fun showCrashReport(btn: Button) {
+    private fun showCrashReport(btn: View) {
         val report = CrashLog.read(this) ?: run {
             btn.visibility = View.GONE
             return

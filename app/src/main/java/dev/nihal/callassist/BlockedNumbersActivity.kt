@@ -22,6 +22,7 @@ class BlockedNumbersActivity : AppCompatActivity() {
         setContentView(R.layout.activity_blocked)
 
         empty = findViewById(R.id.blockedEmpty)
+        Ui.emptyState(empty, R.drawable.ic_block)
         adapter = RowAdapter { row ->
             val id = row.payload as Long
             Sheet(this)

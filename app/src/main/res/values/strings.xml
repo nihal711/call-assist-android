@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Call Assist</string>
+    <string name="shortcut_new_contact_short">New contact</string>
+    <string name="shortcut_new_contact_long">Create new contact</string>
+    <string name="shortcut_recents_short">Recents</string>
+    <string name="shortcut_recents_long">Recent calls</string>
+    <string name="shortcut_voicemail_short">Voicemail</string>
+    <string name="shortcut_voicemail_long">Call voicemail</string>
 </resources>

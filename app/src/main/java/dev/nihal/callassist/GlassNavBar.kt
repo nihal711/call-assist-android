@@ -46,6 +46,7 @@ class GlassNavBar @JvmOverloads constructor(
     private val bubble = View(context)
     private val row = LinearLayout(context)
     private val icons = mutableListOf<ImageView>()
+    private val badges = mutableListOf<TextView>()
     private val labels = mutableListOf<TextView>()
     private val specs = mutableListOf<TabSpec>()
     /** Currently applied icon per tab, so we only call setImageResource on a change. */
@@ -68,6 +69,7 @@ class GlassNavBar @JvmOverloads constructor(
     fun setTabs(tabs: List<TabSpec>) {
         row.removeAllViews()
         icons.clear()
+        badges.clear()
         labels.clear()
         specs.clear()
         specs.addAll(tabs)
@@ -81,7 +83,26 @@ class GlassNavBar @JvmOverloads constructor(
             }
             val icon = ImageView(context).apply { setImageResource(t.iconRes) }
             shownIcons.add(t.iconRes)
-            item.addView(icon, LinearLayout.LayoutParams(dp(23), dp(23)))
+            // Icon sits in a small frame so a count badge can hang off its corner.
+            val iconBox = FrameLayout(context)
+            iconBox.addView(icon, LayoutParams(dp(23), dp(23), Gravity.CENTER))
+            val badge = TextView(context).apply {
+                textSize = 9.5f
+                setTextColor(0xFFFFFFFF.toInt())
+                setTypeface(typeface, Typeface.BOLD)
+                gravity = Gravity.CENTER
+                includeFontPadding = false
+                minWidth = dp(15)
+                setPadding(dp(4), 0, dp(4), 0)
+                background = GradientDrawable().apply {
+                    setColor(ContextCompat.getColor(context, R.color.red))
+                    cornerRadius = dp(8).toFloat()
+                }
+                visibility = GONE
+            }
+            iconBox.addView(badge, LayoutParams(LayoutParams.WRAP_CONTENT, dp(15), Gravity.TOP or Gravity.END))
+            badges.add(badge)
+            item.addView(iconBox, LinearLayout.LayoutParams(dp(39), dp(27)))
             val label = TextView(context).apply label@{
                 text = t.label
                 textSize = 11.5f
@@ -112,6 +133,13 @@ class GlassNavBar @JvmOverloads constructor(
             labels.add(label)
         }
         updateTints()
+    }
+
+    /** Red count on a tab's icon (missed calls on Recents); 0 hides it. */
+    fun setBadge(i: Int, n: Int) {
+        val b = badges.getOrNull(i) ?: return
+        b.text = if (n > 9) "9+" else n.toString()
+        b.visibility = if (n > 0) VISIBLE else GONE
     }
 
     private fun itemWidth() = if (count == 0) 0f else width.toFloat() / count

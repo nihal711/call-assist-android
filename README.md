@@ -90,6 +90,12 @@ v3.35: Contacts gains a New-contact button and an A–Z fast scroller with a
 letter bubble; the keypad offers Add to contacts / Send message for an
 unmatched number and a Paste chip when the clipboard holds one.
 
+v3.36: polish — Settings rebuilt as grouped list rows with Material switches;
+missed-call count badge on the Recents tab; launcher shortcuts (New contact,
+Recents, Voicemail) and a themed (monochrome) icon; predictive back; animated
+expand/collapse in Recents and Contacts; illustrated empty states; a "Block
+unknown numbers" toggle; and a per-SIM filter in Recents.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key

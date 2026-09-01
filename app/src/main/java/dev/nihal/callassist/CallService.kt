@@ -91,6 +91,16 @@ class CallService : InCallService() {
             return
         }
 
+        // Opt-in: a withheld/private caller is rejected before anything shows.
+        // The intercom is matched above by its number, so this can't touch it.
+        if (ringing && number.isNullOrBlank() && Prefs.blockUnknown(this)) {
+            try {
+                call.reject(false, null)
+            } catch (_: Exception) {
+            }
+            return
+        }
+
         // Contact lookup does disk I/O — keep it off the ring path's main thread.
         Thread {
             val info = ContactHelper.lookup(this, number)

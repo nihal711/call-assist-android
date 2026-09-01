@@ -43,6 +43,21 @@ class ContactsAdapter(
     }
 
     private var expandedPos = -1
+    private var host: RecyclerView? = null
+
+    override fun onAttachedToRecyclerView(rv: RecyclerView) {
+        host = rv
+        // Rows grow/shrink instead of cross-fading when a card opens.
+        (rv.itemAnimator as? androidx.recyclerview.widget.SimpleItemAnimator)?.supportsChangeAnimations = false
+    }
+
+    private fun animateExpand() {
+        host?.let {
+            androidx.transition.TransitionManager.beginDelayedTransition(
+                it, androidx.transition.ChangeBounds().setDuration(220)
+            )
+        }
+    }
 
     var items: List<Item> = emptyList()
         @Suppress("NotifyDataSetChanged")
@@ -116,6 +131,7 @@ class ContactsAdapter(
                     h.row.setOnClickListener {
                         val old = expandedPos
                         expandedPos = h.bindingAdapterPosition
+                        animateExpand()
                         if (old >= 0) notifyItemChanged(old)
                         notifyItemChanged(expandedPos)
                     }
@@ -129,6 +145,7 @@ class ContactsAdapter(
                     h.expandedHeader.setOnClickListener {
                         val p = h.bindingAdapterPosition
                         expandedPos = -1
+                        animateExpand()
                         notifyItemChanged(p)
                     }
                     h.btnCall.setOnClickListener { onCall(c, null) }

@@ -70,8 +70,12 @@ class MainActivity : AppCompatActivity() {
         /** Sent by the gate notification: open straight to the Gate tab's log. */
         const val ACTION_SHOW_GATE = "dev.nihal.callassist.SHOW_GATE"
 
-        /** Sent by the missed-call notification: open straight to Recents. */
+        /** Sent by the missed-call notification and the launcher shortcut: open straight to Recents. */
         const val ACTION_SHOW_RECENTS = "dev.nihal.callassist.SHOW_RECENTS"
+
+        /** Launcher shortcuts. */
+        const val ACTION_NEW_CONTACT = "dev.nihal.callassist.NEW_CONTACT"
+        const val ACTION_VOICEMAIL = "dev.nihal.callassist.VOICEMAIL"
         private const val TAB_GATE = 3
     }
 
@@ -135,6 +139,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var recentsSearchPanel: View
     private lateinit var recentsChips: View
     private lateinit var chipType: Chip
+    private lateinit var chipSim: Chip
+    /** PhoneAccountHandle id to show only, or null for every SIM. */
+    private var recentsSimFilter: String? = null
     private lateinit var btnRecentsFilter: ImageButton
     private var recentsSearchOpen = false
 
@@ -271,6 +278,16 @@ class MainActivity : AppCompatActivity() {
             navBar.select(1)
             return
         }
+        if (intent?.action == ACTION_NEW_CONTACT) {
+            navBar.select(2)
+            findViewById<View>(R.id.btnNewContact).performClick()
+            return
+        }
+        if (intent?.action == ACTION_VOICEMAIL) {
+            navBar.select(0)
+            dialVoicemail()
+            return
+        }
         handleDialIntent(intent)
     }
 
@@ -293,6 +310,7 @@ class MainActivity : AppCompatActivity() {
         refreshSim()
         reloadData()
         renderCallBanner()
+        navBar.setBadge(1, if (currentTab == 1) 0 else Notifications.missedCount(this))
     }
 
     /**
@@ -706,6 +724,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupRecents() {
         recentsEmpty = findViewById(R.id.recentsEmpty)
+        Ui.emptyState(recentsEmpty, R.drawable.ic_recents)
         recentsAdapter = RecentsAdapter(
             expandable = true,
             onCall = { confirmCall(it) },
@@ -763,6 +782,8 @@ class MainActivity : AppCompatActivity() {
         recentsSearchPanel = findViewById(R.id.recentsSearchPanel)
         recentsChips = findViewById(R.id.recentsChipsScroll)
         chipType = findViewById(R.id.chipType)
+        chipSim = findViewById(R.id.chipSim)
+        chipSim.setOnCloseIconClickListener { setRecentsSimFilter(null) }
         btnRecentsFilter = findViewById(R.id.btnRecentsFilter)
 
         findViewById<View>(R.id.btnRecentsSearch).setOnClickListener {
@@ -936,12 +957,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun setRecentsTypeFilter(idx: Int) {
         recentsTypeFilter = idx
-        val active = idx != 0
-        btnRecentsFilter.imageTintList = ColorStateList.valueOf(
-            getColor(if (active) R.color.accent else R.color.textSecondary)
-        )
         chipType.text = TYPE_FILTERS[idx].label
-        chipType.visibility = if (active) View.VISIBLE else View.GONE
+        chipType.visibility = if (idx != 0) View.VISIBLE else View.GONE
+        updateRecentsChips()
+        renderRecents()
+    }
+
+    private fun setRecentsSimFilter(id: String?) {
+        recentsSimFilter = id
+        val sim = id?.let { SimUtil.byId(this, it) }
+        chipSim.text = sim?.let { "SIM ${it.slot + 1} · ${it.name}" } ?: ""
+        chipSim.visibility = if (sim != null) View.VISIBLE else View.GONE
         updateRecentsChips()
         renderRecents()
     }
@@ -952,19 +978,57 @@ class MainActivity : AppCompatActivity() {
      * shouldn't keep narrowing the list.
      */
     private fun updateRecentsChips() {
-        val show = recentsSearchOpen || recentsTypeFilter != 0
+        val filtered = recentsTypeFilter != 0 || recentsSimFilter != null
+        btnRecentsFilter.imageTintList = ColorStateList.valueOf(
+            getColor(if (filtered) R.color.accent else R.color.textSecondary)
+        )
+        val show = recentsSearchOpen || filtered
         recentsChips.visibility = if (show) View.VISIBLE else View.GONE
         // clearCheck() fires the group listener, which resets recentsDays.
         if (!show && recentsDays != 0) findViewById<ChipGroup>(R.id.chipTimeGroup).clearCheck()
     }
 
-    /** "Filter calls" sheet: radio rows, Cancel | OK. */
+    /** "Filter calls" sheet: SIM segments (dual SIM) over call-type radio rows, Cancel | OK. */
     private fun showRecentsFilterDialog() {
-        Sheet(this)
-            .title("Filter calls")
+        val sheet = Sheet(this).title("Filter calls")
+        var pickedSim = recentsSimFilter
+        val sims = SimUtil.sims(this)
+        if (sims.size > 1) {
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            val segments = ArrayList<Pair<View, String?>>()
+            fun paint() = segments.forEach { (v, id) -> v.isSelected = id == pickedSim }
+            fun segment(label: String, id: String?, badge: View?): View =
+                LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = Gravity.CENTER
+                    setBackgroundResource(R.drawable.bg_sim_toggle)
+                    setPadding(dp(10), 0, dp(12), 0)
+                    badge?.let { addView(it) }
+                    addView(TextView(this@MainActivity).apply {
+                        text = label
+                        textSize = 13f
+                        maxLines = 1
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        setTextColor(getColor(R.color.textPrimary))
+                    }, LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                    ).apply { if (badge != null) marginStart = dp(6) })
+                    setOnClickListener { pickedSim = id; paint() }
+                }
+            val all = listOf<Pair<String, SimUtil.Sim?>>("All SIMs" to null) + sims.map { it.name to it }
+            for ((i, p) in all.withIndex()) {
+                val (label, sim) = p
+                val seg = segment(label, sim?.handle?.id, sim?.let { SimUtil.badge(this, it) })
+                segments.add(seg to sim?.handle?.id)
+                row.addView(seg, LinearLayout.LayoutParams(0, dp(38), 1f).apply { if (i > 0) marginStart = dp(8) })
+            }
+            paint()
+            sheet.view(row)
+        }
+        sheet
             .singleChoice(TYPE_FILTERS.map { it.label }, recentsTypeFilter) { setRecentsTypeFilter(it) }
             .negative()
-            .positive("OK")
+            .positive("OK") { if (pickedSim != recentsSimFilter) setRecentsSimFilter(pickedSim) }
             .show()
     }
 
@@ -988,9 +1052,11 @@ class MainActivity : AppCompatActivity() {
         } else 0L
         val q = if (recentsSearchOpen) recentsSearch.text.toString().trim().lowercase() else ""
         val qDigits = q.filter { it.isDigit() }
-        if (types == null && cutoff == 0L && q.isEmpty()) return callLog
+        val simId = recentsSimFilter
+        if (types == null && cutoff == 0L && q.isEmpty() && simId == null) return callLog
         return callLog.filter { e ->
             (types == null || e.type in types) &&
+                (simId == null || e.accountId == simId) &&
                 e.date >= cutoff &&
                 (q.isEmpty() ||
                     entryName(e)?.lowercase()?.contains(q) == true ||
@@ -1131,6 +1197,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupContacts() {
         contactsEmpty = findViewById(R.id.contactsEmpty)
+        Ui.emptyState(contactsEmpty, R.drawable.ic_person_outline)
         contactSearch = findViewById(R.id.contactSearch)
         contactsAdapter = ContactsAdapter(
             onCall = { c, n ->
@@ -1569,6 +1636,7 @@ class MainActivity : AppCompatActivity() {
         pendingReload?.let { navBar.removeCallbacks(it) }
         if (idx == 1) {
             Notifications.clearMissed(this)
+            navBar.setBadge(1, 0)
             val r = Runnable { pendingReload = null; reloadData() }
             pendingReload = r
             navBar.postDelayed(r, TAB_SETTLE_MS)
