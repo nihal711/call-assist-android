@@ -2,9 +2,12 @@ package dev.nihal.callassist
 
 import android.app.KeyguardManager
 import android.content.Intent
-import android.os.PowerManager
+import android.content.pm.ServiceInfo
+import android.graphics.Bitmap
 import android.os.Handler
+import android.os.PowerManager
 import android.telecom.Call
+import android.telecom.CallAudioState
 import android.telecom.InCallService
 
 class CallService : InCallService() {
@@ -14,6 +17,24 @@ class CallService : InCallService() {
             private set
     }
 
+    // What the current call notification was built from, so it can be
+    // re-posted as the call's state or audio route changes.
+    private var shownCall: Call? = null
+    private var shownLabel = ""
+    private var shownNumber: String? = null
+    private var shownPhoto: Bitmap? = null
+    private var shownQuiet = false
+
+    private val stateCallback = object : Call.Callback() {
+        override fun onStateChanged(call: Call, state: Int) {
+            if (call != shownCall) return
+            // Ringing → active swaps Answer/Decline for Hang up/Mute/Speaker.
+            refreshNotification()
+            // MainActivity's return-to-call banner and InCallActivity follow this.
+            OngoingCall.notifyChanged()
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         instance = this
@@ -21,7 +42,15 @@ class CallService : InCallService() {
 
     override fun onDestroy() {
         instance = null
+        clearNotification()
         super.onDestroy()
+    }
+
+    override fun onCallAudioStateChanged(audioState: CallAudioState) {
+        super.onCallAudioStateChanged(audioState)
+        // Mute / Speaker labels in the notification, toggle state on the call screen.
+        refreshNotification()
+        OngoingCall.notifyChanged()
     }
 
     override fun onCallAdded(call: Call) {
@@ -41,8 +70,7 @@ class CallService : InCallService() {
             val photo = ContactHelper.loadPhoto(this, info.photoUri)
             Handler(mainLooper).post {
                 val state = call.stateCompat()
-                // Hung up while the contact lookup ran: nothing to show, and
-                // telecom would reject a call notification for it.
+                // Hung up while the contact lookup ran: nothing to show.
                 if (state == Call.STATE_DISCONNECTED || state == Call.STATE_DISCONNECTING) return@post
                 if (state == Call.STATE_RINGING && AutomationEngine.nameMatches(this, info.name)) {
                     AutomationEngine.start(this, call, label)
@@ -58,14 +86,9 @@ class CallService : InCallService() {
                 val km = getSystemService(KeyguardManager::class.java)
                 val pm = getSystemService(PowerManager::class.java)
                 val deviceInUse = pm.isInteractive && !km.isKeyguardLocked
-                val sim = simLabel(call)
-                if (ringing && deviceInUse) {
-                    Notifications.showCall(this, label, incoming = true, number = number, photo = photo, sim = sim)
-                    return@post
-                }
-                Notifications.showCall(
-                    this, label, incoming = ringing, quiet = ringing, number = number, photo = photo, sim = sim
-                )
+                val headsUp = ringing && deviceInUse
+                showNotification(call, label, number, photo, quiet = !headsUp)
+                if (headsUp) return@post
                 try {
                     startActivity(
                         Intent(this, InCallActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -83,7 +106,7 @@ class CallService : InCallService() {
         // one) instead of leaving the UI empty.
         val remaining = calls.firstOrNull { it.stateCompat() != Call.STATE_DISCONNECTED }
         if (remaining == null) {
-            Notifications.cancelCall(this)
+            clearNotification()
             return
         }
         val number = remaining.details.handle?.schemeSpecificPart
@@ -94,13 +117,67 @@ class CallService : InCallService() {
                 val st = remaining.stateCompat()
                 if (calls.contains(remaining) && st != Call.STATE_DISCONNECTED && st != Call.STATE_DISCONNECTING) {
                     OngoingCall.set(remaining, info.name ?: number ?: "Unknown", info.photoUri)
-                    Notifications.showCall(
-                        this, OngoingCall.label, remaining.stateCompat() == Call.STATE_RINGING,
-                        number = number, photo = photo, sim = simLabel(remaining)
-                    )
+                    showNotification(remaining, OngoingCall.label, number, photo, quiet = false)
                 }
             }
         }.start()
+    }
+
+    private fun showNotification(call: Call, label: String, number: String?, photo: Bitmap?, quiet: Boolean) {
+        if (shownCall != call) {
+            shownCall?.unregisterCallback(stateCallback)
+            shownCall = call
+            call.registerCallback(stateCallback)
+        }
+        shownLabel = label
+        shownNumber = number
+        shownPhoto = photo
+        shownQuiet = quiet
+        postNotification(call)
+    }
+
+    private fun refreshNotification() {
+        val call = shownCall ?: return
+        val st = call.stateCompat()
+        if (st == Call.STATE_DISCONNECTED || st == Call.STATE_DISCONNECTING) return
+        postNotification(call)
+    }
+
+    /**
+     * Posted through startForeground: Android 14+ refuses a CallStyle
+     * notification that is neither a foreground service's nor carrying a
+     * full-screen intent (it used to be tolerated only while telecom still
+     * saw the call, which is why quick hang-ups crashed). If the promotion
+     * is refused for any reason, fall back to a plain notification.
+     */
+    private fun postNotification(call: Call) {
+        val incoming = call.stateCompat() == Call.STATE_RINGING
+        // Only a ringing call with the phone in use wants a heads-up; an
+        // outgoing or connected call never does.
+        val quiet = shownQuiet || !incoming
+        val audio = callAudioState
+        val sim = simLabel(call)
+        try {
+            val n = Notifications.buildCall(
+                this, shownLabel, incoming, quiet, shownNumber, shownPhoto, sim,
+                muted = audio?.isMuted == true,
+                speaker = audio?.route == CallAudioState.ROUTE_SPEAKER
+            )
+            startForeground(Notifications.ID_CALL, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL)
+        } catch (_: Exception) {
+            Notifications.postPlainCall(this, shownLabel, incoming, quiet, shownNumber, shownPhoto, sim)
+        }
+    }
+
+    private fun clearNotification() {
+        shownCall?.unregisterCallback(stateCallback)
+        shownCall = null
+        shownPhoto = null
+        try {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } catch (_: Exception) {
+        }
+        Notifications.cancelCall(this)
     }
 
     /** "SIM 1 · Singtel" for the notification, or null on single-SIM phones. */

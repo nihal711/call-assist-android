@@ -11,6 +11,11 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- The call notification is posted as a phoneCall foreground service: the
+         only form of CallStyle notification Android 14+ accepts without a
+         full-screen intent -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
 
     <application
         android:name=".CallAssistApp"
@@ -55,10 +60,15 @@
             android:name=".BlockedNumbersActivity"
             android:exported="false" />
 
+        <!-- Own task: MainActivity is singleTask, and launching it from the
+             home screen destroys everything above it in its task — which used
+             to include this screen mid-call. -->
         <activity
             android:name=".InCallActivity"
+            android:excludeFromRecents="true"
             android:exported="false"
             android:launchMode="singleTask"
+            android:taskAffinity="dev.nihal.callassist.incall"
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
 
@@ -69,6 +79,7 @@
         <service
             android:name=".CallService"
             android:exported="true"
+            android:foregroundServiceType="phoneCall"
             android:permission="android.permission.BIND_INCALL_SERVICE">
             <meta-data
                 android:name="android.telecom.IN_CALL_SERVICE_UI"

@@ -280,6 +280,15 @@ class InCallActivity : AppCompatActivity() {
             val state = call.stateCompat()
             callState.text = stateName(state)
 
+            // Mute / speaker can also be toggled from the notification, so
+            // the buttons follow telecom's audio state rather than our own flags.
+            CallService.instance?.callAudioState?.let { a ->
+                muted = a.isMuted
+                speaker = a.route == CallAudioState.ROUTE_SPEAKER
+                setToggle(btnMute, muted)
+                setToggle(btnSpeaker, speaker)
+            }
+
             // Which SIM the call is on — for incoming calls this is what tells
             // the user which of their numbers was rung.
             val sim = if (SimUtil.isDual(this)) SimUtil.byHandle(this, call.details.accountHandle) else null

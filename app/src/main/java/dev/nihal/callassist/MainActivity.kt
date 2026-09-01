@@ -15,6 +15,9 @@ import android.media.ToneGenerator
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
+import android.telecom.Call
+import android.widget.Chronometer
 import android.provider.CallLog
 import android.provider.ContactsContract
 import android.provider.Settings
@@ -149,6 +152,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /** Fires on call set/clear, state and audio changes — keeps the return-to-call banner live. */
+    private val callListener: () -> Unit = { runOnUiThread { renderCallBanner() } }
+
     private val roleLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { refreshGate() }
 
@@ -200,6 +206,11 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        findViewById<View>(R.id.callBanner).setOnClickListener {
+            startActivity(Intent(this, InCallActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        }
+        OngoingCall.addListener(callListener)
+
         // First run: take the user to setup until the app is the default dialer.
         val rm = getSystemService(RoleManager::class.java)
         navBar.select(if (rm.isRoleHeld(RoleManager.ROLE_DIALER)) 0 else TAB_GATE)
@@ -241,6 +252,38 @@ class MainActivity : AppCompatActivity() {
         refreshGate()
         refreshSim()
         reloadData()
+        renderCallBanner()
+    }
+
+    /**
+     * "Return to call" bar: shown whenever a call is live
+     * and the user is looking at the dialer instead of the call screen.
+     */
+    private fun renderCallBanner() {
+        val banner = findViewById<View>(R.id.callBanner)
+        val call = OngoingCall.call
+        val state = call?.stateCompat()
+        if (call == null || state == Call.STATE_DISCONNECTED) {
+            banner.visibility = View.GONE
+            return
+        }
+        banner.visibility = View.VISIBLE
+        findViewById<TextView>(R.id.callBannerName).text = OngoingCall.label
+        val timer = findViewById<Chronometer>(R.id.callBannerTimer)
+        val stateText = findViewById<TextView>(R.id.callBannerState)
+        if (state == Call.STATE_ACTIVE) {
+            val connected = call.details.connectTimeMillis
+            timer.base = if (connected > 0)
+                SystemClock.elapsedRealtime() - (System.currentTimeMillis() - connected)
+            else SystemClock.elapsedRealtime()
+            timer.start()
+            timer.visibility = View.VISIBLE
+            stateText.text = "Ongoing call ·"
+        } else {
+            timer.stop()
+            timer.visibility = View.GONE
+            stateText.text = stateName(state!!)
+        }
     }
 
     /** Re-reads the SIM list (it can change in Settings → SIM manager) and repaints the chip. */
@@ -250,6 +293,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        OngoingCall.removeListener(callListener)
         pendingReload?.let { navBar.removeCallbacks(it) }
         toneGen?.release()
         bg.shutdown()

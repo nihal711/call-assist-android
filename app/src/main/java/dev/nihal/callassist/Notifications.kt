@@ -79,44 +79,34 @@ object Notifications {
         )
 
     /**
-     * @param quiet post on the low-importance channel (no heads-up, no full-screen
-     *   intent) because the caller is launching InCallActivity itself.
+     * The call notification. Android 12+ gets CallStyle — Answer / Decline
+     * while ringing, Hang up plus our Mute and Speaker actions once connected.
+     * Android 14+ only accepts CallStyle from a foreground service or with a
+     * full-screen intent, so [CallService] posts this through startForeground
+     * (type phoneCall); [postPlainCall] is the fallback if that is refused.
+     *
+     * @param quiet low-importance channel (no heads-up, no full-screen intent)
+     *   — used while our own InCallActivity is on screen and for every
+     *   outgoing / connected call.
      */
-    fun showCall(
+    fun buildCall(
         ctx: Context,
         label: String,
         incoming: Boolean,
-        quiet: Boolean = false,
-        number: String? = null,
-        photo: Bitmap? = null,
-        /** "SIM 1 · Singtel" on dual-SIM phones; appended to the subtitle. */
-        sim: String? = null
-    ) {
-        ensureChannels(ctx)
-        val pi = inCallPending(ctx)
-        val base = if (number != null && number != label) number else if (incoming) "Incoming call" else "Call in progress"
-        val subtitle = if (sim != null) "$base  ·  $sim" else base
+        quiet: Boolean,
+        number: String?,
+        photo: Bitmap?,
+        sim: String?,
+        muted: Boolean,
+        speaker: Boolean
+    ): Notification {
         val icon = photo?.let { Icon.createWithBitmap(it) }
-        fun plain(): Notification.Builder =
-            Notification.Builder(ctx, if (quiet) CH_QUIET else CH_INCOMING)
-                .setSmallIcon(android.R.drawable.sym_call_incoming)
-                .setContentTitle(label)
-                .setContentText(subtitle)
-                .setCategory(Notification.CATEGORY_CALL)
-                .setOngoing(true)
-                .setOnlyAlertOnce(true)
-                .setContentIntent(pi)
-                .also { b ->
-                    if (incoming && !quiet) b.setFullScreenIntent(pi, true)
-                    if (icon != null) b.setLargeIcon(icon)
-                }
-        val b = plain()
+        val b = baseCall(ctx, label, incoming, quiet, number, icon, sim)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             // CallStyle on purpose: the system treats a CallStyle notification
             // as the in-call UI's own and doesn't stack a heads-up banner over the
             // full-screen activity.
             val person = Person.Builder().setName(label).setIcon(icon).setImportant(true).build()
-            val hangup = actionPending(ctx, CallActionReceiver.ACTION_HANGUP, 12)
             val style = if (incoming) {
                 Notification.CallStyle.forIncomingCall(
                     person,
@@ -124,23 +114,61 @@ object Notifications {
                     actionPending(ctx, CallActionReceiver.ACTION_ANSWER, 10)
                 )
             } else {
-                Notification.CallStyle.forOngoingCall(person, hangup)
+                Notification.CallStyle.forOngoingCall(person, actionPending(ctx, CallActionReceiver.ACTION_HANGUP, 12))
             }
             b.setStyle(style)
+            if (!incoming) {
+                // CallStyle shows these alongside its own Hang up (three buttons max).
+                b.addAction(action(ctx, R.drawable.ic_mic, if (muted) "Unmute" else "Mute", CallActionReceiver.ACTION_MUTE, 13))
+                b.addAction(action(ctx, R.drawable.ic_speaker, if (speaker) "Earpiece" else "Speaker", CallActionReceiver.ACTION_SPEAKER, 14))
+            }
         }
-        val nm = ctx.getSystemService(NotificationManager::class.java)
-        try {
-            nm.notify(ID_CALL, b.build())
-        } catch (_: IllegalArgumentException) {
-            // Android 14+ only accepts CallStyle without a full-screen intent
-            // while telecom still reports a call in progress. This is posted
-            // after a contact lookup, so a call hung up during that window
-            // gets here — fall back to a plain notification rather than die
-            // (onCallRemoved clears it moments later anyway).
-            notifySafe(ctx, ID_CALL, plain().build())
-        } catch (_: Exception) {
-        }
+        return b.build()
     }
+
+    /** Style-less twin of [buildCall], posted with a plain notify(). */
+    fun postPlainCall(
+        ctx: Context,
+        label: String,
+        incoming: Boolean,
+        quiet: Boolean,
+        number: String?,
+        photo: Bitmap?,
+        sim: String?
+    ) {
+        val icon = photo?.let { Icon.createWithBitmap(it) }
+        notifySafe(ctx, ID_CALL, baseCall(ctx, label, incoming, quiet, number, icon, sim).build())
+    }
+
+    private fun baseCall(
+        ctx: Context,
+        label: String,
+        incoming: Boolean,
+        quiet: Boolean,
+        number: String?,
+        icon: Icon?,
+        sim: String?
+    ): Notification.Builder {
+        ensureChannels(ctx)
+        val pi = inCallPending(ctx)
+        val base = if (number != null && number != label) number else if (incoming) "Incoming call" else "Call in progress"
+        val subtitle = if (sim != null) "$base  ·  $sim" else base
+        return Notification.Builder(ctx, if (quiet) CH_QUIET else CH_INCOMING)
+            .setSmallIcon(android.R.drawable.sym_call_incoming)
+            .setContentTitle(label)
+            .setContentText(subtitle)
+            .setCategory(Notification.CATEGORY_CALL)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setContentIntent(pi)
+            .also { b ->
+                if (incoming && !quiet) b.setFullScreenIntent(pi, true)
+                if (icon != null) b.setLargeIcon(icon)
+            }
+    }
+
+    private fun action(ctx: Context, icon: Int, title: String, act: String, code: Int): Notification.Action =
+        Notification.Action.Builder(Icon.createWithResource(ctx, icon), title, actionPending(ctx, act, code)).build()
 
     /** Opens the app straight to the Gate tab, where the event log lives. */
     private fun gateTabPending(ctx: Context): PendingIntent =

@@ -43,6 +43,13 @@ v3.25: fixed a crash when a call was hung up within the first second or two —
 Android 14+ rejected the call notification once telecom no longer saw the
 call, and that exception took the whole app down.
 
+v3.26: the call notification is now a proper phone-call foreground service
+notification with Hang up, Mute and Speaker, updated live as the call
+connects or the audio route changes; outgoing calls no longer pop a banner
+over the call screen. The call screen lives in its own task so opening the
+app mid-call no longer kills it, and the dialer shows a "return to call" bar
+while a call is live.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key
