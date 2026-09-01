@@ -96,17 +96,21 @@ object Notifications {
         val pi = inCallPending(ctx)
         val base = if (number != null && number != label) number else if (incoming) "Incoming call" else "Call in progress"
         val subtitle = if (sim != null) "$base  ·  $sim" else base
-        val b = Notification.Builder(ctx, if (quiet) CH_QUIET else CH_INCOMING)
-            .setSmallIcon(android.R.drawable.sym_call_incoming)
-            .setContentTitle(label)
-            .setContentText(subtitle)
-            .setCategory(Notification.CATEGORY_CALL)
-            .setOngoing(true)
-            .setOnlyAlertOnce(true)
-            .setContentIntent(pi)
-        if (incoming && !quiet) b.setFullScreenIntent(pi, true)
         val icon = photo?.let { Icon.createWithBitmap(it) }
-        if (icon != null) b.setLargeIcon(icon)
+        fun plain(): Notification.Builder =
+            Notification.Builder(ctx, if (quiet) CH_QUIET else CH_INCOMING)
+                .setSmallIcon(android.R.drawable.sym_call_incoming)
+                .setContentTitle(label)
+                .setContentText(subtitle)
+                .setCategory(Notification.CATEGORY_CALL)
+                .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .setContentIntent(pi)
+                .also { b ->
+                    if (incoming && !quiet) b.setFullScreenIntent(pi, true)
+                    if (icon != null) b.setLargeIcon(icon)
+                }
+        val b = plain()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             // CallStyle on purpose: the system treats a CallStyle notification
             // as the in-call UI's own and doesn't stack a heads-up banner over the
@@ -124,7 +128,18 @@ object Notifications {
             }
             b.setStyle(style)
         }
-        notifySafe(ctx, ID_CALL, b.build())
+        val nm = ctx.getSystemService(NotificationManager::class.java)
+        try {
+            nm.notify(ID_CALL, b.build())
+        } catch (_: IllegalArgumentException) {
+            // Android 14+ only accepts CallStyle without a full-screen intent
+            // while telecom still reports a call in progress. This is posted
+            // after a contact lookup, so a call hung up during that window
+            // gets here — fall back to a plain notification rather than die
+            // (onCallRemoved clears it moments later anyway).
+            notifySafe(ctx, ID_CALL, plain().build())
+        } catch (_: Exception) {
+        }
     }
 
     /** Opens the app straight to the Gate tab, where the event log lives. */
@@ -174,9 +189,10 @@ object Notifications {
     }
 
     private fun notifySafe(ctx: Context, id: Int, n: Notification) {
+        // A rejected notification must never take the InCallService down with it.
         try {
             ctx.getSystemService(NotificationManager::class.java).notify(id, n)
-        } catch (_: SecurityException) {
+        } catch (_: Exception) {
         }
     }
 }

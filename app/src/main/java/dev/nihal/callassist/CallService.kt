@@ -41,7 +41,9 @@ class CallService : InCallService() {
             val photo = ContactHelper.loadPhoto(this, info.photoUri)
             Handler(mainLooper).post {
                 val state = call.stateCompat()
-                if (state == Call.STATE_DISCONNECTED) return@post
+                // Hung up while the contact lookup ran: nothing to show, and
+                // telecom would reject a call notification for it.
+                if (state == Call.STATE_DISCONNECTED || state == Call.STATE_DISCONNECTING) return@post
                 if (state == Call.STATE_RINGING && AutomationEngine.nameMatches(this, info.name)) {
                     AutomationEngine.start(this, call, label)
                     return@post
@@ -89,7 +91,8 @@ class CallService : InCallService() {
             val info = ContactHelper.lookup(this, number)
             val photo = ContactHelper.loadPhoto(this, info.photoUri)
             Handler(mainLooper).post {
-                if (calls.contains(remaining) && remaining.stateCompat() != Call.STATE_DISCONNECTED) {
+                val st = remaining.stateCompat()
+                if (calls.contains(remaining) && st != Call.STATE_DISCONNECTED && st != Call.STATE_DISCONNECTING) {
                     OngoingCall.set(remaining, info.name ?: number ?: "Unknown", info.photoUri)
                     Notifications.showCall(
                         this, OngoingCall.label, remaining.stateCompat() == Call.STATE_RINGING,

@@ -212,12 +212,14 @@ class SettingsActivity : AppCompatActivity() {
             addView(text)
             layoutParams = android.widget.LinearLayout.LayoutParams(
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                (resources.displayMetrics.heightPixels * 0.45f).toInt()
+                // Leave room for title, message and the Copy | Delete bar — a
+                // taller viewer pushed the buttons off the bottom of the sheet.
+                (resources.displayMetrics.heightPixels * 0.28f).toInt()
             )
         }
         Sheet(this)
             .title("Last crash report")
-            .message("Call Assist closed unexpectedly. Copy this and send it along so the bug can be fixed.")
+            .message("Copy this and send it along so the bug can be fixed.")
             .view(scroll)
             .negative("Delete") {
                 CrashLog.clear(this)

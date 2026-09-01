@@ -39,6 +39,10 @@ with its SIM. All of it hides itself on single-SIM phones.
 v3.24: crash reporting. If the app ever closes unexpectedly, Settings gains a
 red "Last crash report" row with the full stack trace and a Copy button.
 
+v3.25: fixed a crash when a call was hung up within the first second or two —
+Android 14+ rejected the call notification once telecom no longer saw the
+call, and that exception took the whole app down.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key
