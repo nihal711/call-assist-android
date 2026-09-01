@@ -105,6 +105,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnBackspace: ImageButton
     private lateinit var suggestionsList: RecyclerView
     private lateinit var suggestionsEmpty: TextView
+    private lateinit var suggestionsEmptyBox: View
+    private lateinit var keypadActions: View
+    private lateinit var btnPaste: View
     private lateinit var suggestionsAdapter: RowAdapter
     private var toneGen: ToneGenerator? = null
 
@@ -120,6 +123,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var contactsAdapter: ContactsAdapter
     private lateinit var contactsEmpty: TextView
     private lateinit var contactSearch: EditText
+    private lateinit var contactsIndex: LinearLayout
+    private lateinit var contactsIndexBubble: TextView
+    /** Section letter → adapter position of its header, for the fast scroller. */
+    private var contactSections: List<Pair<String, Int>> = emptyList()
+    private var indexTouchedAt = -1
     private var callLog: List<ContactsRepo.CallEntry> = emptyList()
 
     // Recents search / filters
@@ -346,6 +354,12 @@ class MainActivity : AppCompatActivity() {
         btnBackspace = findViewById(R.id.btnBackspace)
         suggestionsList = findViewById(R.id.suggestionsList)
         suggestionsEmpty = findViewById(R.id.suggestionsEmpty)
+        suggestionsEmptyBox = findViewById(R.id.suggestionsEmptyBox)
+        keypadActions = findViewById(R.id.keypadActions)
+        btnPaste = findViewById(R.id.btnPaste)
+        findViewById<View>(R.id.btnAddToContacts).setOnClickListener { openOrAddContact(dialRaw()) }
+        findViewById<View>(R.id.btnSendMessage).setOnClickListener { openSms(dialRaw()) }
+        btnPaste.setOnClickListener { pasteNumber() }
 
         suggestionsAdapter = RowAdapter { row -> confirmCall(row.payload as String, row.title.toString()) }
         suggestionsList.layoutManager = LinearLayoutManager(this)
@@ -584,9 +598,47 @@ class MainActivity : AppCompatActivity() {
         }
         val showList = matches.isNotEmpty()
         suggestionsList.visibility = if (showList) View.VISIBLE else View.GONE
-        suggestionsEmpty.visibility = if (showList) View.GONE else View.VISIBLE
+        suggestionsEmptyBox.visibility = if (showList) View.GONE else View.VISIBLE
+        // Unmatched-number affordances: save or text a number nobody matched,
+        // paste one in when the pad is empty.
+        val dialable = raw.isNotEmpty() && raw.none { it == '*' || it == '#' }
+        keypadActions.visibility = if (!showList && dialable) View.VISIBLE else View.GONE
+        btnPaste.visibility = if (raw.isEmpty() && clipboardHasText()) View.VISIBLE else View.GONE
         if (raw.isEmpty() && keypadCollapsed) setKeypadCollapsed(false)
         updateBackState()
+    }
+
+    /** Only the clip *description* is read here — that never triggers the system "pasted" toast. */
+    private fun clipboardHasText(): Boolean {
+        val cm = getSystemService(ClipboardManager::class.java)
+        return try {
+            cm.hasPrimaryClip() &&
+                cm.primaryClipDescription?.hasMimeType(android.content.ClipDescription.MIMETYPE_TEXT_PLAIN) == true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun pasteNumber() {
+        val text = try {
+            getSystemService(ClipboardManager::class.java).primaryClip?.getItemAt(0)?.coerceToText(this)?.toString()
+        } catch (_: Exception) {
+            null
+        }
+        val number = PhoneNumberUtils.stripSeparators(text.orEmpty()).filter { it.isDigit() || it == '+' || it == '*' || it == '#' }
+        if (number.isEmpty()) {
+            Toast.makeText(this, "No phone number on the clipboard", Toast.LENGTH_SHORT).show()
+            return
+        }
+        setDial(number)
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        // Clipboard contents are only visible to the focused app.
+        if (hasFocus && ::btnPaste.isInitialized && dialRaw().isEmpty()) {
+            btnPaste.visibility = if (clipboardHasText()) View.VISIBLE else View.GONE
+        }
     }
 
     /** Colors the digits of a formatted number whose digit-indices fall in span. */
@@ -1095,6 +1147,38 @@ class MainActivity : AppCompatActivity() {
             setHasFixedSize(true)
             setItemViewCacheSize(12)
         }
+        findViewById<View>(R.id.btnNewContact).setOnClickListener {
+            try {
+                startActivity(
+                    Intent(Intent.ACTION_INSERT).setType(ContactsContract.Contacts.CONTENT_TYPE)
+                )
+            } catch (_: Exception) {
+                Toast.makeText(this, "Could not open contacts app", Toast.LENGTH_SHORT).show()
+            }
+        }
+        contactsIndex = findViewById(R.id.contactsIndex)
+        contactsIndexBubble = findViewById(R.id.contactsIndexBubble)
+        contactsIndex.setOnTouchListener { v, e ->
+            when (e.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_MOVE -> {
+                    v.parent?.requestDisallowInterceptTouchEvent(true)
+                    val n = contactSections.size
+                    if (n > 0) {
+                        val usable = v.height - v.paddingTop - v.paddingBottom
+                        val i = ((e.y - v.paddingTop) / usable * n).toInt().coerceIn(0, n - 1)
+                        jumpToSection(i)
+                    }
+                    true
+                }
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                    indexTouchedAt = -1
+                    contactsIndexBubble.animate().alpha(0f).setDuration(150)
+                        .withEndAction { contactsIndexBubble.visibility = View.GONE }.start()
+                    true
+                }
+                else -> false
+            }
+        }
         val clear = findViewById<View>(R.id.contactSearchClear)
         clear.setOnClickListener { contactSearch.setText("") }
         contactSearch.doAfterTextChanged {
@@ -1106,6 +1190,43 @@ class MainActivity : AppCompatActivity() {
                 hideKeyboard(v)
                 true
             } else false
+        }
+    }
+
+    private fun jumpToSection(i: Int) {
+        if (i == indexTouchedAt) return
+        indexTouchedAt = i
+        val (letter, pos) = contactSections[i]
+        contactsIndex.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+        (findViewById<RecyclerView>(R.id.contactsList).layoutManager as LinearLayoutManager)
+            .scrollToPositionWithOffset(pos, 0)
+        contactsIndexBubble.text = letter
+        if (contactsIndexBubble.visibility != View.VISIBLE) {
+            contactsIndexBubble.alpha = 0f
+            contactsIndexBubble.visibility = View.VISIBLE
+            contactsIndexBubble.animate().alpha(1f).setDuration(120).start()
+        }
+    }
+
+    /** Rebuilds the letter column only when the set of sections changes. */
+    private fun renderContactsIndex(sections: List<Pair<String, Int>>) {
+        val letters = sections.map { it.first }
+        val changed = letters != contactSections.map { it.first }
+        contactSections = sections
+        // Fewer than a handful of sections isn't worth a scroller.
+        contactsIndex.visibility = if (sections.size >= 4) View.VISIBLE else View.GONE
+        if (!changed) return
+        contactsIndex.removeAllViews()
+        val secondary = getColor(R.color.textSecondary)
+        for (l in letters) {
+            contactsIndex.addView(TextView(this).apply {
+                text = l
+                textSize = 10f
+                gravity = Gravity.CENTER
+                includeFontPadding = false
+                setTextColor(secondary)
+                setTypeface(typeface, Typeface.BOLD)
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
         }
     }
 
@@ -1176,8 +1297,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         val items = ArrayList<ContactsAdapter.Item>()
+        val sections = ArrayList<Pair<String, Int>>()
         fun addGroup(header: String, group: List<ContactsRepo.Contact>, count: String = "") {
             if (group.isEmpty()) return
+            sections.add((if (header == "Favourites") "★" else header) to items.size)
             items.add(ContactsAdapter.Item.Header(header, count))
             group.forEachIndexed { i, c -> items.add(entry(c, i, group.size)) }
         }
@@ -1194,6 +1317,7 @@ class MainActivity : AppCompatActivity() {
             addGroup("Contacts", list.sortedBy { it.name.lowercase() }, "${list.size} found")
         }
         contactsAdapter.items = items
+        renderContactsIndex(if (q.isEmpty()) sections else emptyList())
 
         val hasPerm = checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
         contactsEmpty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE

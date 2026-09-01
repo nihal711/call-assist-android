@@ -86,6 +86,10 @@ Speaker / Add call, Hold, Contact), a second-call card with Swap / Merge and
 "End current & answer" for call waiting, one-tap Add to contacts for unknown
 numbers, a proper DTMF keypad with a digit strip, and haptics on answer/end.
 
+v3.35: Contacts gains a New-contact button and an A–Z fast scroller with a
+letter bubble; the keypad offers Add to contacts / Send message for an
+unmatched number and a Paste chip when the clipboard holds one.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key

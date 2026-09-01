@@ -23,6 +23,15 @@
             android:textStyle="bold" />
 
         <ImageButton
+            android:id="@+id/btnNewContact"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="New contact"
+            android:src="@drawable/ic_person_add"
+            app:tint="@color/textSecondary" />
+
+        <ImageButton
             android:id="@+id/gearContacts"
             android:layout_width="44dp"
             android:layout_height="44dp"
@@ -81,13 +90,45 @@
         android:textColor="@color/textSecondary"
         android:visibility="gone" />
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/contactsList"
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:clipToPadding="false"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="93dp"
-        android:scrollbars="none" />
+        android:layout_height="match_parent">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/contactsList"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="93dp"
+            android:scrollbars="none" />
+
+        <!-- A–Z fast scroller; letters are added in code from the section headers -->
+        <LinearLayout
+            android:id="@+id/contactsIndex"
+            android:layout_width="24dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="end"
+            android:layout_marginBottom="93dp"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/contactsIndexBubble"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_circle"
+            android:backgroundTint="@color/accent"
+            android:elevation="8dp"
+            android:gravity="center"
+            android:textColor="#FFFFFF"
+            android:textSize="30sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+    </FrameLayout>
 </LinearLayout>
