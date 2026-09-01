@@ -8,6 +8,7 @@ import android.os.Handler
 import android.os.PowerManager
 import android.telecom.Call
 import android.telecom.CallAudioState
+import android.telecom.DisconnectCause
 import android.telecom.InCallService
 
 class CallService : InCallService() {
@@ -100,6 +101,16 @@ class CallService : InCallService() {
     }
 
     override fun onCallRemoved(call: Call) {
+        // Rang out or the caller gave up — leave a missed-call record.
+        // (Rejected/blocked calls carry different causes; the intercom is answered.)
+        if (call.details.disconnectCause?.code == DisconnectCause.MISSED) {
+            val missedNumber = call.details.handle?.schemeSpecificPart
+            Thread {
+                val info = ContactHelper.lookup(this, missedNumber)
+                val photo = ContactHelper.loadPhoto(this, info.photoUri)
+                Notifications.missedCall(this, info.name ?: missedNumber ?: "Unknown", missedNumber, photo)
+            }.start()
+        }
         OngoingCall.clear(call)
         if (OngoingCall.call != null) return
         // Surface a remaining call (e.g. one that was on hold behind the removed

@@ -54,6 +54,11 @@ v3.27: the notification's contact photo is a rounded square matching the system'
 bubble corners, and mute on the call screen shows red with a crossed-out mic
 instead of the same blue as speaker.
 
+v3.28: proximity sensor blanks the screen against the ear during calls;
+missed calls post a notification with Call back / Message; the speaker button
+becomes a route picker (Phone / Speaker / Bluetooth / Wired) when Bluetooth
+audio is available.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key

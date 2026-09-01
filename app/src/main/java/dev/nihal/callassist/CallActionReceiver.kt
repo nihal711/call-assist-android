@@ -3,7 +3,9 @@ package dev.nihal.callassist
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.telecom.CallAudioState
+import android.telecom.TelecomManager
 import android.telecom.VideoProfile
 
 /** Handles the answer / decline / hang-up / mute / speaker buttons on the call notification. */
@@ -20,6 +22,16 @@ class CallActionReceiver : BroadcastReceiver() {
                 if (svc.callAudioState?.route == CallAudioState.ROUTE_SPEAKER) CallAudioState.ROUTE_WIRED_OR_EARPIECE
                 else CallAudioState.ROUTE_SPEAKER
             )
+            ACTION_CALL_BACK -> {
+                val number = intent.getStringExtra(EXTRA_NUMBER) ?: return
+                try {
+                    context.getSystemService(TelecomManager::class.java)
+                        .placeCall(Uri.fromParts("tel", number, null), null)
+                    context.getSystemService(android.app.NotificationManager::class.java)
+                        .cancel(number, Notifications.ID_MISSED)
+                } catch (_: Exception) {
+                }
+            }
         }
     }
 
@@ -29,5 +41,7 @@ class CallActionReceiver : BroadcastReceiver() {
         const val ACTION_HANGUP = "dev.nihal.callassist.HANGUP"
         const val ACTION_MUTE = "dev.nihal.callassist.MUTE"
         const val ACTION_SPEAKER = "dev.nihal.callassist.SPEAKER"
+        const val ACTION_CALL_BACK = "dev.nihal.callassist.CALL_BACK"
+        const val EXTRA_NUMBER = "number"
     }
 }

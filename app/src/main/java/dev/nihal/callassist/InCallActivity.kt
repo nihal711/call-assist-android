@@ -13,6 +13,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import android.telecom.Call
 import android.telecom.CallAudioState
@@ -36,6 +37,7 @@ class InCallActivity : AppCompatActivity() {
 
     private val handler = Handler(Looper.getMainLooper())
     private var boundCall: Call? = null
+    private var proximityLock: PowerManager.WakeLock? = null
     private var muted = false
     private var speaker = false
     private var timerRunning = false
@@ -83,6 +85,13 @@ class InCallActivity : AppCompatActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         registerReceiver(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
 
+        // Screen off against the ear — otherwise
+        // FLAG_KEEP_SCREEN_ON leaves the whole call UI live under a cheek.
+        val pm = getSystemService(PowerManager::class.java)
+        if (pm.isWakeLockLevelSupported(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK)) {
+            proximityLock = pm.newWakeLock(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "callassist:proximity")
+        }
+
         bgPhoto = findViewById(R.id.bgPhoto)
         scrim = findViewById(R.id.scrim)
         avatar = findViewById(R.id.avatar)
@@ -117,11 +126,17 @@ class InCallActivity : AppCompatActivity() {
             renderAudioToggles()
         }
         btnSpeaker.setOnClickListener {
-            speaker = !speaker
-            CallService.instance?.setAudioRoute(
-                if (speaker) CallAudioState.ROUTE_SPEAKER else CallAudioState.ROUTE_WIRED_OR_EARPIECE
-            )
-            renderAudioToggles()
+            val audio = CallService.instance?.callAudioState
+            // With Bluetooth in the mix a blind toggle can't reach every route.
+            if (audio != null && audio.supportedRouteMask and CallAudioState.ROUTE_BLUETOOTH != 0) {
+                showRouteSheet(audio)
+            } else {
+                speaker = audio?.route != CallAudioState.ROUTE_SPEAKER
+                CallService.instance?.setAudioRoute(
+                    if (speaker) CallAudioState.ROUTE_SPEAKER else CallAudioState.ROUTE_WIRED_OR_EARPIECE
+                )
+                renderAudioToggles()
+            }
         }
         findViewById<ImageButton>(R.id.btnKeypad).setOnClickListener {
             keypad.visibility = if (keypad.visibility == View.VISIBLE) View.GONE else View.VISIBLE
@@ -146,6 +161,12 @@ class InCallActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        try {
+            if (proximityLock?.isHeld == true) {
+                proximityLock?.release(PowerManager.RELEASE_FLAG_WAIT_FOR_NO_PROXIMITY)
+            }
+        } catch (_: Exception) {
+        }
         try {
             unregisterReceiver(screenOffReceiver)
         } catch (_: Exception) {
@@ -173,6 +194,42 @@ class InCallActivity : AppCompatActivity() {
         boundCall?.answer(VideoProfile.STATE_AUDIO_ONLY)
     }
 
+    private fun showRouteSheet(audio: CallAudioState) {
+        val routes = listOf(
+            CallAudioState.ROUTE_EARPIECE to "Phone",
+            CallAudioState.ROUTE_WIRED_HEADSET to "Wired headset",
+            CallAudioState.ROUTE_SPEAKER to "Speaker",
+            CallAudioState.ROUTE_BLUETOOTH to "Bluetooth"
+        ).filter { audio.supportedRouteMask and it.first != 0 }
+        Sheet(this)
+            .title("Audio output")
+            .singleChoice(routes.map { it.second }, routes.indexOfFirst { it.first == audio.route }) { i ->
+                CallService.instance?.setAudioRoute(routes[i].first)
+            }
+            .negative()
+            .show()
+    }
+
+    /**
+     * Held while the voice is in the earpiece and the call is live, so the
+     * screen blanks against the ear; released (waiting for the sensor to
+     * clear) on speaker/Bluetooth, while ringing, and when the call ends.
+     */
+    private fun updateProximity(state: Int) {
+        val lock = proximityLock ?: return
+        val route = CallService.instance?.callAudioState?.route
+        val live = state == Call.STATE_ACTIVE || state == Call.STATE_DIALING || state == Call.STATE_CONNECTING
+        val onEar = route == null || route == CallAudioState.ROUTE_EARPIECE
+        try {
+            if (live && onEar) {
+                if (!lock.isHeld) lock.acquire(60 * 60 * 1000L)
+            } else if (lock.isHeld) {
+                lock.release(PowerManager.RELEASE_FLAG_WAIT_FOR_NO_PROXIMITY)
+            }
+        } catch (_: Exception) {
+        }
+    }
+
     /** Muted reads as a warning — red with a crossed-out mic; speaker stays accent blue. */
     private fun renderAudioToggles() {
         btnMute.setImageResource(if (muted) R.drawable.ic_mic_off else R.drawable.ic_mic)
@@ -183,7 +240,12 @@ class InCallActivity : AppCompatActivity() {
         btnMute.imageTintList = ColorStateList.valueOf(
             if (muted) 0xFFFFFFFF.toInt() else getColor(R.color.textPrimary)
         )
-        setToggle(btnSpeaker, speaker)
+        val route = CallService.instance?.callAudioState?.route
+        val bt = route == CallAudioState.ROUTE_BLUETOOTH
+        speaker = route == CallAudioState.ROUTE_SPEAKER
+        btnSpeaker.setImageResource(if (bt) R.drawable.ic_bluetooth else R.drawable.ic_speaker)
+        btnSpeaker.contentDescription = if (bt) "Bluetooth audio" else "Speaker"
+        setToggle(btnSpeaker, speaker || bt)
     }
 
     private fun setToggle(btn: ImageButton, active: Boolean) {
@@ -295,11 +357,9 @@ class InCallActivity : AppCompatActivity() {
 
             // Mute / speaker can also be toggled from the notification, so
             // the buttons follow telecom's audio state rather than our own flags.
-            CallService.instance?.callAudioState?.let { a ->
-                muted = a.isMuted
-                speaker = a.route == CallAudioState.ROUTE_SPEAKER
-            }
+            CallService.instance?.callAudioState?.let { muted = it.isMuted }
             renderAudioToggles()
+            updateProximity(state)
 
             // Which SIM the call is on — for incoming calls this is what tells
             // the user which of their numbers was rung.

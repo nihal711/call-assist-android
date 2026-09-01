@@ -9,6 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.media.AudioManager
+import android.net.Uri
 import android.graphics.drawable.Icon
 import android.os.Build
 
@@ -22,8 +23,10 @@ object Notifications {
     // plays an in-call notification beep for any channel that has a sound even
     // when the ringer is on vibrate/silent — so we pick the channel by ringer mode.
     private const val CH_GATE_QUIET = "gate_events_quiet"
+    private const val CH_MISSED = "missed_calls"
     const val ID_CALL = 1
     const val ID_AUTOMATION = 2
+    const val ID_MISSED = 4
 
     fun ensureChannels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
@@ -57,6 +60,14 @@ object Notifications {
         nm.createNotificationChannel(
             NotificationChannel(CH_GATE_QUIET, "Gate opened (ringer off)", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "Same as Gate opened, used while the phone is on vibrate or mute"
+                setSound(null, null)
+                enableVibration(false)
+            }
+        )
+        nm.createNotificationChannel(
+            // Silent: the ring already happened; this is just the record of it.
+            NotificationChannel(CH_MISSED, "Missed calls", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = "Calls that rang but weren't answered"
                 setSound(null, null)
                 enableVibration(false)
             }
@@ -169,6 +180,62 @@ object Notifications {
 
     private fun action(ctx: Context, icon: Int, title: String, act: String, code: Int): Notification.Action =
         Notification.Action.Builder(Icon.createWithResource(ctx, icon), title, actionPending(ctx, act, code)).build()
+
+    /** One per number (tagged); cleared when Recents opens. */
+    fun missedCall(ctx: Context, label: String, number: String?, photo: Bitmap?) {
+        ensureChannels(ctx)
+        val openRecents = PendingIntent.getActivity(
+            ctx, 3,
+            Intent(ctx, MainActivity::class.java)
+                .setAction(MainActivity.ACTION_SHOW_RECENTS)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val b = Notification.Builder(ctx, CH_MISSED)
+            .setSmallIcon(R.drawable.ic_call_missed)
+            .setColor(ctx.getColor(R.color.red))
+            .setContentTitle("Missed call")
+            .setContentText(label)
+            .setCategory(Notification.CATEGORY_MISSED_CALL)
+            .setShowWhen(true)
+            .setAutoCancel(true)
+            .setContentIntent(openRecents)
+        photo?.let { b.setLargeIcon(Icon.createWithBitmap(it)) }
+        if (number != null) {
+            // Distinct request codes per number, or UPDATE_CURRENT would make
+            // every missed call's buttons act on the most recent number.
+            val callBack = PendingIntent.getBroadcast(
+                ctx, number.hashCode(),
+                Intent(ctx, CallActionReceiver::class.java)
+                    .setAction(CallActionReceiver.ACTION_CALL_BACK)
+                    .putExtra(CallActionReceiver.EXTRA_NUMBER, number),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val sms = PendingIntent.getActivity(
+                ctx, number.hashCode() + 1,
+                Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:$number")),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            b.addAction(action2(ctx, R.drawable.ic_phone, "Call back", callBack))
+            b.addAction(action2(ctx, R.drawable.ic_message, "Message", sms))
+        }
+        try {
+            ctx.getSystemService(NotificationManager::class.java)
+                .notify(number ?: label, ID_MISSED, b.build())
+        } catch (_: Exception) {
+        }
+    }
+
+    fun clearMissed(ctx: Context) {
+        val nm = ctx.getSystemService(NotificationManager::class.java)
+        try {
+            nm.activeNotifications.filter { it.id == ID_MISSED }.forEach { nm.cancel(it.tag, ID_MISSED) }
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun action2(ctx: Context, icon: Int, title: String, pi: PendingIntent): Notification.Action =
+        Notification.Action.Builder(Icon.createWithResource(ctx, icon), title, pi).build()
 
     /** Opens the app straight to the Gate tab, where the event log lives. */
     private fun gateTabPending(ctx: Context): PendingIntent =

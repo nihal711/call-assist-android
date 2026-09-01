@@ -65,6 +65,9 @@ class MainActivity : AppCompatActivity() {
     companion object {
         /** Sent by the gate notification: open straight to the Gate tab's log. */
         const val ACTION_SHOW_GATE = "dev.nihal.callassist.SHOW_GATE"
+
+        /** Sent by the missed-call notification: open straight to Recents. */
+        const val ACTION_SHOW_RECENTS = "dev.nihal.callassist.SHOW_RECENTS"
         private const val TAB_GATE = 3
     }
 
@@ -229,6 +232,10 @@ class MainActivity : AppCompatActivity() {
         if (intent?.action == ACTION_SHOW_GATE) {
             navBar.select(TAB_GATE)
             // The log itself is rebuilt in onResume's refreshGate().
+            return
+        }
+        if (intent?.action == ACTION_SHOW_RECENTS) {
+            navBar.select(1)
             return
         }
         handleDialIntent(intent)
@@ -1353,6 +1360,7 @@ class MainActivity : AppCompatActivity() {
 
         pendingReload?.let { navBar.removeCallbacks(it) }
         if (idx == 1) {
+            Notifications.clearMissed(this)
             val r = Runnable { pendingReload = null; reloadData() }
             pendingReload = r
             navBar.postDelayed(r, TAB_SETTLE_MS)
