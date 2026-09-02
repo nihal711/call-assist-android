@@ -764,7 +764,8 @@ class MainActivity : AppCompatActivity() {
             // Rows are cheap but numerous; a deeper cache means switching back
             // to this tab rebinds instead of re-inflating.
             setItemViewCacheSize(12)
-            CollapsingTitle.attach(this, findViewById(R.id.recentsTitle), 30f, 20f, 36, 10)
+            // Inside apply{} `findViewById` is the list's own — the title lives on the activity.
+            CollapsingTitle.attach(this, this@MainActivity.findViewById(R.id.recentsTitle), 30f, 20f, 36, 10)
         }
 
         ItemTouchHelper(RecentsSwipeCallback(this, recentsAdapter, { confirmCall(it) }, { openSms(it) }))
@@ -1108,7 +1109,7 @@ class MainActivity : AppCompatActivity() {
             adapter = contactsAdapter
             setHasFixedSize(true)
             setItemViewCacheSize(12)
-            CollapsingTitle.attach(this, findViewById(R.id.contactsTitle), 26f, 20f, 16, 0)
+            CollapsingTitle.attach(this, this@MainActivity.findViewById(R.id.contactsTitle), 26f, 20f, 16, 0)
         }
         findViewById<View>(R.id.btnNewContact).setOnClickListener {
             try {
