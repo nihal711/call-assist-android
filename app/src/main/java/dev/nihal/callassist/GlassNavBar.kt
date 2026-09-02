@@ -143,8 +143,10 @@ class GlassNavBar @JvmOverloads constructor(
     }
 
     private fun itemWidth() = if (count == 0) 0f else width.toFloat() / count
-    private fun bubbleW() = (itemWidth() - dp(12)).coerceAtLeast(0f)
-    private fun slotX(i: Int) = i * itemWidth() + dp(6)
+    // Bubble insets: 10dp at the sides, 8dp top/bottom — enough air around the
+    // pill that it reads as a highlight sitting in the bar, not filling it.
+    private fun bubbleW() = (itemWidth() - dp(20)).coerceAtLeast(0f)
+    private fun slotX(i: Int) = i * itemWidth() + dp(10)
 
     override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
         super.onSizeChanged(w, h, ow, oh)
@@ -152,8 +154,8 @@ class GlassNavBar @JvmOverloads constructor(
         // Requesting layout during a layout pass is dropped — defer so the
         // bubble is sized correctly on the very first frame.
         post {
-            val bh = height - dp(12)
-            bubble.layoutParams = LayoutParams(bubbleW().toInt(), bh).apply { topMargin = dp(6) }
+            val bh = height - dp(16)
+            bubble.layoutParams = LayoutParams(bubbleW().toInt(), bh).apply { topMargin = dp(8) }
             (bubble.background as GradientDrawable).cornerRadius = bh / 2f
             bubble.translationX = slotX(selected)
         }
@@ -208,7 +210,7 @@ class GlassNavBar @JvmOverloads constructor(
             MotionEvent.ACTION_MOVE -> if (dragging) {
                 moved = true
                 bubble.translationX = (e.x - bubbleW() / 2)
-                    .coerceIn(dp(6).toFloat(), width - bubbleW() - dp(6))
+                    .coerceIn(dp(10).toFloat(), width - bubbleW() - dp(10))
             }
             MotionEvent.ACTION_UP -> {
                 dragging = false

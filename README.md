@@ -117,6 +117,10 @@ with a forced fallback release.
 v3.41: "Add to contacts" (keypad and in-call) now asks Create new contact or
 Update existing — some contacts apps only offer updating.
 
+v3.42: card expand/collapse animates the card's own height in place (no more
+flicker or rows sliding from another contact's spot); nav bar bubble gets
+more air around it in a slightly taller bar.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key

@@ -43,20 +43,15 @@ class ContactsAdapter(
     }
 
     private var expandedPos = -1
-    private var host: RecyclerView? = null
 
     override fun onAttachedToRecyclerView(rv: RecyclerView) {
-        host = rv
-        // Rows grow/shrink instead of cross-fading when a card opens.
+        // A toggled row is rebound in place (same holder) and animates its own
+        // height — see ExpandAnim — instead of the default cross-fade.
         (rv.itemAnimator as? androidx.recyclerview.widget.SimpleItemAnimator)?.supportsChangeAnimations = false
     }
 
-    private fun animateExpand() {
-        host?.let {
-            androidx.transition.TransitionManager.beginDelayedTransition(
-                it, androidx.transition.ChangeBounds().setDuration(220)
-            )
-        }
+    override fun onViewRecycled(h: RecyclerView.ViewHolder) {
+        ExpandAnim.cancel(h.itemView)
     }
 
     var items: List<Item> = emptyList()
@@ -107,6 +102,17 @@ class ContactsAdapter(
     var onSelect: ((Item.Entry) -> Unit)? = null
     private var selectedId = -1L
 
+    override fun onBindViewHolder(h: RecyclerView.ViewHolder, pos: Int, payloads: MutableList<Any>) {
+        if (ExpandAnim.TOGGLE in payloads && h is EntryVH && h.itemView.height > 0) {
+            val startH = h.itemView.height
+            onBindViewHolder(h, pos)
+            val expanded = pos == expandedPos && onSelect == null
+            ExpandAnim.run(h.itemView, startH, if (expanded) h.expanded else h.row)
+        } else {
+            onBindViewHolder(h, pos)
+        }
+    }
+
     override fun onBindViewHolder(h: RecyclerView.ViewHolder, pos: Int) {
         val ctx = h.itemView.context
         when (val item = items[pos]) {
@@ -150,9 +156,8 @@ class ContactsAdapter(
                         } else {
                             val old = expandedPos
                             expandedPos = h.bindingAdapterPosition
-                            animateExpand()
-                            if (old >= 0) notifyItemChanged(old)
-                            notifyItemChanged(expandedPos)
+                            if (old >= 0) notifyItemChanged(old, ExpandAnim.TOGGLE)
+                            notifyItemChanged(expandedPos, ExpandAnim.TOGGLE)
                         }
                     }
                 } else {
@@ -186,8 +191,7 @@ class ContactsAdapter(
             h.expandedHeader.setOnClickListener {
                 val p = h.bindingAdapterPosition
                 expandedPos = -1
-                animateExpand()
-                notifyItemChanged(p)
+                notifyItemChanged(p, ExpandAnim.TOGGLE)
             }
         }
         h.btnCall.setOnClickListener { onCall(c, null) }

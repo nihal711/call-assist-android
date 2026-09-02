@@ -121,7 +121,7 @@
     <dev.nihal.callassist.GlassNavBar
         android:id="@+id/navBar"
         android:layout_width="match_parent"
-        android:layout_height="59dp"
+        android:layout_height="66dp"
         android:layout_gravity="bottom"
         android:layout_marginStart="61dp"
         android:layout_marginEnd="61dp"
