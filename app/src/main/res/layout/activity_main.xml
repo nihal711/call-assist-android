@@ -121,22 +121,18 @@
 
     <dev.nihal.callassist.GlassNavBar
         android:id="@+id/navBar"
-        android:layout_width="match_parent"
+        android:layout_width="216dp"
         android:layout_height="58dp"
-        android:layout_gravity="bottom"
-        android:layout_marginStart="46dp"
-        android:layout_marginEnd="46dp"
+        android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="6dp"
         android:elevation="10dp" />
 
     <!-- Recents selection mode: swaps in for the nav bar -->
     <LinearLayout
         android:id="@+id/recentsSelectBar"
-        android:layout_width="match_parent"
+        android:layout_width="216dp"
         android:layout_height="58dp"
-        android:layout_gravity="bottom"
-        android:layout_marginStart="46dp"
-        android:layout_marginEnd="46dp"
+        android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="6dp"
         android:background="@drawable/bg_navbar"
         android:elevation="10dp"

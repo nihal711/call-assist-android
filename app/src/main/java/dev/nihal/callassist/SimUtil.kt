@@ -51,8 +51,16 @@ object SimUtil {
     /** True when there is a real choice to make. All SIM UI keys off this. */
     fun isDual(ctx: Context): Boolean = sims(ctx).size > 1
 
-    fun byHandle(ctx: Context, h: PhoneAccountHandle?): Sim? =
-        h?.let { handle -> sims(ctx).firstOrNull { it.handle == handle } }
+    fun byHandle(ctx: Context, h: PhoneAccountHandle?): Sim? = h?.let { handle ->
+        val available = sims(ctx)
+        available.firstOrNull { it.handle == handle }
+            // Some Samsung Telecom builds return an equivalent handle with a
+            // different UserHandle instance. Component + account id still
+            // identify the same SIM-backed PhoneAccount.
+            ?: available.firstOrNull {
+                it.handle.id == handle.id && it.handle.componentName == handle.componentName
+            }
+    }
 
     fun byId(ctx: Context, id: String): Sim? =
         if (id.isEmpty()) null else sims(ctx).firstOrNull { it.handle.id == id }

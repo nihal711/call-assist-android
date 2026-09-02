@@ -609,6 +609,7 @@ class InCallActivity : AppCompatActivity() {
 
             val state = call.stateCompat()
             callState.text = stateName(state)
+            val ringing = state == Call.STATE_RINGING
 
             // Mute / speaker can also be toggled from the notification, so
             // the buttons follow telecom's audio state rather than our own flags.
@@ -620,13 +621,17 @@ class InCallActivity : AppCompatActivity() {
             val sim = if (SimUtil.isDual(this)) SimUtil.byHandle(this, call.details.accountHandle) else null
             if (sim != null) {
                 SimUtil.bind(simChipBadge, sim)
-                simChipName.text = sim.name
+                simChipName.text = if (ringing) "Incoming on ${sim.name}" else sim.name
+                simChip.contentDescription = if (ringing) {
+                    "Incoming call on SIM ${sim.slot + 1}, ${sim.name}"
+                } else {
+                    "Call on SIM ${sim.slot + 1}, ${sim.name}"
+                }
                 simChip.visibility = View.VISIBLE
             } else {
                 simChip.visibility = View.GONE
             }
 
-            val ringing = state == Call.STATE_RINGING
             val locked = getSystemService(KeyguardManager::class.java).isKeyguardLocked
             ringingButtons.visibility = if (ringing && !locked) View.VISIBLE else View.GONE
             ringingSlide.visibility = if (ringing && locked) View.VISIBLE else View.GONE

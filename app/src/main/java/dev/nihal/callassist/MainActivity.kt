@@ -551,13 +551,13 @@ class MainActivity : AppCompatActivity() {
         suggestionsList.setPadding(side, suggestionsList.paddingTop, side, suggestionsList.paddingBottom)
 
         (navBar.layoutParams as android.widget.FrameLayout.LayoutParams).apply {
-            width = dp(460)
+            width = dp(216)
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
             marginStart = 0
             marginEnd = 0
         }
         (recentsSelectBar.layoutParams as android.widget.FrameLayout.LayoutParams).apply {
-            width = dp(460)
+            width = dp(216)
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
             marginStart = 0
             marginEnd = 0

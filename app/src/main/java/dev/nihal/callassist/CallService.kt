@@ -208,6 +208,10 @@ class CallService : InCallService() {
 
         // Contact lookup does disk I/O — keep it off the ring path's main thread.
         Thread {
+            // A cold incoming-call launch can bypass MainActivity.onResume,
+            // which normally refreshes this cache. Resolve it here once so the
+            // call screen and notification can always identify the receiving SIM.
+            SimUtil.refresh(this)
             val info = ContactHelper.lookup(this, number)
             val conference = call.details.hasProperty(Call.Details.PROPERTY_CONFERENCE)
             val label = if (conference) "Conference call" else info.name ?: number ?: "Unknown"
