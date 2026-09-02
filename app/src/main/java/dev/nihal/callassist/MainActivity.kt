@@ -1178,7 +1178,14 @@ class MainActivity : AppCompatActivity() {
         val changed = letters != contactSections.map { it.first }
         contactSections = sections
         // Fewer than a handful of sections isn't worth a scroller.
-        contactsIndex.visibility = if (sections.size >= 4) View.VISIBLE else View.GONE
+        val show = sections.size >= 4
+        contactsIndex.visibility = if (show) View.VISIBLE else View.GONE
+        // Cards stop 8dp short of the 20dp letter column, which sits 8dp from
+        // the edge — equal air on both sides instead of letters over card edges.
+        findViewById<RecyclerView>(R.id.contactsList).let { rv ->
+            val end = if (show) dp(36) else dp(16)
+            if (rv.paddingEnd != end) rv.setPadding(rv.paddingStart, rv.paddingTop, end, rv.paddingBottom)
+        }
         if (!changed) return
         contactsIndex.removeAllViews()
         val secondary = getColor(R.color.textSecondary)

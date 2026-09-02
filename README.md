@@ -132,6 +132,9 @@ shadowed glyph, separate themed-icon layer) and a branded splash screen.
 v3.45: hotfix — v3.43/3.44 crashed on launch (collapsing-title lookup ran on
 the list instead of the activity and got null).
 
+v3.46: nav bar bubble is a pill around icon + label again (wider bar, 6dp
+insets), the bar sits lower, and the Contacts A–Z column gets its own gutter.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key

@@ -124,9 +124,9 @@
         android:layout_width="match_parent"
         android:layout_height="66dp"
         android:layout_gravity="bottom"
-        android:layout_marginStart="61dp"
-        android:layout_marginEnd="61dp"
-        android:layout_marginBottom="14dp"
+        android:layout_marginStart="40dp"
+        android:layout_marginEnd="40dp"
+        android:layout_marginBottom="6dp"
         android:elevation="10dp" />
 
     <!-- Recents selection mode: swaps in for the nav bar -->
@@ -135,9 +135,9 @@
         android:layout_width="match_parent"
         android:layout_height="64dp"
         android:layout_gravity="bottom"
-        android:layout_marginStart="48dp"
-        android:layout_marginEnd="48dp"
-        android:layout_marginBottom="14dp"
+        android:layout_marginStart="40dp"
+        android:layout_marginEnd="40dp"
+        android:layout_marginBottom="6dp"
         android:background="@drawable/bg_navbar"
         android:elevation="10dp"
         android:orientation="horizontal"
