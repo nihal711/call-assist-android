@@ -7,7 +7,8 @@
     <color name="card">#FFFFFF</color>
     <color name="card2">#ECECF1</color>
     <color name="textPrimary">#17171A</color>
-    <color name="textSecondary">#73737C</color>
+    <!-- AA against the light card2 surface as well as the page background. -->
+    <color name="textSecondary">#686872</color>
     <color name="accent">#2E6FE8</color>
     <color name="accentSoft">#DCE8FF</color>
     <color name="trackBg">#14000000</color>

@@ -10,6 +10,7 @@ class CallAssistApp : Application() {
         super.onCreate()
         CrashLog.install(this)
         applyTheme(this)
+        Notifications.ensureChannels(this)
         // If something took the default-dialer role away, gate automation is
         // silently dead — surface it whenever our process comes up.
         try {

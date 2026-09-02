@@ -30,8 +30,13 @@ class RecentsSwipeCallback(
     override fun onSwiped(vh: RecyclerView.ViewHolder, direction: Int) {
         val pos = vh.bindingAdapterPosition
         val e = adapter.items.getOrNull(pos) as? RecentsAdapter.Item.Entry ?: return
-        // Rebind snaps the row back into place; the action follows.
-        adapter.notifyItemChanged(pos)
+        // ItemTouchHelper keeps ownership of the translation until this callback
+        // returns. Reset on the next frame so a recycled/rebound holder cannot
+        // inherit the completed swipe position.
+        vh.itemView.post {
+            vh.itemView.translationX = 0f
+            adapter.notifyItemChanged(pos)
+        }
         if (direction == ItemTouchHelper.RIGHT) onCall(e.number) else onMessage(e.number)
     }
 

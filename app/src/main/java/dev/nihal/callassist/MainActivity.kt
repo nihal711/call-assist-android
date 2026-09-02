@@ -1,7 +1,6 @@
 package dev.nihal.callassist
 
 import android.Manifest
-import android.app.NotificationManager
 import android.app.role.RoleManager
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -43,7 +42,7 @@ import android.widget.GridLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.Switch
+import android.widget.CompoundButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -57,9 +56,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
 import java.util.Locale
 import java.util.concurrent.Executors
 
@@ -78,29 +74,65 @@ class MainActivity : AppCompatActivity() {
         /** Launcher shortcuts. */
         const val ACTION_NEW_CONTACT = "dev.nihal.callassist.NEW_CONTACT"
         const val ACTION_VOICEMAIL = "dev.nihal.callassist.VOICEMAIL"
+        /** Missed-call notification action; always enters a confirmation UI. */
+        const val ACTION_CALL_BACK = "dev.nihal.callassist.CALL_BACK"
+        const val EXTRA_NUMBER = "number"
         private const val TAB_GATE = 3
+
+        private const val STATE_TAB = "tab"
+        private const val STATE_DIAL = "dial"
+        private const val STATE_KEYPAD_COLLAPSED = "keypad_collapsed"
+        private const val STATE_RECENTS_SEARCH_OPEN = "recents_search_open"
+        private const val STATE_RECENTS_QUERY = "recents_query"
+        private const val STATE_RECENTS_TYPE = "recents_type"
+        private const val STATE_RECENTS_DAYS = "recents_days"
+        private const val STATE_RECENTS_SIM = "recents_sim"
+        private const val STATE_RECENTS_EXPANDED = "recents_expanded"
+        private const val STATE_RECENTS_SELECTION_MODE = "recents_selection_mode"
+        private const val STATE_RECENTS_SELECTION = "recents_selection"
+        private const val STATE_RECENTS_DETAIL = "recents_detail"
+        private const val STATE_RECENTS_SCROLL = "recents_scroll"
+        private const val STATE_CONTACT_QUERY = "contact_query"
+        private const val STATE_CONTACT_EXPANDED = "contact_expanded"
+        private const val STATE_CONTACT_DETAIL = "contact_detail"
+        private const val STATE_CONTACT_SCROLL = "contact_scroll"
+        private const val STATE_PENDING_NUMBER = "pending_number"
+        private const val STATE_PENDING_ACCOUNT = "pending_account"
+        private const val STATE_PENDING_MISSED = "pending_missed"
     }
 
     private val bg = Executors.newSingleThreadExecutor()
+    private val renderBg = Executors.newFixedThreadPool(2)
 
     /**
      * Contacts and the call log used to be requeried on every resume and every
      * visit to Recents. The observers mark the data dirty instead, so a clean
      * resume or tab switch skips the load and the three list rebinds entirely.
      */
-    private var dataDirty = true
+    private var contactsDirty = true
+    private var callLogDirty = true
     private var observingContacts = false
     private var observingCallLog = false
-    private val dataObserver = object : ContentObserver(android.os.Handler(Looper.getMainLooper())) {
+    private val contactsObserver = object : ContentObserver(android.os.Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {
-            dataDirty = true
+            contactsDirty = true
+            scheduleObservedReload()
+        }
+    }
+    private val callLogObserver = object : ContentObserver(android.os.Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) {
+            callLogDirty = true
+            scheduleObservedReload()
+        }
+    }
+
+    private fun scheduleObservedReload() {
             // Refresh live if the app is on screen (a call just ended, say);
             // debounced because deletes/syncs fire in bursts.
             if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) {
                 navBar.removeCallbacks(observerReload)
                 navBar.postDelayed(observerReload, 400)
             }
-        }
     }
     private val observerReload = Runnable { reloadData() }
 
@@ -115,6 +147,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var btnPaste: View
     private lateinit var suggestionsAdapter: RowAdapter
     private var toneGen: ToneGenerator? = null
+    private var dialRenderGeneration = 0
 
     // Dual-SIM selector beside the dial button
     private lateinit var simChip: View
@@ -128,12 +161,16 @@ class MainActivity : AppCompatActivity() {
     private lateinit var contactsAdapter: ContactsAdapter
     private lateinit var contactsEmpty: TextView
     private lateinit var contactSearch: EditText
-    private lateinit var contactsIndex: LinearLayout
+    private lateinit var contactsIndex: AccessibleIndexLayout
     private lateinit var contactsIndexBubble: TextView
     /** Section letter → adapter position of its header, for the fast scroller. */
     private var contactSections: List<Pair<String, Int>> = emptyList()
     private var indexTouchedAt = -1
     private var callLog: List<ContactsRepo.CallEntry> = emptyList()
+    private var recentsRenderGeneration = 0
+    private var contactsRenderGeneration = 0
+    private var pendingRecentsScroll: android.os.Parcelable? = null
+    private var pendingContactsScroll: android.os.Parcelable? = null
 
     // Recents search / filters
     private lateinit var recentsSearch: EditText
@@ -180,6 +217,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var navBar: GlassNavBar
     private var currentTab = 0
     private var keypadCollapsed = false
+    private var restoringUi = false
+
+    private data class PendingCall(
+        val number: String,
+        val accountId: String?,
+        val missedTag: String?
+    )
+
+    private var pendingCall: PendingCall? = null
 
     /** Just past the nav bar's 180ms bubble animation. */
     private val TAB_SETTLE_MS = 200L
@@ -214,6 +260,18 @@ class MainActivity : AppCompatActivity() {
                 if (has(Manifest.permission.WRITE_CALL_LOG)) deleteCallLogs(ids)
                 else Toast.makeText(this, "Call log permission needed to delete", Toast.LENGTH_SHORT).show()
             }
+            pendingCall?.let { queued ->
+                pendingCall = null
+                if (has(Manifest.permission.CALL_PHONE)) {
+                    placeCall(
+                        queued.number,
+                        queued.accountId?.let { SimUtil.byId(this, it)?.handle },
+                        queued.missedTag
+                    )
+                } else {
+                    Toast.makeText(this, "Phone permission is needed to place the call", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -238,7 +296,7 @@ class MainActivity : AppCompatActivity() {
                 GlassNavBar.TabSpec(R.drawable.ic_shield_outline, "Gate", R.drawable.ic_shield)
             )
         )
-        navBar.onTabSelected = { idx -> switchTab(idx) }
+        navBar.onTabSelected = { idx, userInitiated -> switchTab(idx, userInitiated) }
         onBackPressedDispatcher.addCallback(this, backCallback)
 
         setupKeypad()
@@ -259,9 +317,13 @@ class MainActivity : AppCompatActivity() {
         OngoingCall.addListener(callListener)
 
         // First run: take the user to setup until the app is the default dialer.
-        val rm = getSystemService(RoleManager::class.java)
-        navBar.select(if (rm.isRoleHeld(RoleManager.ROLE_DIALER)) 0 else TAB_GATE)
-        handleIntent(intent)
+        if (savedInstanceState == null) {
+            val rm = getSystemService(RoleManager::class.java)
+            navBar.select(if (rm.isRoleHeld(RoleManager.ROLE_DIALER)) 0 else TAB_GATE)
+            handleIntent(intent)
+        } else {
+            restoreUiState(savedInstanceState)
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -295,10 +357,102 @@ class MainActivity : AppCompatActivity() {
         }
         if (intent?.action == ACTION_VOICEMAIL) {
             navBar.select(0)
-            dialVoicemail()
+            dialVoicemail(forceConfirmation = true)
+            return
+        }
+        if (intent?.action == ACTION_CALL_BACK) {
+            val number = intent.getStringExtra(EXTRA_NUMBER) ?: return
+            navBar.select(0)
+            confirmCall(number, forceConfirmation = true, missedTag = number)
             return
         }
         handleDialIntent(intent)
+    }
+
+    private fun restoreUiState(state: Bundle) {
+        restoringUi = true
+        recentsSearchOpen = state.getBoolean(STATE_RECENTS_SEARCH_OPEN)
+        recentsTypeFilter = state.getInt(STATE_RECENTS_TYPE).coerceIn(TYPE_FILTERS.indices)
+        recentsDays = state.getInt(STATE_RECENTS_DAYS)
+        recentsSimFilter = state.getString(STATE_RECENTS_SIM)
+        recentsSearchPanel.visibility = if (recentsSearchOpen) View.VISIBLE else View.GONE
+        recentsSearch.setText(state.getString(STATE_RECENTS_QUERY).orEmpty())
+        contactSearch.setText(state.getString(STATE_CONTACT_QUERY).orEmpty())
+        chipType.text = TYPE_FILTERS[recentsTypeFilter].label
+        chipType.visibility = if (recentsTypeFilter != 0) View.VISIBLE else View.GONE
+        val sim = recentsSimFilter?.let { SimUtil.byId(this, it) }
+        chipSim.text = sim?.let { "SIM ${it.slot + 1} · ${it.name}" }.orEmpty()
+        chipSim.visibility = if (sim != null) View.VISIBLE else View.GONE
+        recentsSimFilter = sim?.handle?.id
+        val timeId = when (recentsDays) {
+            1 -> R.id.chipToday
+            7 -> R.id.chip7
+            30 -> R.id.chip30
+            else -> View.NO_ID
+        }
+        if (timeId != View.NO_ID) findViewById<ChipGroup>(R.id.chipTimeGroup).check(timeId)
+        else findViewById<ChipGroup>(R.id.chipTimeGroup).clearCheck()
+        updateRecentsChips()
+        dial.set(state.getString(STATE_DIAL).orEmpty())
+        if (state.getBoolean(STATE_KEYPAD_COLLAPSED) && dial.raw().isNotEmpty()) {
+            keypadCollapsed = true
+            findViewById<View>(R.id.keypadPanel).visibility = View.GONE
+            findViewById<View>(R.id.fabKeypad).apply { visibility = View.VISIBLE; alpha = 1f }
+        }
+        recentsAdapter.restoreState(
+            state.getLong(STATE_RECENTS_EXPANDED, -1L),
+            state.getBoolean(STATE_RECENTS_SELECTION_MODE),
+            state.getLongArray(STATE_RECENTS_SELECTION) ?: longArrayOf(),
+            state.getLong(STATE_RECENTS_DETAIL, -1L)
+        )
+        contactsAdapter.restoreState(
+            state.getLong(STATE_CONTACT_EXPANDED, -1L),
+            state.getLong(STATE_CONTACT_DETAIL, -1L)
+        )
+        @Suppress("DEPRECATION")
+        run {
+            pendingRecentsScroll = state.getParcelable(STATE_RECENTS_SCROLL)
+            pendingContactsScroll = state.getParcelable(STATE_CONTACT_SCROLL)
+        }
+        applySelectionChrome(recentsAdapter.selectionMode)
+        pendingCall = state.getString(STATE_PENDING_NUMBER)?.let {
+            PendingCall(it, state.getString(STATE_PENDING_ACCOUNT), state.getString(STATE_PENDING_MISSED))
+        }
+        navBar.select(state.getInt(STATE_TAB).coerceIn(0, 3))
+        restoringUi = false
+        updateBackState()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putInt(STATE_TAB, currentTab)
+        outState.putString(STATE_DIAL, dial.raw())
+        outState.putBoolean(STATE_KEYPAD_COLLAPSED, keypadCollapsed)
+        outState.putBoolean(STATE_RECENTS_SEARCH_OPEN, recentsSearchOpen)
+        outState.putString(STATE_RECENTS_QUERY, recentsSearch.text.toString())
+        outState.putInt(STATE_RECENTS_TYPE, recentsTypeFilter)
+        outState.putInt(STATE_RECENTS_DAYS, recentsDays)
+        outState.putString(STATE_RECENTS_SIM, recentsSimFilter)
+        outState.putLong(STATE_RECENTS_EXPANDED, recentsAdapter.savedExpandedKey())
+        outState.putBoolean(STATE_RECENTS_SELECTION_MODE, recentsAdapter.selectionMode)
+        outState.putLongArray(STATE_RECENTS_SELECTION, recentsAdapter.savedSelection())
+        outState.putLong(STATE_RECENTS_DETAIL, recentsAdapter.savedDetailKey())
+        outState.putParcelable(
+            STATE_RECENTS_SCROLL,
+            findViewById<RecyclerView>(R.id.recentsList).layoutManager?.onSaveInstanceState()
+        )
+        outState.putString(STATE_CONTACT_QUERY, contactSearch.text.toString())
+        outState.putLong(STATE_CONTACT_EXPANDED, contactsAdapter.savedExpandedId())
+        outState.putLong(STATE_CONTACT_DETAIL, contactsAdapter.savedDetailId())
+        outState.putParcelable(
+            STATE_CONTACT_SCROLL,
+            findViewById<RecyclerView>(R.id.contactsList).layoutManager?.onSaveInstanceState()
+        )
+        pendingCall?.let {
+            outState.putString(STATE_PENDING_NUMBER, it.number)
+            outState.putString(STATE_PENDING_ACCOUNT, it.accountId)
+            outState.putString(STATE_PENDING_MISSED, it.missedTag)
+        }
     }
 
     private fun handleDialIntent(intent: Intent?) {
@@ -362,14 +516,16 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         try {
-            contentResolver.unregisterContentObserver(dataObserver)
+            contentResolver.unregisterContentObserver(contactsObserver)
+            contentResolver.unregisterContentObserver(callLogObserver)
         } catch (_: Exception) {
         }
         OngoingCall.removeListener(callListener)
         navBar.removeCallbacks(observerReload)
         pendingReload?.let { navBar.removeCallbacks(it) }
         toneGen?.release()
-        bg.shutdown()
+        bg.shutdownNow()
+        renderBg.shutdownNow()
         super.onDestroy()
     }
 
@@ -579,19 +735,23 @@ class MainActivity : AppCompatActivity() {
      * Samsung's telecom pops its own "Add voicemail number?" dialog and the
      * hand-off crashes us.
      */
-    private fun dialVoicemail() {
+    private fun dialVoicemail(forceConfirmation: Boolean = false) {
         val saved = Prefs.voicemailNumber(this)
         if (saved.isNotEmpty()) {
-            confirmCall(saved, "Voicemail")
+            confirmCall(saved, "Voicemail", forceConfirmation)
             return
         }
-        val simVm = try {
-            getSystemService(TelephonyManager::class.java).voiceMailNumber
-        } catch (_: Exception) {
-            null
-        }
+        val simVm = if (
+            checkSelfPermission(Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
+        ) {
+            try {
+                getSystemService(TelephonyManager::class.java).voiceMailNumber
+            } catch (_: Exception) {
+                null
+            }
+        } else null
         if (!simVm.isNullOrEmpty()) {
-            confirmCall(simVm, "Voicemail")
+            confirmCall(simVm, "Voicemail", forceConfirmation)
             return
         }
         val input = EditText(this).apply {
@@ -607,7 +767,7 @@ class MainActivity : AppCompatActivity() {
                 val n = input.text.toString().trim()
                 if (n.isNotEmpty()) {
                     Prefs.setVoicemailNumber(this, n)
-                    confirmCall(n, "Voicemail")
+                    confirmCall(n, "Voicemail", forceConfirmation)
                 }
             }
             .show()
@@ -616,10 +776,12 @@ class MainActivity : AppCompatActivity() {
     private fun renderDialInput() {
         val raw = dial.raw()
         btnBackspace.visibility = if (raw.isEmpty()) View.INVISIBLE else View.VISIBLE
-
+        if (renderBg.isShutdown) return
         val accent = getColor(R.color.accent)
+        val generation = ++dialRenderGeneration
+        renderBg.execute {
         val matches = ContactsRepo.search(raw)
-        suggestionsAdapter.rows = matches.map { m ->
+        val rows = matches.map { m ->
             val title: CharSequence = m.nameSpan?.let { span ->
                 SpannableString(m.contact.name).apply {
                     val end = (span.last + 1).coerceAtMost(m.contact.name.length)
@@ -630,22 +792,27 @@ class MainActivity : AppCompatActivity() {
             RowAdapter.Row(
                 title = title,
                 subtitle = "",
-                meta = highlightNumber(fmt(m.number.number), m.digitSpan, accent),
+                meta = highlightNumber(m.number.formatted, m.digitSpan, accent),
                 avatarSeed = m.contact.name,
                 payload = m.number.number,
                 photoUri = m.contact.photoUri
             )
         }
-        val showList = matches.isNotEmpty()
-        suggestionsList.visibility = if (showList) View.VISIBLE else View.GONE
-        suggestionsEmptyBox.visibility = if (showList) View.GONE else View.VISIBLE
-        // Unmatched-number affordances: save or text a number nobody matched,
-        // paste one in when the pad is empty.
-        val dialable = raw.isNotEmpty() && raw.none { it == '*' || it == '#' }
-        keypadActions.visibility = if (!showList && dialable) View.VISIBLE else View.GONE
-        btnPaste.visibility = if (raw.isEmpty() && clipboardHasText()) View.VISIBLE else View.GONE
-        if (raw.isEmpty() && keypadCollapsed) setKeypadCollapsed(false)
-        updateBackState()
+            runOnUiThread {
+                if (generation != dialRenderGeneration || isDestroyed) return@runOnUiThread
+                suggestionsAdapter.rows = rows
+                val showList = matches.isNotEmpty()
+                suggestionsList.visibility = if (showList) View.VISIBLE else View.GONE
+                suggestionsEmptyBox.visibility = if (showList) View.GONE else View.VISIBLE
+                // Unmatched-number affordances: save or text a number nobody matched,
+                // paste one in when the pad is empty.
+                val dialable = raw.isNotEmpty() && raw.none { it == '*' || it == '#' }
+                keypadActions.visibility = if (!showList && dialable) View.VISIBLE else View.GONE
+                btnPaste.visibility = if (raw.isEmpty() && clipboardHasText()) View.VISIBLE else View.GONE
+                if (raw.isEmpty() && keypadCollapsed) setKeypadCollapsed(false)
+                updateBackState()
+            }
+        }
     }
 
     /** Only the clip *description* is read here — that never triggers the system "pasted" toast. */
@@ -765,7 +932,7 @@ class MainActivity : AppCompatActivity() {
             // to this tab rebinds instead of re-inflating.
             setItemViewCacheSize(12)
             // Inside apply{} `findViewById` is the list's own — the title lives on the activity.
-            CollapsingTitle.attach(this, this@MainActivity.findViewById(R.id.recentsTitle), 30f, 20f, 36, 10)
+            CollapsingTitle.attach(this, this@MainActivity.findViewById(R.id.recentsTitle), 26f, 20f, 24, 8)
         }
 
         ItemTouchHelper(RecentsSwipeCallback(this, recentsAdapter, { confirmCall(it) }, { openSms(it) }))
@@ -785,7 +952,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.btnRecentsSearchClose).setOnClickListener {
             setRecentsSearchOpen(false)
         }
-        recentsSearch.doAfterTextChanged { renderRecents() }
+        recentsSearch.doAfterTextChanged { if (!restoringUi) renderRecents() }
         recentsSearch.setOnEditorActionListener { v, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
                 hideKeyboard(v)
@@ -814,7 +981,7 @@ class MainActivity : AppCompatActivity() {
         val chipDays = mapOf(R.id.chipToday to 1, R.id.chip7 to 7, R.id.chip30 to 30)
         findViewById<ChipGroup>(R.id.chipTimeGroup).setOnCheckedStateChangeListener { _, checked ->
             recentsDays = checked.firstOrNull()?.let { chipDays[it] } ?: 0
-            renderRecents()
+            if (!restoringUi) renderRecents()
         }
     }
 
@@ -823,6 +990,10 @@ class MainActivity : AppCompatActivity() {
     private fun setRecentsSelection(on: Boolean) {
         if (recentsAdapter.selectionMode == on) return
         recentsAdapter.setSelectionMode(on)
+        applySelectionChrome(on)
+    }
+
+    private fun applySelectionChrome(on: Boolean) {
         val vis = if (on) View.VISIBLE else View.GONE
         val hidden = if (on) View.GONE else View.VISIBLE
         findViewById<View>(R.id.btnSelectAll).visibility = vis
@@ -837,7 +1008,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun renderSelectionState() {
         if (!recentsAdapter.selectionMode) {
-            recentsTitle.text = "Phone"
+            recentsTitle.text = "Recents"
             return
         }
         val n = recentsAdapter.selectedCount()
@@ -948,19 +1119,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * The chip strip shows while searching or while a type filter is on. When
-     * it hides, any time chip goes with it — a filter the user can't see
-     * shouldn't keep narrowing the list.
+     * The chip strip stays visible for every active filter, including time, so
+     * rotation/restoration can never leave an invisible narrowing condition.
      */
     private fun updateRecentsChips() {
-        val filtered = recentsTypeFilter != 0 || recentsSimFilter != null
+        val filtered = recentsTypeFilter != 0 || recentsSimFilter != null || recentsDays != 0
         btnRecentsFilter.imageTintList = ColorStateList.valueOf(
             getColor(if (filtered) R.color.accent else R.color.textSecondary)
         )
         val show = recentsSearchOpen || filtered
         recentsChips.visibility = if (show) View.VISIBLE else View.GONE
-        // clearCheck() fires the group listener, which resets recentsDays.
-        if (!show && recentsDays != 0) findViewById<ChipGroup>(R.id.chipTimeGroup).clearCheck()
     }
 
     /** "Filter calls" sheet: SIM segments (dual SIM) over call-type radio rows, Cancel | OK. */
@@ -1016,22 +1184,26 @@ class MainActivity : AppCompatActivity() {
     private fun entryName(e: ContactsRepo.CallEntry): String? =
         e.name?.takeIf { it.isNotBlank() } ?: ContactsRepo.lookupNameCached(e.number)
 
-    private fun filteredCallLog(): List<ContactsRepo.CallEntry> {
-        val types = TYPE_FILTERS[recentsTypeFilter].types
-        val cutoff = if (recentsDays > 0) {
-            Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-                add(Calendar.DAY_OF_YEAR, -(recentsDays - 1))
-            }.timeInMillis
+    private fun filteredCallLog(
+        source: List<ContactsRepo.CallEntry>,
+        typeFilter: Int,
+        days: Int,
+        query: String,
+        simFilter: String?
+    ): List<ContactsRepo.CallEntry> {
+        val types = TYPE_FILTERS[typeFilter].types
+        val cutoff = if (days > 0) {
+            java.time.LocalDate.now()
+                .minusDays((days - 1).toLong())
+                .atStartOfDay(java.time.ZoneId.systemDefault())
+                .toInstant().toEpochMilli()
         } else 0L
-        val q = if (recentsSearchOpen) recentsSearch.text.toString().trim().lowercase() else ""
+        val q = query.trim().lowercase()
         val qDigits = q.filter { it.isDigit() }
-        val simId = recentsSimFilter
-        if (types == null && cutoff == 0L && q.isEmpty() && simId == null) return callLog
-        return callLog.filter { e ->
+        if (types == null && cutoff == 0L && q.isEmpty() && simFilter == null) return source
+        return source.filter { e ->
             (types == null || e.type in types) &&
-                (simId == null || e.accountId == simId) &&
+                (simFilter == null || e.accountId == simFilter) &&
                 e.date >= cutoff &&
                 (q.isEmpty() ||
                     entryName(e)?.lowercase()?.contains(q) == true ||
@@ -1078,14 +1250,33 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderRecents() {
-        val shown = filteredCallLog()
-        recentsAdapter.items = RecentsItems.build(this, shown)
-        val hasPerm = checkSelfPermission(Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED
-        recentsEmpty.visibility = if (shown.isEmpty()) View.VISIBLE else View.GONE
-        recentsEmpty.text = when {
-            !hasPerm -> "Call log permission needed — grant it in the Gate tab"
-            callLog.isEmpty() -> "No calls yet"
-            else -> "No matching calls"
+        if (restoringUi || renderBg.isShutdown) return
+        val source = callLog
+        val type = recentsTypeFilter
+        val days = recentsDays
+        val query = if (recentsSearchOpen) recentsSearch.text.toString() else ""
+        val sim = recentsSimFilter
+        val generation = ++recentsRenderGeneration
+        val hasPerm = has(Manifest.permission.READ_CALL_LOG)
+        renderBg.execute {
+            val shown = filteredCallLog(source, type, days, query, sim)
+            val items = RecentsItems.build(this, shown)
+            runOnUiThread {
+                if (generation != recentsRenderGeneration || isDestroyed) return@runOnUiThread
+                recentsAdapter.items = items
+                pendingRecentsScroll?.let {
+                    findViewById<RecyclerView>(R.id.recentsList).layoutManager?.onRestoreInstanceState(it)
+                    pendingRecentsScroll = null
+                }
+                recentsAdapter.selectedDetail()?.let { showRecentDetail(it) }
+                if (recentsAdapter.selectionMode) renderSelectionState()
+                recentsEmpty.visibility = if (shown.isEmpty()) View.VISIBLE else View.GONE
+                recentsEmpty.text = when {
+                    !hasPerm -> "Call log permission needed — grant it in the Gate tab"
+                    source.isEmpty() -> "No calls yet"
+                    else -> "No matching calls"
+                }
+            }
         }
     }
 
@@ -1122,6 +1313,33 @@ class MainActivity : AppCompatActivity() {
         }
         contactsIndex = findViewById(R.id.contactsIndex)
         contactsIndexBubble = findViewById(R.id.contactsIndexBubble)
+        contactsIndex.setOnClickListener {
+            // Touch already moved to the selected section. Keeping the click
+            // path explicit lets accessibility services activate the control.
+        }
+        contactsIndex.accessibilityDelegate = object : View.AccessibilityDelegate() {
+            override fun onInitializeAccessibilityNodeInfo(
+                host: View,
+                info: android.view.accessibility.AccessibilityNodeInfo
+            ) {
+                super.onInitializeAccessibilityNodeInfo(host, info)
+                info.addAction(android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_BACKWARD)
+                info.addAction(android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD)
+            }
+
+            override fun performAccessibilityAction(host: View, action: Int, args: Bundle?): Boolean {
+                val lm = findViewById<RecyclerView>(R.id.contactsList).layoutManager as LinearLayoutManager
+                val first = lm.findFirstVisibleItemPosition()
+                val current = contactSections.indexOfLast { it.second <= first }.coerceAtLeast(0)
+                val next = when (action) {
+                    android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD -> current - 1
+                    android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD -> current + 1
+                    else -> return super.performAccessibilityAction(host, action, args)
+                }.coerceIn(0, contactSections.lastIndex.coerceAtLeast(0))
+                if (contactSections.isNotEmpty()) jumpToSection(next)
+                return true
+            }
+        }
         contactsIndex.setOnTouchListener { v, e ->
             when (e.actionMasked) {
                 android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_MOVE -> {
@@ -1134,7 +1352,14 @@ class MainActivity : AppCompatActivity() {
                     }
                     true
                 }
-                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                android.view.MotionEvent.ACTION_UP -> {
+                    v.performClick()
+                    indexTouchedAt = -1
+                    contactsIndexBubble.animate().alpha(0f).setDuration(150)
+                        .withEndAction { contactsIndexBubble.visibility = View.GONE }.start()
+                    true
+                }
+                android.view.MotionEvent.ACTION_CANCEL -> {
                     indexTouchedAt = -1
                     contactsIndexBubble.animate().alpha(0f).setDuration(150)
                         .withEndAction { contactsIndexBubble.visibility = View.GONE }.start()
@@ -1147,7 +1372,7 @@ class MainActivity : AppCompatActivity() {
         clear.setOnClickListener { contactSearch.setText("") }
         contactSearch.doAfterTextChanged {
             clear.visibility = if (it.isNullOrEmpty()) View.GONE else View.VISIBLE
-            renderContacts()
+            if (!restoringUi) renderContacts()
         }
         contactSearch.setOnEditorActionListener { v, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) {
@@ -1211,7 +1436,7 @@ class MainActivity : AppCompatActivity() {
             then(c.numbers[0])
             return
         }
-        val items = c.numbers.map { "${it.label.ifBlank { "Phone" }}  ${fmt(it.number)}" }
+        val items = c.numbers.map { "${it.label.ifBlank { "Phone" }}  ${it.formatted}" }
         Sheet(this).title(title).items(items) { then(c.numbers[it]) }.negative().show()
     }
 
@@ -1228,11 +1453,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun renderContacts() {
+        if (restoringUi || renderBg.isShutdown) return
         val q = contactSearch.text.toString().trim().lowercase()
+        val source = ContactsRepo.contacts
+        val generation = ++contactsRenderGeneration
+        val hasPerm = has(Manifest.permission.READ_CONTACTS)
+        val accent = getColor(R.color.accent)
+        renderBg.execute {
         val qDigits = q.filter { it.isDigit() }
         val numberSearch = qDigits.length >= 3
-        val accent = getColor(R.color.accent)
-        val list = ContactsRepo.contacts.filter { c ->
+        val list = source.filter { c ->
             q.isEmpty() ||
                 c.name.lowercase().contains(q) ||
                 (numberSearch && c.numbers.any { it.digits.contains(qDigits) })
@@ -1251,13 +1481,13 @@ class MainActivity : AppCompatActivity() {
             val subtitle: CharSequence = if (nameHit < 0 && numberSearch) {
                 val parts = c.numbers.map { n ->
                     val at = n.digits.indexOf(qDigits)
-                    if (at >= 0) highlightNumber(fmt(n.number), at until at + qDigits.length, accent)
-                    else fmt(n.number)
+                    if (at >= 0) highlightNumber(n.formatted, at until at + qDigits.length, accent)
+                    else n.formatted
                 }
                 android.text.TextUtils.concat(*parts.flatMapIndexed { i, p ->
                     if (i == 0) listOf(p) else listOf("  ·  ", p)
                 }.toTypedArray())
-            } else c.numbers.joinToString("  ·  ") { fmt(it.number) }
+            } else c.numbers.joinToString("  ·  ") { it.formatted }
             return ContactsAdapter.Item.Entry(
                 contact = c,
                 title = title,
@@ -1287,15 +1517,22 @@ class MainActivity : AppCompatActivity() {
         } else {
             addGroup("Contacts", list.sortedBy { it.name.lowercase() }, "${list.size} found")
         }
-        contactsAdapter.items = items
-        renderContactsIndex(if (q.isEmpty()) sections else emptyList())
-
-        val hasPerm = checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
-        contactsEmpty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
-        contactsEmpty.text = when {
-            !hasPerm -> "Contacts permission needed — grant it in the Gate tab"
-            q.isEmpty() -> "No contacts"
-            else -> "No matching contacts"
+            runOnUiThread {
+                if (generation != contactsRenderGeneration || isDestroyed) return@runOnUiThread
+                contactsAdapter.items = items
+                pendingContactsScroll?.let {
+                    findViewById<RecyclerView>(R.id.contactsList).layoutManager?.onRestoreInstanceState(it)
+                    pendingContactsScroll = null
+                }
+                contactsAdapter.selectedDetail()?.let { showContactDetail(it) }
+                renderContactsIndex(if (q.isEmpty()) sections else emptyList())
+                contactsEmpty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+                contactsEmpty.text = when {
+                    !hasPerm -> "Contacts permission needed — grant it in the Gate tab"
+                    q.isEmpty() -> "No contacts"
+                    else -> "No matching contacts"
+                }
+            }
         }
     }
 
@@ -1308,7 +1545,7 @@ class MainActivity : AppCompatActivity() {
             layoutManager = LinearLayoutManager(this@MainActivity)
             adapter = logAdapter
         }
-        val switchEnabled = findViewById<Switch>(R.id.switchEnabled)
+        val switchEnabled = findViewById<CompoundButton>(R.id.switchEnabled)
         val editContact = findViewById<EditText>(R.id.editContact)
         val editCode = findViewById<EditText>(R.id.editCode)
 
@@ -1320,7 +1557,7 @@ class MainActivity : AppCompatActivity() {
             Prefs.setEnabled(this, checked)
             refreshGate()
         }
-        val switchNotify = findViewById<Switch>(R.id.switchNotify)
+        val switchNotify = findViewById<CompoundButton>(R.id.switchNotify)
         switchNotify.isChecked = Prefs.notifyGate(this)
         switchNotify.setOnCheckedChangeListener { _, checked ->
             Prefs.setNotifyGate(this, checked)
@@ -1434,7 +1671,7 @@ class MainActivity : AppCompatActivity() {
      * change happens now (the user sees the new page immediately) and the
      * expensive refresh is posted until after the ~180ms bubble animation.
      */
-    private fun switchTab(idx: Int) {
+    private fun switchTab(idx: Int, userInitiated: Boolean = false) {
         currentTab = idx
         // INVISIBLE rather than GONE for the pages we're leaving: a GONE page
         // is dropped from layout, so coming back to it costs a full measure +
@@ -1446,14 +1683,18 @@ class MainActivity : AppCompatActivity() {
             val want = if (i == idx) View.VISIBLE else View.INVISIBLE
             if (v.visibility != want) v.visibility = want
         }
-        if (idx == 0) setKeypadCollapsed(false)
+        if (idx == 0 && userInitiated) setKeypadCollapsed(false)
         if (idx != 1 && recentsAdapter.selectionMode) setRecentsSelection(false)
         updateBackState()
 
         pendingReload?.let { navBar.removeCallbacks(it) }
         if (idx == 1) {
-            Notifications.clearMissed(this)
-            navBar.setBadge(1, 0)
+            // Only a direct tab gesture acknowledges every missed call. Exported
+            // dial/shortcut intents may navigate here, but cannot clear alerts.
+            if (userInitiated) {
+                Notifications.clearMissed(this)
+                navBar.setBadge(1, 0)
+            }
             val r = Runnable { pendingReload = null; reloadData() }
             pendingReload = r
             navBar.postDelayed(r, TAB_SETTLE_MS)
@@ -1462,14 +1703,26 @@ class MainActivity : AppCompatActivity() {
 
     private fun ensureObservers() {
         try {
-            if (!observingContacts && has(Manifest.permission.READ_CONTACTS)) {
+            val canReadContacts = has(Manifest.permission.READ_CONTACTS)
+            val canReadLog = has(Manifest.permission.READ_CALL_LOG)
+            if (observingContacts && !canReadContacts) {
+                contentResolver.unregisterContentObserver(contactsObserver)
+                observingContacts = false
+                contactsDirty = true
+            }
+            if (observingCallLog && !canReadLog) {
+                contentResolver.unregisterContentObserver(callLogObserver)
+                observingCallLog = false
+                callLogDirty = true
+            }
+            if (!observingContacts && canReadContacts) {
                 contentResolver.registerContentObserver(
-                    ContactsContract.CommonDataKinds.Phone.CONTENT_URI, true, dataObserver
+                    ContactsContract.CommonDataKinds.Phone.CONTENT_URI, true, contactsObserver
                 )
                 observingContacts = true
             }
-            if (!observingCallLog && has(Manifest.permission.READ_CALL_LOG)) {
-                contentResolver.registerContentObserver(CallLog.Calls.CONTENT_URI, true, dataObserver)
+            if (!observingCallLog && canReadLog) {
+                contentResolver.registerContentObserver(CallLog.Calls.CONTENT_URI, true, callLogObserver)
                 observingCallLog = true
             }
         } catch (_: Exception) {
@@ -1479,25 +1732,36 @@ class MainActivity : AppCompatActivity() {
     private fun reloadData(force: Boolean = false) {
         if (bg.isShutdown) return
         ensureObservers()
-        // Until both observers are in place a clean flag can't be trusted.
-        if (!force && !dataDirty && observingContacts && observingCallLog) return
-        // Cleared before the load, so a change arriving mid-load re-dirties.
-        dataDirty = false
+        val loadContacts = force || contactsDirty || !observingContacts
+        val loadLog = force || callLogDirty || !observingCallLog
+        if (!loadContacts && !loadLog) return
+        // Cleared before the load, so a change arriving mid-load re-dirties only
+        // the provider that actually changed.
+        if (loadContacts) contactsDirty = false
+        if (loadLog) callLogDirty = false
         bg.execute {
-            ContactsRepo.load(this)
-            val log = ContactsRepo.loadCallLog(this)
+            if (loadContacts) ContactsRepo.load(this)
+            val log = if (loadLog) ContactsRepo.loadCallLog(this) else null
             runOnUiThread {
-                callLog = log
-                renderRecents()
-                renderContacts()
-                renderDialInput()
+                if (isDestroyed) return@runOnUiThread
+                if (log != null) callLog = log
+                if (loadLog || loadContacts) renderRecents()
+                if (loadContacts) {
+                    renderContacts()
+                    renderDialInput()
+                }
             }
         }
     }
 
-    private fun confirmCall(number: String, name: String? = null) {
-        if (!Prefs.confirmCall(this)) {
-            placeCall(number)
+    private fun confirmCall(
+        number: String,
+        name: String? = null,
+        forceConfirmation: Boolean = false,
+        missedTag: String? = null
+    ) {
+        if (!forceConfirmation && !Prefs.confirmCall(this)) {
+            placeCall(number, missedTag = missedTag)
             return
         }
         val contact = ContactsRepo.lookupCached(number)
@@ -1572,7 +1836,7 @@ class MainActivity : AppCompatActivity() {
         callBtn.setOnClickListener {
             dialog.dismiss()
             onCallPicked?.invoke()
-            placeCall(number, chosenSim)
+            placeCall(number, chosenSim, missedTag)
         }
 
         // Real GPU blur of the content behind, when the system allows it.
@@ -1607,19 +1871,24 @@ class MainActivity : AppCompatActivity() {
         }
 
     /** "Ask every time" prompt, used when the confirmation dialog is off. */
-    private fun askSim(number: String) {
+    private fun askSim(number: String, missedTag: String? = null) {
         val sims = SimUtil.sims(this)
         Sheet(this)
             .title("Call with")
             .items(sims.map { SimUtil.twoLine(this, it) }, sims.map { SimUtil.badge(this, it, 22) }) {
-                placeCall(number, sims[it].handle)
+                placeCall(number, sims[it].handle, missedTag)
             }
             .negative()
             .show()
     }
 
-    private fun placeCall(number: String, account: PhoneAccountHandle? = null) {
+    private fun placeCall(
+        number: String,
+        account: PhoneAccountHandle? = null,
+        missedTag: String? = null
+    ) {
         if (checkSelfPermission(Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+            pendingCall = PendingCall(number, account?.id, missedTag)
             permLauncher.launch(arrayOf(Manifest.permission.CALL_PHONE))
             return
         }
@@ -1638,7 +1907,7 @@ class MainActivity : AppCompatActivity() {
             Prefs.SIM_FIXED -> SimUtil.byId(this, Prefs.simId(this))?.handle
             Prefs.SIM_ASK -> {
                 if (SimUtil.isDual(this)) {
-                    askSim(number)
+                    askSim(number, missedTag)
                     return
                 }
                 null
@@ -1649,6 +1918,7 @@ class MainActivity : AppCompatActivity() {
         chosen?.let { extras.putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, it) }
         try {
             tm.placeCall(Uri.fromParts("tel", number, null), extras)
+            missedTag?.let { Notifications.cancelMissed(this, it) }
         } catch (e: Exception) {
             Toast.makeText(this, "Could not place call: ${e.message}", Toast.LENGTH_LONG).show()
         }

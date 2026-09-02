@@ -67,13 +67,17 @@ object SimUtil {
     }
 
     /** The SIM Android itself would pick (Settings → SIM manager → Calls), if fixed. */
-    fun systemDefault(ctx: Context): Sim? =
-        try {
+    fun systemDefault(ctx: Context): Sim? {
+        if (ctx.checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+            return null
+        }
+        return try {
             val tm = ctx.getSystemService(TelecomManager::class.java)
             byHandle(ctx, tm.getDefaultOutgoingPhoneAccount(PhoneAccount.SCHEME_TEL))
         } catch (_: Exception) {
             null
         }
+    }
 
     /**
      * The SIM outgoing calls will use under the current preference, or null
@@ -158,6 +162,9 @@ object SimUtil {
      * telephony directly; before that the account id is the subscription id
      * or ICCID, so fall back to position.
      */
+    // A non-empty [subs] list can only come from subscriptions(), which checks
+    // READ_PHONE_STATE immediately before loading it.
+    @android.annotation.SuppressLint("MissingPermission")
     private fun subFor(
         tm: TelephonyManager,
         subs: List<SubInfo>,

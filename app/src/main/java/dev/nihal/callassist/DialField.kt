@@ -38,8 +38,10 @@ class DialField(private val edit: EditText, private val onChanged: () -> Unit) {
     fun insert(c: Char) {
         val raw = raw()
         val text = edit.text
-        val start = rawCursorAt(text, edit.selectionStart.takeIf { it >= 0 } ?: text.length)
-        val end = rawCursorAt(text, edit.selectionEnd.takeIf { it >= 0 } ?: text.length)
+        val a = rawCursorAt(text, edit.selectionStart.takeIf { it >= 0 } ?: text.length)
+        val b = rawCursorAt(text, edit.selectionEnd.takeIf { it >= 0 } ?: text.length)
+        val start = minOf(a, b)
+        val end = maxOf(a, b)
         set(raw.substring(0, start) + c + raw.substring(end), start + 1)
     }
 
@@ -47,8 +49,10 @@ class DialField(private val edit: EditText, private val onChanged: () -> Unit) {
         val raw = raw()
         if (raw.isEmpty()) return
         val text = edit.text
-        var start = rawCursorAt(text, edit.selectionStart.takeIf { it >= 0 } ?: text.length)
-        val end = rawCursorAt(text, edit.selectionEnd.takeIf { it >= 0 } ?: text.length)
+        val a = rawCursorAt(text, edit.selectionStart.takeIf { it >= 0 } ?: text.length)
+        val b = rawCursorAt(text, edit.selectionEnd.takeIf { it >= 0 } ?: text.length)
+        var start = minOf(a, b)
+        val end = maxOf(a, b)
         if (start == end) {
             if (start == 0) return
             start--

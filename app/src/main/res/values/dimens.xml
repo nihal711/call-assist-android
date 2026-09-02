@@ -2,4 +2,5 @@
 <resources>
     <!-- Gap between consecutive status issue rows on the Gate tab -->
     <dimen name="status_row_gap">8dp</dimen>
+    <dimen name="nav_content_clearance">85dp</dimen>
 </resources>

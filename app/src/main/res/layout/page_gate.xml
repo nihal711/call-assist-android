@@ -11,7 +11,7 @@
     android:paddingStart="16dp"
     android:paddingTop="12dp"
     android:paddingEnd="16dp"
-    android:paddingBottom="93dp">
+    android:paddingBottom="@dimen/nav_content_clearance">
 
     <!-- Compact page header: the version remains visible without a footer. -->
     <LinearLayout
@@ -19,7 +19,8 @@
         android:layout_height="48dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="8dp">
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
 
         <LinearLayout
             android:layout_width="0dp"
@@ -185,14 +186,11 @@
                         app:autoSizeTextType="uniform" />
                 </LinearLayout>
 
-                <Switch
+                <com.google.android.material.materialswitch.MaterialSwitch
                     android:id="@+id/switchEnabled"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
-                    android:contentDescription="Auto-answer intercom and send code"
-                    android:showText="false"
-                    android:thumbTint="@color/switch_thumb_tint"
-                    android:trackTint="@color/switch_track_tint" />
+                    android:contentDescription="Auto-answer intercom and send code" />
             </LinearLayout>
 
             <LinearLayout
@@ -238,14 +236,11 @@
                         app:autoSizeTextType="uniform" />
                 </LinearLayout>
 
-                <Switch
+                <com.google.android.material.materialswitch.MaterialSwitch
                     android:id="@+id/switchNotify"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
-                    android:contentDescription="Notify when gate code runs"
-                    android:showText="false"
-                    android:thumbTint="@color/switch_thumb_tint"
-                    android:trackTint="@color/switch_track_tint" />
+                    android:contentDescription="Notify when gate code runs" />
             </LinearLayout>
         </LinearLayout>
 
@@ -272,6 +267,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="14dp"
                     android:includeFontPadding="false"
+                    android:labelFor="@id/editContact"
                     android:maxLines="1"
                     android:text="Contact Name / No."
                     android:textColor="@color/textSecondary"
@@ -309,10 +305,11 @@
                     android:layout_width="match_parent"
                     android:layout_height="14dp"
                     android:includeFontPadding="false"
+                    android:labelFor="@id/editCode"
                     android:maxLines="1"
                     android:text="Code"
                     android:textColor="@color/textSecondary"
-                    android:textSize="10sp" />
+                    android:textSize="11sp" />
 
                 <EditText
                     android:id="@+id/editCode"

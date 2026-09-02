@@ -60,8 +60,7 @@ object ContactHelper {
     fun loadPhoto(ctx: Context, photoUri: Uri?): android.graphics.Bitmap? {
         if (photoUri == null) return null
         return try {
-            ctx.contentResolver.openInputStream(photoUri)
-                ?.use { android.graphics.BitmapFactory.decodeStream(it) }
+            Ui.decodePhotoBlocking(ctx, photoUri.toString(), 256)
                 ?.let { Ui.circleCrop(it) }
         } catch (_: Exception) {
             null

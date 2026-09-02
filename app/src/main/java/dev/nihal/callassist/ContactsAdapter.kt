@@ -42,7 +42,7 @@ class ContactsAdapter(
         ) : Item()
     }
 
-    private var expandedPos = -1
+    private var expandedId: Long? = null
 
     override fun onAttachedToRecyclerView(rv: RecyclerView) {
         // A toggled row is rebound in place (same holder) and animates its own
@@ -58,7 +58,9 @@ class ContactsAdapter(
         @Suppress("NotifyDataSetChanged")
         set(v) {
             field = v
-            expandedPos = -1
+            if (v.isNotEmpty() && expandedId != null &&
+                v.filterIsInstance<Item.Entry>().none { it.contact.id == expandedId }
+            ) expandedId = null
             notifyDataSetChanged()
         }
 
@@ -102,11 +104,26 @@ class ContactsAdapter(
     var onSelect: ((Item.Entry) -> Unit)? = null
     private var selectedId = -1L
 
+    fun savedExpandedId(): Long = expandedId ?: -1L
+    fun savedDetailId(): Long = selectedId
+
+    @Suppress("NotifyDataSetChanged")
+    fun restoreState(expanded: Long, detail: Long) {
+        val restoredExpanded = expanded.takeIf { it >= 0 }
+        val restoredDetail = detail.takeIf { it >= 0 }
+        expandedId = if (onSelect == null) restoredExpanded ?: restoredDetail else null
+        selectedId = if (onSelect != null) restoredDetail ?: restoredExpanded ?: -1L else -1L
+        notifyDataSetChanged()
+    }
+
+    fun selectedDetail(): Item.Entry? =
+        items.filterIsInstance<Item.Entry>().firstOrNull { it.contact.id == selectedId }
+
     override fun onBindViewHolder(h: RecyclerView.ViewHolder, pos: Int, payloads: MutableList<Any>) {
         if (ExpandAnim.TOGGLE in payloads && h is EntryVH && h.itemView.height > 0) {
             val startH = h.itemView.height
             onBindViewHolder(h, pos)
-            val expanded = pos == expandedPos && onSelect == null
+            val expanded = (items.getOrNull(pos) as? Item.Entry)?.contact?.id == expandedId && onSelect == null
             ExpandAnim.run(h.itemView, startH, if (expanded) h.expanded else h.row)
         } else {
             onBindViewHolder(h, pos)
@@ -125,7 +142,7 @@ class ContactsAdapter(
             is Item.Entry -> {
                 h as EntryVH
                 val c = item.contact
-                val isExpanded = pos == expandedPos && onSelect == null
+                val isExpanded = c.id == expandedId && onSelect == null
                 h.itemView.setBackgroundResource(item.bg)
                 h.row.visibility = if (isExpanded) View.GONE else View.VISIBLE
                 h.expanded.visibility = if (isExpanded) View.VISIBLE else View.GONE
@@ -152,10 +169,12 @@ class ContactsAdapter(
                             notifyItemChanged(h.bindingAdapterPosition)
                             onSelect?.invoke(item)
                         } else {
-                            val old = expandedPos
-                            expandedPos = h.bindingAdapterPosition
-                            if (old >= 0) notifyItemChanged(old, ExpandAnim.TOGGLE)
-                            notifyItemChanged(expandedPos, ExpandAnim.TOGGLE)
+                            val old = expandedId
+                            expandedId = c.id
+                            items.indexOfFirst { it is Item.Entry && it.contact.id == old }
+                                .takeIf { it >= 0 }?.let { notifyItemChanged(it, ExpandAnim.TOGGLE) }
+                            h.bindingAdapterPosition.takeIf { it >= 0 }
+                                ?.let { notifyItemChanged(it, ExpandAnim.TOGGLE) }
                         }
                     }
                 } else {
@@ -178,7 +197,7 @@ class ContactsAdapter(
     private fun bindExpanded(h: EntryVH, c: ContactsRepo.Contact, detail: Boolean) {
         val ctx = h.itemView.context
         h.expName.text = c.name
-        h.expSub.text = Ui.fmt(c.numbers.first().number)
+        h.expSub.text = c.numbers.first().formatted
         h.expAvatar.text = Ui.initial(c.name)
         h.expAvatar.background = Ui.avatarBg(c.name)
         Ui.loadPhoto(ctx, h.expPhoto, c.photoUri)
@@ -188,7 +207,7 @@ class ContactsAdapter(
         } else {
             h.expandedHeader.setOnClickListener {
                 val p = h.bindingAdapterPosition
-                expandedPos = -1
+                expandedId = null
                 notifyItemChanged(p, ExpandAnim.TOGGLE)
             }
         }
@@ -218,7 +237,7 @@ class ContactsAdapter(
                 setSpan(RelativeSizeSpan(0.9f), 0, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 append("   ")
                 val start = length
-                append(Ui.fmt(n.number))
+                append(n.formatted)
                 setSpan(ForegroundColorSpan(primary), start, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 setSpan(StyleSpan(Typeface.BOLD), start, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             }

@@ -27,8 +27,12 @@ object Notifications {
     const val ID_CALL = 1
     const val ID_AUTOMATION = 2
     const val ID_MISSED = 4
+    @Volatile private var channelsReady = false
 
     fun ensureChannels(ctx: Context) {
+        if (channelsReady) return
+        synchronized(this) {
+            if (channelsReady) return
         val nm = ctx.getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
             // Silent on purpose: ringing (sound / vibrate / mute) is done by the
@@ -73,6 +77,8 @@ object Notifications {
             }
         )
         nm.deleteNotificationChannel("automation_status")
+            channelsReady = true
+        }
     }
 
     private fun inCallPending(ctx: Context): PendingIntent =
@@ -222,7 +228,6 @@ object Notifications {
         icon: Icon?,
         sim: String?
     ): Notification.Builder {
-        ensureChannels(ctx)
         val pi = inCallPending(ctx)
         val base = if (number != null && number != label) number else if (incoming) "Incoming call" else "Call in progress"
         val subtitle = if (sim != null) "$base  ·  $sim" else base
@@ -264,11 +269,12 @@ object Notifications {
         if (number != null) {
             // Distinct request codes per number, or UPDATE_CURRENT would make
             // every missed call's buttons act on the most recent number.
-            val callBack = PendingIntent.getBroadcast(
+            val callBack = PendingIntent.getActivity(
                 ctx, number.hashCode(),
-                Intent(ctx, CallActionReceiver::class.java)
-                    .setAction(CallActionReceiver.ACTION_CALL_BACK)
-                    .putExtra(CallActionReceiver.EXTRA_NUMBER, number),
+                Intent(ctx, MainActivity::class.java)
+                    .setAction(MainActivity.ACTION_CALL_BACK)
+                    .putExtra(MainActivity.EXTRA_NUMBER, number)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             val sms = PendingIntent.getActivity(
@@ -297,6 +303,13 @@ object Notifications {
         val nm = ctx.getSystemService(NotificationManager::class.java)
         try {
             nm.activeNotifications.filter { it.id == ID_MISSED }.forEach { nm.cancel(it.tag, ID_MISSED) }
+        } catch (_: Exception) {
+        }
+    }
+
+    fun cancelMissed(ctx: Context, tag: String) {
+        try {
+            ctx.getSystemService(NotificationManager::class.java).cancel(tag, ID_MISSED)
         } catch (_: Exception) {
         }
     }

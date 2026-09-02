@@ -37,7 +37,8 @@ class GlassNavBar @JvmOverloads constructor(
         val activeIconRes: Int = iconRes
     )
 
-    var onTabSelected: ((Int) -> Unit)? = null
+    /** Index plus whether it came from a direct touch/accessibility action. */
+    var onTabSelected: ((Int, Boolean) -> Unit)? = null
 
     // Decelerating ease-out: quick off the mark, settles softly — matches the
     // feel of the rest of the UI better than the default linear-ish interpolator.
@@ -48,6 +49,7 @@ class GlassNavBar @JvmOverloads constructor(
     private val icons = mutableListOf<ImageView>()
     private val badges = mutableListOf<TextView>()
     private val labels = mutableListOf<TextView>()
+    private val items = mutableListOf<View>()
     private val specs = mutableListOf<TabSpec>()
     /** Currently applied icon per tab, so we only call setImageResource on a change. */
     private val shownIcons = mutableListOf<Int>()
@@ -71,20 +73,29 @@ class GlassNavBar @JvmOverloads constructor(
         icons.clear()
         badges.clear()
         labels.clear()
+        items.clear()
         specs.clear()
         specs.addAll(tabs)
         shownIcons.clear()
         count = tabs.size
-        for (t in tabs) {
+        for ((index, t) in tabs.withIndex()) {
             val item = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
+                importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
+                isFocusable = true
+                isClickable = true
+                contentDescription = t.label
+                setOnClickListener { select(index, userInitiated = true) }
+            }
+            val icon = ImageView(context).apply {
+                setImageResource(t.iconRes)
                 importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
             }
-            val icon = ImageView(context).apply { setImageResource(t.iconRes) }
             shownIcons.add(t.iconRes)
             // Icon sits in a small frame so a count badge can hang off its corner.
             val iconBox = FrameLayout(context)
+            iconBox.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
             iconBox.addView(icon, LayoutParams(dp(23), dp(23), Gravity.CENTER))
             val badge = TextView(context).apply {
                 textSize = 9.5f
@@ -99,6 +110,7 @@ class GlassNavBar @JvmOverloads constructor(
                     cornerRadius = dp(8).toFloat()
                 }
                 visibility = GONE
+                importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
             }
             iconBox.addView(badge, LayoutParams(LayoutParams.WRAP_CONTENT, dp(15), Gravity.TOP or Gravity.END))
             badges.add(badge)
@@ -108,6 +120,7 @@ class GlassNavBar @JvmOverloads constructor(
                 textSize = 11.5f
                 gravity = Gravity.CENTER
                 includeFontPadding = false   // trims the ascent/descent slack above the text
+                importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
                 // Reserve the bold width up front so selecting a tab only
                 // repaints the label instead of re-measuring the bar. Measure
                 // against this TextView's own paint (this@apply inside the
@@ -131,6 +144,7 @@ class GlassNavBar @JvmOverloads constructor(
             )
             icons.add(icon)
             labels.add(label)
+            items.add(item)
         }
         updateTints()
     }
@@ -140,6 +154,7 @@ class GlassNavBar @JvmOverloads constructor(
         val b = badges.getOrNull(i) ?: return
         b.text = if (n > 9) "9+" else n.toString()
         b.visibility = if (n > 0) VISIBLE else GONE
+        updateTints()
     }
 
     private fun itemWidth() = if (count == 0) 0f else width.toFloat() / count
@@ -163,7 +178,7 @@ class GlassNavBar @JvmOverloads constructor(
         }
     }
 
-    fun select(i: Int, notify: Boolean = true) {
+    fun select(i: Int, notify: Boolean = true, userInitiated: Boolean = false) {
         if (count == 0) return
         val idx = i.coerceIn(0, count - 1)
         selected = idx
@@ -176,7 +191,7 @@ class GlassNavBar @JvmOverloads constructor(
                 .start()
         }
         updateTints()
-        if (notify) onTabSelected?.invoke(idx)
+        if (notify) onTabSelected?.invoke(idx, userInitiated)
     }
 
     private fun updateTints() {
@@ -198,6 +213,15 @@ class GlassNavBar @JvmOverloads constructor(
             // request a layout pass of the whole bar mid-animation. The labels
             // are already sized for bold (see setTabs), so this only repaints.
             labels[i].setTypeface(null, if (i == selected) Typeface.BOLD else Typeface.NORMAL)
+            items[i].isSelected = i == selected
+            items[i].contentDescription = buildString {
+                append(specs[i].label)
+                if (i == selected) append(", selected")
+                if (badges[i].visibility == VISIBLE) {
+                    append(", ${badges[i].text} missed call")
+                    if (badges[i].text != "1") append("s")
+                }
+            }
         }
     }
 
@@ -218,13 +242,23 @@ class GlassNavBar @JvmOverloads constructor(
                 dragging = false
                 val idx = (e.x / itemWidth()).toInt().coerceIn(0, count - 1)
                 if (idx != selected || moved) performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-                select(idx)
+                select(idx, userInitiated = true)
+                performClick()
             }
             MotionEvent.ACTION_CANCEL -> {
                 dragging = false
                 select(selected, notify = false)
             }
         }
+        return true
+    }
+
+    // Keep the drag-across interaction while exposing the real child tabs to
+    // accessibility services (which invoke their click actions directly).
+    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = true
+
+    override fun performClick(): Boolean {
+        super.performClick()
         return true
     }
 

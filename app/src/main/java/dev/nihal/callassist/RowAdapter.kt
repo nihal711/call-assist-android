@@ -148,13 +148,29 @@ object Ui {
 
     /** Avatars are small and repeat across rows, so decoded results are reused. */
     private const val AVATAR_PX = 160
-    private val photoCache = object : android.util.LruCache<String, android.graphics.Bitmap>(32) {}
+    private val photoCache = object : android.util.LruCache<String, android.graphics.Bitmap>(16 * 1024) {
+        override fun sizeOf(key: String, value: android.graphics.Bitmap): Int =
+            (value.allocationByteCount / 1024).coerceAtLeast(1)
+    }
     private val photoMisses = java.util.Collections.synchronizedSet(HashSet<String>())
+    private val photoExecutor = java.util.concurrent.Executors.newFixedThreadPool(2)
+    private val photoLock = Any()
+
+    private data class PhotoWaiter(
+        val target: java.lang.ref.WeakReference<android.widget.ImageView>,
+        val key: String,
+        val circular: Boolean,
+        val callback: ((Boolean) -> Unit)?
+    )
+
+    private val photoWaiters = HashMap<String, MutableList<PhotoWaiter>>()
 
     /** Called after contacts are re-read, so edited photos aren't served stale. */
     fun clearPhotoCache() {
-        photoCache.evictAll()
-        photoMisses.clear()
+        synchronized(photoLock) {
+            photoCache.evictAll()
+            photoMisses.clear()
+        }
     }
 
     /**
@@ -166,27 +182,89 @@ object Ui {
      * downsampled to roughly avatar size before decoding and cached — this runs
      * during list binds, where decoding a full photo per row would stutter.
      */
-    fun loadPhoto(ctx: android.content.Context, target: android.widget.ImageView, uri: String?) {
-        if (uri.isNullOrBlank() || photoMisses.contains(uri)) {
+    fun loadPhoto(
+        ctx: android.content.Context,
+        target: android.widget.ImageView,
+        uri: String?,
+        circular: Boolean = true,
+        targetPx: Int = AVATAR_PX,
+        onLoaded: ((Boolean) -> Unit)? = null
+    ) {
+        val key = uri?.takeIf { it.isNotBlank() }?.let { "$it#$targetPx" }
+        target.tag = key
+        if (key == null) {
             target.visibility = View.GONE
+            target.setImageDrawable(null)
+            onLoaded?.invoke(false)
             return
         }
-        val bmp = photoCache.get(uri) ?: decodeAvatar(ctx, uri)?.also { photoCache.put(uri, it) }
-        if (bmp == null) {
-            // Remember the failure so we don't retry the decode on every bind.
-            photoMisses.add(uri)
-            target.visibility = View.GONE
+        val cached = synchronized(photoLock) { photoCache.get(key) }
+        if (cached != null) {
+            applyPhoto(target, cached, circular)
+            onLoaded?.invoke(true)
             return
         }
-        target.setImageDrawable(
+        if (photoMisses.contains(key)) {
+            target.visibility = View.GONE
+            onLoaded?.invoke(false)
+            return
+        }
+        // Hide any bitmap left by a recycled holder while its new image loads.
+        target.visibility = View.GONE
+        val waiter = PhotoWaiter(java.lang.ref.WeakReference(target), key, circular, onLoaded)
+        val shouldDecode = synchronized(photoLock) {
+            val list = photoWaiters[key]
+            if (list != null) {
+                list.add(waiter)
+                false
+            } else {
+                photoWaiters[key] = mutableListOf(waiter)
+                true
+            }
+        }
+        if (!shouldDecode) return
+        val app = ctx.applicationContext
+        photoExecutor.execute {
+            val bmp = decodePhotoBlocking(app, uri, targetPx)
+            val waiters = synchronized(photoLock) {
+                if (bmp != null) photoCache.put(key, bmp) else photoMisses.add(key)
+                photoWaiters.remove(key).orEmpty()
+            }
+            for (request in waiters) {
+                val image = request.target.get() ?: continue
+                image.post {
+                    if (image.tag != request.key) return@post
+                    if (bmp != null) applyPhoto(image, bmp, request.circular)
+                    else image.visibility = View.GONE
+                    request.callback?.invoke(bmp != null)
+                }
+            }
+        }
+    }
+
+    private fun applyPhoto(
+        target: android.widget.ImageView,
+        bmp: android.graphics.Bitmap,
+        circular: Boolean
+    ) {
+        if (circular) {
+            target.setImageDrawable(
             androidx.core.graphics.drawable.RoundedBitmapDrawableFactory
-                .create(ctx.resources, bmp)
+                    .create(target.resources, bmp)
                 .apply { isCircular = true }
-        )
+            )
+        } else {
+            target.setImageBitmap(bmp)
+        }
         target.visibility = View.VISIBLE
     }
 
-    private fun decodeAvatar(ctx: android.content.Context, uri: String): android.graphics.Bitmap? {
+    /** Blocking, sampled decode used by background-only notification work too. */
+    fun decodePhotoBlocking(
+        ctx: android.content.Context,
+        uri: String,
+        targetPx: Int = AVATAR_PX
+    ): android.graphics.Bitmap? {
         val parsed = android.net.Uri.parse(uri)
         return try {
             // Pass 1: read the dimensions only, so we can pick a sample size.
@@ -197,10 +275,10 @@ object Ui {
                 android.graphics.BitmapFactory.decodeStream(it, null, bounds)
             }
             var sample = 1
-            var half = minOf(bounds.outWidth, bounds.outHeight) / 2
-            while (half >= AVATAR_PX) {
+            var largest = maxOf(bounds.outWidth, bounds.outHeight)
+            while (largest / 2 >= targetPx) {
                 sample *= 2
-                half /= 2
+                largest /= 2
             }
             val opts = android.graphics.BitmapFactory.Options().apply { inSampleSize = sample }
             ctx.contentResolver.openInputStream(parsed)?.use {

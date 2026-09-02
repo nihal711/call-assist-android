@@ -36,6 +36,9 @@ import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.AccessibilityDelegateCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 
 class InCallActivity : AppCompatActivity() {
 
@@ -46,6 +49,8 @@ class InCallActivity : AppCompatActivity() {
     private var timerRunning = false
     private var photoLoaded = false
     private var keypadOpen = false
+    private var receiverRegistered = false
+    private var endFinishScheduled = false
 
     private lateinit var bgPhoto: ImageView
     private lateinit var scrim: View
@@ -92,12 +97,18 @@ class InCallActivity : AppCompatActivity() {
     // Full rebind (photo decode included) only when the call itself changes;
     // state/audio ticks just re-render the widgets.
     private val ongoingListener: () -> Unit = {
-        runOnUiThread { if (OngoingCall.call != boundCall) bindCall() else render() }
+        runOnUiThread {
+            val next = OngoingCall.call
+            // Keep the final state visible for its short, intentional outro.
+            if (next == null && boundCall?.stateCompat() == Call.STATE_DISCONNECTED) render()
+            else if (next != boundCall) bindCall() else render()
+        }
     }
 
     // Power button while ringing: the screen turning off is our signal (apps
-    // can't see the power key itself). FLAG_KEEP_SCREEN_ON below guarantees a
-    // timeout can't fire this — only a deliberate press can.
+    // can't see the power key itself). This receiver is registered only while
+    // the activity is visible; FLAG_KEEP_SCREEN_ON then means a timeout cannot
+    // fire it, while a background call screen cannot reject a waiting call.
     private val screenOffReceiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context?, i: Intent?) {
             val call = boundCall ?: return
@@ -114,8 +125,6 @@ class InCallActivity : AppCompatActivity() {
         // The photo backdrop runs under the bars; only the controls column steps in.
         Ui.applyInsets(findViewById(R.id.contentColumn))
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        registerReceiver(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
-
         bgPhoto = findViewById(R.id.bgPhoto)
         scrim = findViewById(R.id.scrim)
         avatarFrame = findViewById(R.id.avatarFrame)
@@ -232,6 +241,32 @@ class InCallActivity : AppCompatActivity() {
                 }
             }
         })
+        slideAnswer.contentDescription = "Answer call"
+        ViewCompat.setAccessibilityDelegate(slideAnswer, object : AccessibilityDelegateCompat() {
+            override fun onInitializeAccessibilityNodeInfo(
+                host: View,
+                info: AccessibilityNodeInfoCompat
+            ) {
+                super.onInitializeAccessibilityNodeInfo(host, info)
+                info.addAction(
+                    AccessibilityNodeInfoCompat.AccessibilityActionCompat(
+                        AccessibilityNodeInfoCompat.ACTION_CLICK,
+                        "Answer call"
+                    )
+                )
+            }
+
+            override fun performAccessibilityAction(host: View, action: Int, args: Bundle?): Boolean {
+                if (action == AccessibilityNodeInfoCompat.ACTION_CLICK &&
+                    boundCall?.stateCompat() == Call.STATE_RINGING
+                ) {
+                    haptic(host)
+                    answer()
+                    return true
+                }
+                return super.performAccessibilityAction(host, action, args)
+            }
+        })
 
         Ui.pressable(
             findViewById(R.id.btnAnswer), findViewById(R.id.btnDecline), findViewById(R.id.btnHangup),
@@ -244,9 +279,28 @@ class InCallActivity : AppCompatActivity() {
         bindCall()
     }
 
+    override fun onStart() {
+        super.onStart()
+        if (!receiverRegistered) {
+            registerReceiver(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
+            receiverRegistered = true
+        }
+    }
+
+    override fun onStop() {
+        if (receiverRegistered) {
+            try {
+                unregisterReceiver(screenOffReceiver)
+            } catch (_: Exception) {
+            }
+            receiverRegistered = false
+        }
+        super.onStop()
+    }
+
     override fun onDestroy() {
         try {
-            unregisterReceiver(screenOffReceiver)
+            if (receiverRegistered) unregisterReceiver(screenOffReceiver)
         } catch (_: Exception) {
         }
         OngoingCall.removeListener(ongoingListener)
@@ -254,6 +308,9 @@ class InCallActivity : AppCompatActivity() {
         super.onDestroy()
     }
 
+    // Telecom grants this operation to the active default dialer. Lint only
+    // understands the alternative signature-level MODIFY_PHONE_STATE grant.
+    @android.annotation.SuppressLint("MissingPermission")
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if ((keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) &&
             boundCall?.stateCompat() == Call.STATE_RINGING
@@ -278,13 +335,14 @@ class InCallActivity : AppCompatActivity() {
         boundCall?.answer(VideoProfile.STATE_AUDIO_ONLY)
     }
 
-    /** The one live call that isn't on screen: held behind this one, or active behind a waiting one. */
-    private fun otherCall(): Call? =
-        CallService.instance?.calls?.firstOrNull {
-            it != boundCall &&
-                !it.details.hasProperty(Call.Details.PROPERTY_CONFERENCE) &&
+    /** The one top-level live call that isn't on screen; conference children are never actionable. */
+    private fun otherCall(): Call? {
+        val foreground = boundCall?.parent ?: boundCall
+        return CallService.instance?.calls?.firstOrNull {
+            it != foreground && it.parent == null &&
                 it.stateCompat() != Call.STATE_DISCONNECTED && it.stateCompat() != Call.STATE_DISCONNECTING
         }
+    }
 
     /** Telecom holds the current call when the held one is resumed; the screen follows the resumed call. */
     private fun swapCalls() {
@@ -380,6 +438,7 @@ class InCallActivity : AppCompatActivity() {
         avatarFrame.visibility = if (open) View.GONE else View.VISIBLE
         if (!open) dtmfDisplay.text = ""
         setToggle(btnKeypad, open)
+        btnKeypad.contentDescription = if (open) "Close keypad" else "Open keypad"
     }
 
     /** Same cells as the dialler's keypad: big digit over its letters, ripple, tone + echo into the display. */
@@ -410,6 +469,7 @@ class InCallActivity : AppCompatActivity() {
                 typeface = font
                 setTextColor(getColor(R.color.textPrimary))
                 gravity = Gravity.CENTER
+                tag = "photoPrimary"
             })
             if (letters.isNotEmpty()) cell.addView(TextView(this).apply {
                 text = letters
@@ -418,6 +478,7 @@ class InCallActivity : AppCompatActivity() {
                 alpha = 0.6f
                 setTextColor(getColor(R.color.textPrimary))
                 gravity = Gravity.CENTER
+                tag = "photoSecondary"
             })
             cell.setOnClickListener {
                 val c = boundCall ?: return@setOnClickListener
@@ -436,6 +497,7 @@ class InCallActivity : AppCompatActivity() {
         boundCall?.registerCallback(callback)
         photoLoaded = false
         timerRunning = false
+        endFinishScheduled = false
         callTimer.stop()
         callTimer.visibility = View.GONE
         if (keypadOpen) setKeypadOpen(false)
@@ -444,40 +506,69 @@ class InCallActivity : AppCompatActivity() {
     }
 
     private fun loadPhoto() {
-        val uri = OngoingCall.photoUri
+        val uri = OngoingCall.photoUri?.toString()
         if (uri == null) {
+            Ui.loadPhoto(this, avatarPhoto, null)
+            Ui.loadPhoto(this, bgPhoto, null, circular = false, targetPx = 512)
             bgPhoto.visibility = View.GONE
             scrim.visibility = View.GONE
             avatarPhoto.visibility = View.GONE
             avatar.visibility = View.VISIBLE
+            applyPhotoTheme(false)
             return
         }
         if (photoLoaded) return
-        try {
-            avatarPhoto.setImageURI(uri)
-            if (avatarPhoto.drawable != null) {
-                photoLoaded = true
+        photoLoaded = true
+        // Decoding stays off the main thread; the URI tag in Ui.loadPhoto also
+        // prevents a recycled/rebound view from receiving an old result.
+        Ui.loadPhoto(this, avatarPhoto, uri, circular = true, targetPx = 256) { loaded ->
+            if (loaded) {
                 avatarPhoto.visibility = View.VISIBLE
                 avatar.visibility = View.INVISIBLE
-                // iOS-style backdrop: blurred photo behind a dark gradient scrim.
-                bgPhoto.setImageURI(uri)
-                if (Build.VERSION.SDK_INT >= 31) {
-                    bgPhoto.setRenderEffect(
-                        RenderEffect.createBlurEffect(70f, 70f, Shader.TileMode.CLAMP)
-                    )
-                }
-                bgPhoto.visibility = View.VISIBLE
-                scrim.visibility = View.VISIBLE
-                // Over the photo + scrim the text must be light regardless of theme.
-                callerName.setTextColor(0xFFFFFFFF.toInt())
-                callState.setTextColor(0xD9FFFFFF.toInt())
-                for (id in intArrayOf(
-                    R.id.labelMute, R.id.labelKeypad, R.id.labelSpeaker,
-                    R.id.labelAddCall, R.id.labelHold, R.id.labelContact
-                )) findViewById<TextView>(id).setTextColor(0xD9FFFFFF.toInt())
+                applyPhotoTheme(true)
+            } else {
+                avatarPhoto.visibility = View.GONE
+                avatar.visibility = View.VISIBLE
+                bgPhoto.visibility = View.GONE
+                scrim.visibility = View.GONE
+                applyPhotoTheme(false)
             }
-        } catch (_: Exception) {
         }
+        Ui.loadPhoto(this, bgPhoto, uri, circular = false, targetPx = 512) { loaded ->
+            bgPhoto.visibility = if (loaded) View.VISIBLE else View.GONE
+            scrim.visibility = if (loaded) View.VISIBLE else View.GONE
+            if (loaded && Build.VERSION.SDK_INT >= 31) {
+                bgPhoto.setRenderEffect(
+                    RenderEffect.createBlurEffect(70f, 70f, Shader.TileMode.CLAMP)
+                )
+            }
+        }
+    }
+
+    /** Text over the photo scrim is always light; reset every no-photo bind for light theme. */
+    private fun applyPhotoTheme(hasPhoto: Boolean) {
+        val primary = if (hasPhoto) 0xFFFFFFFF.toInt() else getColor(R.color.textPrimary)
+        val secondary = if (hasPhoto) 0xE6FFFFFF.toInt() else getColor(R.color.textSecondary)
+        callerName.setTextColor(primary)
+        callState.setTextColor(secondary)
+        dtmfDisplay.setTextColor(primary)
+        for (id in intArrayOf(
+            R.id.labelMute, R.id.labelKeypad, R.id.labelSpeaker,
+            R.id.labelAddCall, R.id.labelHold, R.id.labelContact,
+            R.id.labelDecline, R.id.labelAnswer, R.id.slideHint
+        )) findViewById<TextView>(id).setTextColor(secondary)
+        fun tintTagged(v: View) {
+            if (v is TextView) {
+                when (v.tag) {
+                    "photoPrimary" -> v.setTextColor(primary)
+                    "photoSecondary" -> v.setTextColor(secondary)
+                }
+            }
+            if (v is android.view.ViewGroup) {
+                for (i in 0 until v.childCount) tintTagged(v.getChildAt(i))
+            }
+        }
+        tintTagged(keypad)
     }
 
     private fun renderOtherCall(state: Int) {
@@ -544,14 +635,14 @@ class InCallActivity : AppCompatActivity() {
             // Hold tile doubles as Resume while held.
             val holding = state == Call.STATE_HOLDING
             labelHold.text = if (holding) "Resume" else "Hold"
+            btnHold.contentDescription = labelHold.text
             btnHold.isEnabled = holding || (state == Call.STATE_ACTIVE && call.details.can(Call.Details.CAPABILITY_HOLD))
             btnHold.alpha = if (btnHold.isEnabled) 1f else 0.4f
             setToggle(btnHold, holding)
 
             // Unknown number: the tile and the chip under the name both save it.
             val number = call.details.handle?.schemeSpecificPart
-            val known = number != null && OngoingCall.label != number &&
-                ContactHelper.lookupContactUri(this, number) != null
+            val known = OngoingCall.isContact
             labelContact.text = if (known) "Contact" else "Add contact"
             btnContact.setImageResource(if (known) R.drawable.ic_person else R.drawable.ic_person_add)
             btnAddContact.visibility = if (!known && !number.isNullOrBlank() && !ringing) View.VISIBLE else View.GONE
@@ -569,7 +660,15 @@ class InCallActivity : AppCompatActivity() {
             }
             if (state == Call.STATE_DISCONNECTED) {
                 callTimer.stop()
-                handler.postDelayed({ finish() }, 1200)
+                if (!endFinishScheduled) {
+                    endFinishScheduled = true
+                    val endedCall = call
+                    handler.postDelayed({
+                        if (boundCall == endedCall &&
+                            (OngoingCall.call == null || OngoingCall.call == endedCall)
+                        ) finish()
+                    }, 1200)
+                }
             }
         }
     }

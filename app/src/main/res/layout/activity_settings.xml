@@ -520,7 +520,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Dial pad tones"
+                    android:text="Keypad tones"
                     android:textColor="@color/textPrimary"
                     android:textSize="16sp" />
                 <TextView
@@ -564,7 +564,7 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Dial pad vibration"
+                    android:text="Keypad vibration"
                     android:textColor="@color/textPrimary"
                     android:textSize="16sp" />
             </LinearLayout>

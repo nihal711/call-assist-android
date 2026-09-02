@@ -33,7 +33,15 @@ class CallService : InCallService() {
     private var proximity: PowerManager.WakeLock? = null
     private val proximityForceRelease = Runnable {
         try {
-            if (proximity?.isHeld == true) proximity?.release()
+            // release(WAIT_FOR_NO_PROXIMITY) marks the Java WakeLock as not held
+            // while the kernel is still waiting for the sensor to uncover. Take
+            // and immediately drop a fresh non-waiting hold to cancel that wait.
+            if (calls.none { it.stateCompat() != Call.STATE_DISCONNECTED }) {
+                proximity?.let { lock ->
+                    if (!lock.isHeld) lock.acquire(1_000)
+                    if (lock.isHeld) lock.release()
+                }
+            }
         } catch (_: Exception) {
         }
     }
@@ -82,17 +90,27 @@ class CallService : InCallService() {
     private var shownPhoto: Bitmap? = null
     private var shownQuiet = false
 
-    /** Name + photo per live call, so a swap can put the other call on screen without a re-lookup. */
-    private val known = HashMap<Call, Pair<String, android.net.Uri?>>()
+    /** Contact data per live call, so state/audio ticks and swaps never touch the provider. */
+    private data class KnownCall(
+        val label: String,
+        val photoUri: android.net.Uri?,
+        val photo: Bitmap?,
+        val isContact: Boolean
+    )
 
-    fun labelFor(call: Call): String? = known[call]?.first
+    private val known = HashMap<Call, KnownCall>()
+    private var pendingForeground: Call? = null
+
+    fun labelFor(call: Call): String? = known[call]?.label
 
     /** Makes [call] the one InCallActivity and the notification show (after a swap). */
     fun promote(call: Call) {
         val info = known[call]
         if (info != null) {
-            OngoingCall.set(call, info.first, info.second)
-            showNotification(call, info.first, call.details.handle?.schemeSpecificPart, null, quiet = true)
+            OngoingCall.set(call, info.label, info.photoUri, info.isContact)
+            showNotification(
+                call, info.label, call.details.handle?.schemeSpecificPart, info.photo, quiet = true
+            )
             return
         }
         val number = call.details.handle?.schemeSpecificPart
@@ -102,20 +120,32 @@ class CallService : InCallService() {
             val photo = ContactHelper.loadPhoto(this, i.photoUri)
             Handler(mainLooper).post {
                 if (call.stateCompat() == Call.STATE_DISCONNECTED) return@post
-                known[call] = label to i.photoUri
-                OngoingCall.set(call, label, i.photoUri)
+                val loaded = KnownCall(label, i.photoUri, photo, i.name != null)
+                known[call] = loaded
+                OngoingCall.set(call, label, i.photoUri, loaded.isContact)
                 showNotification(call, label, number, photo, quiet = true)
             }
         }.start()
     }
 
-    private val stateCallback = object : Call.Callback() {
+    /** Registered on every call, including held/background calls. */
+    private val callCallback = object : Call.Callback() {
         override fun onStateChanged(call: Call, state: Int) {
-            if (call != shownCall) return
             updateProximity()
-            // Ringing → active swaps Answer/Decline for Hang up/Mute/Speaker.
-            refreshNotification()
-            // MainActivity's return-to-call banner and InCallActivity follow this.
+            if (call == shownCall) refreshNotification()
+            // The second-call card also follows a held call ending/changing.
+            OngoingCall.notifyChanged()
+        }
+
+        override fun onDetailsChanged(call: Call, details: Call.Details) {
+            if (call == shownCall) refreshNotification()
+            OngoingCall.notifyChanged()
+        }
+
+        override fun onParentChanged(call: Call, parent: Call?) {
+            // Once merge creates a conference parent, never leave a child as
+            // the actionable foreground call.
+            if (parent != null && OngoingCall.call == call) promote(parent)
             OngoingCall.notifyChanged()
         }
     }
@@ -126,6 +156,12 @@ class CallService : InCallService() {
     }
 
     override fun onDestroy() {
+        calls.forEach {
+            try {
+                it.unregisterCallback(callCallback)
+            } catch (_: Exception) {
+            }
+        }
         instance = null
         clearNotification()
         mainHandler.removeCallbacks(proximityForceRelease)
@@ -145,6 +181,7 @@ class CallService : InCallService() {
     }
 
     override fun onCallAdded(call: Call) {
+        call.registerCallback(callCallback)
         updateProximity()
         val number = call.details.handle?.schemeSpecificPart
         val ringing = call.stateCompat() == Call.STATE_RINGING
@@ -157,13 +194,17 @@ class CallService : InCallService() {
 
         // Opt-in: a withheld/private caller is rejected before anything shows.
         // The intercom is matched above by its number, so this can't touch it.
-        if (ringing && number.isNullOrBlank() && Prefs.blockUnknown(this)) {
+        val emergencyCallback = call.details.hasProperty(Call.Details.PROPERTY_EMERGENCY_CALLBACK_MODE) ||
+            call.details.hasProperty(Call.Details.PROPERTY_NETWORK_IDENTIFIED_EMERGENCY_CALL)
+        if (ringing && number.isNullOrBlank() && Prefs.blockUnknown(this) && !emergencyCallback) {
             try {
                 call.reject(false, null)
             } catch (_: Exception) {
             }
             return
         }
+
+        pendingForeground = call
 
         // Contact lookup does disk I/O — keep it off the ring path's main thread.
         Thread {
@@ -179,8 +220,16 @@ class CallService : InCallService() {
                     AutomationEngine.start(this, call, label)
                     return@post
                 }
-                known[call] = label to info.photoUri
-                OngoingCall.set(call, label, info.photoUri)
+                val loaded = KnownCall(label, info.photoUri, photo, info.name != null)
+                known[call] = loaded
+                // A slower lookup for an older call must not steal the screen
+                // back from a newer waiting/outgoing call.
+                if (pendingForeground != call) {
+                    OngoingCall.notifyChanged()
+                    return@post
+                }
+                pendingForeground = null
+                OngoingCall.set(call, label, info.photoUri, loaded.isContact)
                 // Conventional dialer behaviour, done deterministically (Samsung phones don't reliably
                 // fire our full-screen intent while locked):
                 //  - locked / screen off → we show the call screen ourselves and post the
@@ -204,6 +253,7 @@ class CallService : InCallService() {
     }
 
     override fun onCallRemoved(call: Call) {
+        call.unregisterCallback(callCallback)
         updateProximity()
         // Rang out or the caller gave up — leave a missed-call record.
         // (Rejected/blocked calls carry different causes; the intercom is answered.)
@@ -215,36 +265,53 @@ class CallService : InCallService() {
                 Notifications.missedCall(this, info.name ?: missedNumber ?: "Unknown", missedNumber, photo)
             }.start()
         }
+        if (pendingForeground == call) pendingForeground = null
         known.remove(call)
-        OngoingCall.clear(call)
-        if (OngoingCall.call != null) return
-        // Surface a remaining call (e.g. one that was on hold behind the removed
-        // one) instead of leaving the UI empty.
-        val remaining = calls.firstOrNull { it.stateCompat() != Call.STATE_DISCONNECTED }
+        val liveCalls = calls
+            .filter { it != call && it.stateCompat() != Call.STATE_DISCONNECTED && it.stateCompat() != Call.STATE_DISCONNECTING }
+        val remaining = pendingForeground?.takeIf { it in liveCalls }
+            ?: liveCalls.sortedBy { it.parent != null }.firstOrNull()
+        if (OngoingCall.call != null && OngoingCall.call != call) {
+            OngoingCall.notifyChanged()
+            return
+        }
         if (remaining == null) {
+            OngoingCall.clear(call)
             clearNotification()
             return
         }
+        pendingForeground = null
+        // Replace the removed foreground call atomically. InCallActivity never
+        // observes a transient null and therefore cannot finish between calls.
+        val cached = known[remaining]
         val number = remaining.details.handle?.schemeSpecificPart
+        if (cached != null) {
+            OngoingCall.set(remaining, cached.label, cached.photoUri, cached.isContact)
+            showNotification(remaining, cached.label, number, cached.photo, quiet = false)
+            return
+        }
+        OngoingCall.set(remaining, number ?: "Unknown", null, false)
+        showNotification(remaining, number ?: "Unknown", number, null, quiet = false)
         Thread {
             val info = ContactHelper.lookup(this, number)
             val photo = ContactHelper.loadPhoto(this, info.photoUri)
             Handler(mainLooper).post {
                 val st = remaining.stateCompat()
                 if (calls.contains(remaining) && st != Call.STATE_DISCONNECTED && st != Call.STATE_DISCONNECTING) {
-                    OngoingCall.set(remaining, info.name ?: number ?: "Unknown", info.photoUri)
-                    showNotification(remaining, OngoingCall.label, number, photo, quiet = false)
+                    val label = info.name ?: number ?: "Unknown"
+                    val loaded = KnownCall(label, info.photoUri, photo, info.name != null)
+                    known[remaining] = loaded
+                    if (OngoingCall.call == remaining) {
+                        OngoingCall.set(remaining, label, info.photoUri, loaded.isContact)
+                        showNotification(remaining, label, number, photo, quiet = false)
+                    }
                 }
             }
         }.start()
     }
 
     private fun showNotification(call: Call, label: String, number: String?, photo: Bitmap?, quiet: Boolean) {
-        if (shownCall != call) {
-            shownCall?.unregisterCallback(stateCallback)
-            shownCall = call
-            call.registerCallback(stateCallback)
-        }
+        shownCall = call
         shownLabel = label
         shownNumber = number
         shownPhoto = photo
@@ -290,7 +357,6 @@ class CallService : InCallService() {
     }
 
     private fun clearNotification() {
-        shownCall?.unregisterCallback(stateCallback)
         shownCall = null
         shownPhoto = null
         try {

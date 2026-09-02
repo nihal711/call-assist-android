@@ -11,13 +11,16 @@ object OngoingCall {
         private set
     var photoUri: Uri? = null
         private set
+    var isContact: Boolean = false
+        private set
 
     private val listeners = CopyOnWriteArraySet<() -> Unit>()
 
-    fun set(c: Call, lbl: String, photo: Uri?) {
+    fun set(c: Call, lbl: String, photo: Uri?, knownContact: Boolean = false) {
         call = c
         label = lbl
         photoUri = photo
+        isContact = knownContact
         listeners.forEach { it() }
     }
 
@@ -25,6 +28,7 @@ object OngoingCall {
         if (call == c) {
             call = null
             photoUri = null
+            isContact = false
             listeners.forEach { it() }
         }
     }

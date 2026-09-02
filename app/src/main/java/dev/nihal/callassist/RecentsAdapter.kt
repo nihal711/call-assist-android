@@ -44,7 +44,7 @@ class RecentsAdapter(
         ) : Item()
     }
 
-    private var expandedPos = -1
+    private var expandedKey: Long? = null
 
     override fun onAttachedToRecyclerView(rv: RecyclerView) {
         // A toggled row is rebound in place (same holder) and animates its own
@@ -70,7 +70,7 @@ class RecentsAdapter(
 
     /** Headers, the expanded card, and selection mode don't swipe. */
     fun isSwipeable(pos: Int): Boolean =
-        !selectionMode && pos != expandedPos && items.getOrNull(pos) is Item.Entry
+        !selectionMode && (items.getOrNull(pos) as? Item.Entry)?.let { key(it) != expandedKey } == true
 
     private fun entries(): List<Item.Entry> = items.filterIsInstance<Item.Entry>()
 
@@ -79,7 +79,7 @@ class RecentsAdapter(
         if (selectionMode == on) return
         selectionMode = on
         selected.clear()
-        expandedPos = -1
+        expandedKey = null
         notifyDataSetChanged()
         onSelectionChanged?.invoke()
     }
@@ -102,12 +102,31 @@ class RecentsAdapter(
     fun selectedEntries(): List<Item.Entry> = entries().filter { key(it) in selected }
     fun selectedCount(): Int = selectedEntries().size
     fun allSelected(): Boolean = entries().isNotEmpty() && selectedCount() == entries().size
+    fun savedSelection(): LongArray = selected.toLongArray()
+    fun savedExpandedKey(): Long = expandedKey ?: -1L
+    fun savedDetailKey(): Long = selectedKey
+
+    @Suppress("NotifyDataSetChanged")
+    fun restoreState(expanded: Long, selectionMode: Boolean, selection: LongArray, detail: Long) {
+        val restoredExpanded = expanded.takeIf { it >= 0 }
+        val restoredDetail = detail.takeIf { it >= 0 }
+        expandedKey = if (onSelect == null && !selectionMode) restoredExpanded ?: restoredDetail else null
+        selected.clear()
+        selected.addAll(selection.toList())
+        this.selectionMode = selectionMode
+        selectedKey = if (onSelect != null) restoredDetail ?: restoredExpanded ?: -1L else -1L
+        notifyDataSetChanged()
+    }
+
+    fun selectedDetail(): Item.Entry? = entries().firstOrNull { key(it) == selectedKey }
 
     var items: List<Item> = emptyList()
         @Suppress("NotifyDataSetChanged")
         set(v) {
             field = v
-            expandedPos = -1
+            if (v.isNotEmpty() && expandedKey != null &&
+                v.filterIsInstance<Item.Entry>().none { key(it) == expandedKey }
+            ) expandedKey = null
             notifyDataSetChanged()
         }
 
@@ -186,7 +205,8 @@ class RecentsAdapter(
         if (ExpandAnim.TOGGLE in payloads && h is EntryVH && h.itemView.height > 0) {
             val startH = h.itemView.height
             onBindViewHolder(h, pos)
-            val expanded = pos == expandedPos && !selectionMode && onSelect == null
+            val expanded = (items.getOrNull(pos) as? Item.Entry)?.let { key(it) == expandedKey } == true &&
+                !selectionMode && onSelect == null
             ExpandAnim.run(h.itemView, startH, if (expanded) h.expanded else h.row)
         } else {
             onBindViewHolder(h, pos)
@@ -201,7 +221,7 @@ class RecentsAdapter(
                 h as EntryVH
                 val red = ContextCompat.getColor(ctx, R.color.red)
                 val gray = ContextCompat.getColor(ctx, R.color.textSecondary)
-                val isExpanded = pos == expandedPos && !selectionMode && onSelect == null
+                val isExpanded = key(item) == expandedKey && !selectionMode && onSelect == null
                 val (iconRes, tint) = iconFor(ctx, item.type)
 
                 h.row.visibility = if (isExpanded) View.GONE else View.VISIBLE
@@ -247,10 +267,12 @@ class RecentsAdapter(
                             }
                             !expandable -> onCall(item.number)
                             else -> {
-                                val old = expandedPos
-                                expandedPos = h.bindingAdapterPosition
-                                if (old >= 0) notifyItemChanged(old, ExpandAnim.TOGGLE)
-                                notifyItemChanged(expandedPos, ExpandAnim.TOGGLE)
+                                val old = expandedKey
+                                expandedKey = key(item)
+                                items.indexOfFirst { it is Item.Entry && key(it) == old }
+                                    .takeIf { it >= 0 }?.let { notifyItemChanged(it, ExpandAnim.TOGGLE) }
+                                h.bindingAdapterPosition.takeIf { it >= 0 }
+                                    ?.let { notifyItemChanged(it, ExpandAnim.TOGGLE) }
                             }
                         }
                     }
@@ -304,7 +326,7 @@ class RecentsAdapter(
         } else {
             h.expandedHeader.setOnClickListener {
                 val p = h.bindingAdapterPosition
-                expandedPos = -1
+                expandedKey = null
                 notifyItemChanged(p, ExpandAnim.TOGGLE)
             }
         }

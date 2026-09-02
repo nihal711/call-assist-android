@@ -5,10 +5,18 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.CallLog
 import android.provider.ContactsContract.CommonDataKinds.Phone
+import android.telephony.PhoneNumberUtils
+import java.util.Locale
 
 object ContactsRepo {
 
-    data class PhoneEntry(val number: String, val label: String, val digits: String)
+    data class PhoneEntry(
+        val number: String,
+        val label: String,
+        val digits: String,
+        /** Computed once on the loader thread, not for every search keystroke. */
+        val formatted: String
+    )
     data class Contact(
         val id: Long,
         val name: String,
@@ -84,7 +92,13 @@ object ContactsRepo {
 
     /** Blocking; call from a background thread. */
     fun load(ctx: Context) {
-        if (!has(ctx, Manifest.permission.READ_CONTACTS)) return
+        if (!has(ctx, Manifest.permission.READ_CONTACTS)) {
+            contacts = emptyList()
+            exactIndex = emptyMap()
+            suffixIndex = emptyMap()
+            Ui.clearPhotoCache()
+            return
+        }
         val byId = LinkedHashMap<Long, Contact>()
         try {
             ctx.contentResolver.query(
@@ -110,7 +124,14 @@ object ContactsRepo {
                         Contact(id, name, starred, mutableListOf(), t9, map, photo)
                     }
                     if (contact.numbers.none { it.digits == digits && digits.isNotEmpty() }) {
-                        contact.numbers.add(PhoneEntry(number, label, digits))
+                        contact.numbers.add(
+                            PhoneEntry(
+                                number,
+                                label,
+                                digits,
+                                PhoneNumberUtils.formatNumber(number, Locale.getDefault().country) ?: number
+                            )
+                        )
                     }
                 }
             }

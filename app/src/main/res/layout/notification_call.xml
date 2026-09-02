@@ -2,12 +2,14 @@
 <!-- Ongoing-call notification content. RemoteViews-safe views only; colours
      reference theme resources so the shade adapts to system light/dark. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingTop="8dp"
-    android:paddingBottom="8dp">
+    android:paddingBottom="8dp"
+    tools:ignore="UseAppTint">
 
     <ImageView
         android:id="@+id/notifPhoto"

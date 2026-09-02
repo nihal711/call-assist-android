@@ -3,6 +3,7 @@ package dev.nihal.callassist
 import android.app.Dialog
 import android.os.Build
 import android.view.WindowManager
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 
 /**
@@ -37,6 +38,11 @@ object Glass {
      */
     fun applyDialogBlur(dialog: Dialog, panel: android.view.View? = null) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        applyDialogBlur31(dialog, panel)
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun applyDialogBlur31(dialog: Dialog, panel: android.view.View?) {
         val window = dialog.window ?: return
         val ctx = dialog.context
         val radius = (BLUR_RADIUS_DP * ctx.resources.displayMetrics.density).toInt()

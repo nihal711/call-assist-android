@@ -320,6 +320,7 @@
                         app:tint="#FFFFFF" />
 
                     <TextView
+                        android:id="@+id/labelDecline"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
@@ -348,6 +349,7 @@
                         app:tint="#FFFFFF" />
 
                     <TextView
+                        android:id="@+id/labelAnswer"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"

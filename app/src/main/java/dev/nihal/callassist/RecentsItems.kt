@@ -2,21 +2,22 @@ package dev.nihal.callassist
 
 import android.content.Context
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 /** Turns call-log rows into the day-grouped, merged items the Recents list shows. */
 object RecentsItems {
 
     fun dayLabel(ts: Long): String {
-        val now = Calendar.getInstance()
-        val c = Calendar.getInstance().apply { timeInMillis = ts }
-        val sameYear = c.get(Calendar.YEAR) == now.get(Calendar.YEAR)
-        val dayDiff = now.get(Calendar.DAY_OF_YEAR) - c.get(Calendar.DAY_OF_YEAR)
+        val zone = ZoneId.systemDefault()
+        val now = LocalDate.now(zone)
+        val date = Instant.ofEpochMilli(ts).atZone(zone).toLocalDate()
         return when {
-            sameYear && dayDiff == 0 -> "Today"
-            sameYear && dayDiff == 1 -> "Yesterday"
+            date == now -> "Today"
+            date == now.minusDays(1) -> "Yesterday"
             else -> SimpleDateFormat("EEEE, d MMMM", Locale.getDefault()).format(Date(ts))
         }
     }
@@ -39,31 +40,47 @@ object RecentsItems {
 
     fun build(ctx: Context, log: List<ContactsRepo.CallEntry>): List<RecentsAdapter.Item> {
         val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
+        val dayFmt = SimpleDateFormat("EEEE, d MMMM", Locale.getDefault())
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        fun dateOf(ts: Long): LocalDate = Instant.ofEpochMilli(ts).atZone(zone).toLocalDate()
+        fun labelOf(date: LocalDate, ts: Long): String = when (date) {
+            today -> "Today"
+            today.minusDays(1) -> "Yesterday"
+            else -> dayFmt.format(Date(ts))
+        }
         // Merge consecutive entries with the same number, type, SIM, and day.
-        class Group(val e: ContactsRepo.CallEntry, var count: Int, val ids: MutableList<Long>)
+        class Group(
+            val e: ContactsRepo.CallEntry,
+            val day: LocalDate,
+            var count: Int,
+            val ids: MutableList<Long>
+        )
 
         val merged = ArrayList<Group>()
         val dual = SimUtil.isDual(ctx)
         for (e in log) {
+            val day = dateOf(e.date)
             val last = merged.lastOrNull()
             if (last != null && last.e.type == e.type &&
                 last.e.number.filter { it.isDigit() } == e.number.filter { it.isDigit() } &&
                 last.e.accountId == e.accountId &&
-                dayLabel(last.e.date) == dayLabel(e.date)
+                last.day == day
             ) {
                 last.count++
                 last.ids.add(e.id)
             } else {
-                merged.add(Group(e, 1, mutableListOf(e.id)))
+                merged.add(Group(e, day, 1, mutableListOf(e.id)))
             }
         }
 
         val items = ArrayList<RecentsAdapter.Item>()
         var i = 0
         while (i < merged.size) {
-            val label = dayLabel(merged[i].e.date)
+            val day = merged[i].day
+            val label = labelOf(day, merged[i].e.date)
             var j = i
-            while (j < merged.size && dayLabel(merged[j].e.date) == label) j++
+            while (j < merged.size && merged[j].day == day) j++
             items.add(RecentsAdapter.Item.Header(label))
             for (k in i until j) {
                 val g = merged[k]
