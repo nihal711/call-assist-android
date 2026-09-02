@@ -148,6 +148,12 @@ oversized placeholder (while retaining its TalkBack label), and the Auto-open
 and Notify switches have enough drawing room for their rounded edges and are
 subtly scaled down to prevent clipping.
 
+v3.51: swiped Recents rows reset deterministically (helper re-attach ends the
+recover animation); the proximity lock only ever engages for calls the UI
+owns, never the intercom's; title collapse quantised to ~12 layouts; swipe
+icons mutated once; Gate event log read off the main thread; keypad keys
+have proper TalkBack names; search-highlight spans clamped to the name.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key

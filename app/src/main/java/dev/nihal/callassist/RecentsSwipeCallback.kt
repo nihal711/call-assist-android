@@ -2,6 +2,7 @@ package dev.nihal.callassist
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.drawable.Drawable
 import android.view.View
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.ItemTouchHelper
@@ -16,6 +17,22 @@ class RecentsSwipeCallback(
 ) : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
 
     private val cap = dp(110).toFloat()
+    private val helper = ItemTouchHelper(this)
+    private var list: RecyclerView? = null
+
+    // Mutated once: tint/alpha set per frame must not leak into the shared
+    // drawable state that every other ic_phone / ic_message instance reads.
+    private val callIcon: Drawable? = ContextCompat.getDrawable(ctx, R.drawable.ic_phone)?.mutate()?.apply {
+        setTint(ContextCompat.getColor(ctx, R.color.green))
+    }
+    private val messageIcon: Drawable? = ContextCompat.getDrawable(ctx, R.drawable.ic_message)?.mutate()?.apply {
+        setTint(ContextCompat.getColor(ctx, R.color.accent))
+    }
+
+    fun attach(rv: RecyclerView) {
+        list = rv
+        helper.attachToRecyclerView(rv)
+    }
 
     override fun onMove(rv: RecyclerView, vh: RecyclerView.ViewHolder, t: RecyclerView.ViewHolder) = false
 
@@ -30,10 +47,16 @@ class RecentsSwipeCallback(
     override fun onSwiped(vh: RecyclerView.ViewHolder, direction: Int) {
         val pos = vh.bindingAdapterPosition
         val e = adapter.items.getOrNull(pos) as? RecentsAdapter.Item.Entry ?: return
-        // ItemTouchHelper keeps ownership of the translation until this callback
-        // returns. Reset on the next frame so a recycled/rebound holder cannot
-        // inherit the completed swipe position.
+        // The row is rebound in place (change animations are off), so the
+        // helper's finished recover animation would otherwise stay registered
+        // and re-apply its full-width offset on every later draw. Detaching
+        // and re-attaching the helper ends every recover animation and runs
+        // clearView, which is the only supported way to reset that state.
         vh.itemView.post {
+            list?.let { rv ->
+                helper.attachToRecyclerView(null)
+                helper.attachToRecyclerView(rv)
+            }
             vh.itemView.translationX = 0f
             adapter.notifyItemChanged(pos)
         }
@@ -52,8 +75,7 @@ class RecentsSwipeCallback(
     /** Phone (right) or message (left) glyph fading in behind the swiped row. */
     private fun drawHint(c: Canvas, item: View, dX: Float) {
         if (dX == 0f) return
-        val icon = ContextCompat.getDrawable(ctx, if (dX > 0) R.drawable.ic_phone else R.drawable.ic_message) ?: return
-        icon.setTint(ContextCompat.getColor(ctx, if (dX > 0) R.color.green else R.color.accent))
+        val icon = (if (dX > 0) callIcon else messageIcon) ?: return
         icon.alpha = (kotlin.math.abs(dX) / cap * 255).toInt().coerceAtMost(255)
         val size = dp(24)
         val cy = (item.top + item.bottom) / 2

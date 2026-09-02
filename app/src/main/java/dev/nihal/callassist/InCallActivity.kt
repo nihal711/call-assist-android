@@ -458,6 +458,11 @@ class InCallActivity : AppCompatActivity() {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
                 setBackgroundResource(ripple.resourceId)
+                contentDescription = when (digit) {
+                    '*' -> "Star"
+                    '#' -> "Hash"
+                    else -> digit.toString()
+                }
                 layoutParams = GridLayout.LayoutParams(
                     GridLayout.spec(GridLayout.UNDEFINED, 1f),
                     GridLayout.spec(GridLayout.UNDEFINED, 1f)

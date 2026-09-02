@@ -654,6 +654,14 @@ class MainActivity : AppCompatActivity() {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
                 setBackgroundResource(ripple.resourceId)
+                // TalkBack reads the key, not "2 ABC", and learns the long-press extras.
+                contentDescription = when (k.digit) {
+                    '*' -> "Star"
+                    '#' -> "Hash"
+                    '0' -> "0, long press for plus"
+                    '1' -> "1, long press for voicemail"
+                    else -> k.digit.toString()
+                }
                 layoutParams = GridLayout.LayoutParams(
                     GridLayout.spec(GridLayout.UNDEFINED, 1f),
                     GridLayout.spec(GridLayout.UNDEFINED, 1f)
@@ -810,8 +818,9 @@ class MainActivity : AppCompatActivity() {
             val title: CharSequence = m.nameSpan?.let { span ->
                 SpannableString(m.contact.name).apply {
                     val end = (span.last + 1).coerceAtMost(m.contact.name.length)
-                    setSpan(ForegroundColorSpan(accent), span.first, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    setSpan(StyleSpan(Typeface.BOLD), span.first, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    val start = span.first.coerceIn(0, end)
+                    setSpan(ForegroundColorSpan(accent), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    setSpan(StyleSpan(Typeface.BOLD), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 }
             } ?: m.contact.name
             RowAdapter.Row(
@@ -960,8 +969,7 @@ class MainActivity : AppCompatActivity() {
             CollapsingTitle.attach(this, this@MainActivity.findViewById(R.id.recentsTitle), 26f, 20f, 24, 8)
         }
 
-        ItemTouchHelper(RecentsSwipeCallback(this, recentsAdapter, { confirmCall(it) }, { openSms(it) }))
-            .attachToRecyclerView(recentsList)
+        RecentsSwipeCallback(this, recentsAdapter, { confirmCall(it) }, { openSms(it) }).attach(recentsList)
 
         recentsSearch = findViewById(R.id.recentsSearch)
         recentsSearchPanel = findViewById(R.id.recentsSearchPanel)
@@ -1498,9 +1506,13 @@ class MainActivity : AppCompatActivity() {
             // digits inside the matching number.
             val nameHit = if (q.isEmpty()) -1 else c.name.lowercase().indexOf(q)
             val title: CharSequence = if (nameHit >= 0) {
+                // lowercase() can change length for some scripts, so indices
+                // found in it are clamped before spanning the original name.
+                val start = nameHit.coerceIn(0, c.name.length)
+                val end = (nameHit + q.length).coerceIn(start, c.name.length)
                 SpannableString(c.name).apply {
-                    setSpan(ForegroundColorSpan(accent), nameHit, nameHit + q.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    setSpan(StyleSpan(Typeface.BOLD), nameHit, nameHit + q.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    setSpan(ForegroundColorSpan(accent), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                    setSpan(StyleSpan(Typeface.BOLD), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 }
             } else c.name
             val subtitle: CharSequence = if (nameHit < 0 && numberSearch) {
@@ -1680,11 +1692,20 @@ class MainActivity : AppCompatActivity() {
         }
         box.visibility = if (issues.isEmpty()) View.GONE else View.VISIBLE
 
-        val sessions = GateLog.sessions(Prefs.readLogEntries(this))
-        logAdapter.items = GateLog.buildItems(sessions)
-        logEmpty.visibility = if (sessions.isEmpty()) View.VISIBLE else View.GONE
-        findViewById<RecyclerView>(R.id.logList).visibility =
-            if (sessions.isEmpty()) View.GONE else View.VISIBLE
+        // The event log is a file read plus per-line parsing; it ran on the
+        // main thread on every resume. Read and build on the worker, bind on UI.
+        if (bg.isShutdown) return
+        bg.execute {
+            val sessions = GateLog.sessions(Prefs.readLogEntries(this))
+            val items = GateLog.buildItems(sessions)
+            runOnUiThread {
+                if (isDestroyed) return@runOnUiThread
+                logAdapter.items = items
+                logEmpty.visibility = if (sessions.isEmpty()) View.VISIBLE else View.GONE
+                findViewById<RecyclerView>(R.id.logList).visibility =
+                    if (sessions.isEmpty()) View.GONE else View.VISIBLE
+            }
+        }
     }
 
     // ---------------- Shared ----------------

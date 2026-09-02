@@ -55,11 +55,13 @@ class CallService : InCallService() {
                 .apply { setReferenceCounted(false) }
         }
         val lock = proximity ?: return
-        // The intercom's auto-answered call never binds our UI and rings with
-        // the screen off; it reaches here too, but only via the same rules.
+        // Only calls this service has identified for the UI count. The
+        // intercom's auto-answered call never enters `known`, so the gate
+        // automation runs without a proximity lock, exactly as it always has.
         val live = calls.any {
             val st = it.stateCompat()
-            st == Call.STATE_ACTIVE || st == Call.STATE_DIALING || st == Call.STATE_CONNECTING
+            known.containsKey(it) &&
+                (st == Call.STATE_ACTIVE || st == Call.STATE_DIALING || st == Call.STATE_CONNECTING)
         }
         val route = callAudioState?.route
         val onEar = route == null || route == CallAudioState.ROUTE_EARPIECE
@@ -122,6 +124,7 @@ class CallService : InCallService() {
                 if (call.stateCompat() == Call.STATE_DISCONNECTED) return@post
                 val loaded = KnownCall(label, i.photoUri, photo, i.name != null)
                 known[call] = loaded
+                updateProximity()
                 OngoingCall.set(call, label, i.photoUri, loaded.isContact)
                 showNotification(call, label, number, photo, quiet = true)
             }
@@ -226,6 +229,7 @@ class CallService : InCallService() {
                 }
                 val loaded = KnownCall(label, info.photoUri, photo, info.name != null)
                 known[call] = loaded
+                updateProximity()
                 // A slower lookup for an older call must not steal the screen
                 // back from a newer waiting/outgoing call.
                 if (pendingForeground != call) {
@@ -305,6 +309,7 @@ class CallService : InCallService() {
                     val label = info.name ?: number ?: "Unknown"
                     val loaded = KnownCall(label, info.photoUri, photo, info.name != null)
                     known[remaining] = loaded
+                    updateProximity()
                     if (OngoingCall.call == remaining) {
                         OngoingCall.set(remaining, label, info.photoUri, loaded.isContact)
                         showNotification(remaining, label, number, photo, quiet = false)

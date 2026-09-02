@@ -21,8 +21,12 @@ object CollapsingTitle {
         val density = rv.resources.displayMetrics.density
         val range = 96 * density
         var last = -1f
-        fun apply(f: Float) {
-            if (kotlin.math.abs(f - last) < 0.01f) return
+        fun apply(raw: Float) {
+            // Each step re-lays out the whole page (the title is wrap_content),
+            // so quantise: 12 steps over 6sp is under 0.5sp per step — invisible
+            // — and costs a dozen layouts per collapse instead of one per frame.
+            val f = (raw * 12).toInt() / 12f
+            if (f == last) return
             last = f
             title.setTextSize(TypedValue.COMPLEX_UNIT_SP, expandedSp + (collapsedSp - expandedSp) * f)
             val top = ((expandedTopDp + (collapsedTopDp - expandedTopDp) * f) * density).toInt()
