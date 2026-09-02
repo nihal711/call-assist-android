@@ -114,6 +114,9 @@ screen system-wide (any app, sensor covered) after calls ended — the lock is
 now owned by the call service, tied to telecom's call list, non-refcounted,
 with a forced fallback release.
 
+v3.41: "Add to contacts" (keypad and in-call) now asks Create new contact or
+Update existing — some contacts apps only offer updating.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key

@@ -1045,16 +1045,11 @@ class MainActivity : AppCompatActivity() {
             val uri = ContactHelper.lookupContactUri(this, number)
             if (uri != null) {
                 startActivity(Intent(Intent.ACTION_VIEW, uri))
-            } else {
-                startActivity(
-                    Intent(Intent.ACTION_INSERT_OR_EDIT)
-                        .setType(ContactsContract.Contacts.CONTENT_ITEM_TYPE)
-                        .putExtra(ContactsContract.Intents.Insert.PHONE, number)
-                )
+                return
             }
         } catch (_: Exception) {
-            Toast.makeText(this, "Could not open contacts app", Toast.LENGTH_SHORT).show()
         }
+        ContactHelper.addToContacts(this, number)
     }
 
     private fun showHistorySheet(number: String, title: String) {

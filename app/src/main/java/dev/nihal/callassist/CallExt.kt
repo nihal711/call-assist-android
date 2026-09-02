@@ -68,6 +68,35 @@ object ContactHelper {
         }
     }
 
+    /**
+     * "Create new or update existing?" sheet for an unknown number. Offered by
+     * us because Samsung Contacts answers ACTION_INSERT_OR_EDIT with only the
+     * update-existing picker — there's no visible way to create from it.
+     */
+    fun addToContacts(activity: android.app.Activity, number: String) {
+        Sheet(activity)
+            .title(Ui.fmt(number))
+            .items(listOf("Create new contact", "Update existing contact")) { which ->
+                try {
+                    activity.startActivity(
+                        if (which == 0) {
+                            android.content.Intent(android.content.Intent.ACTION_INSERT)
+                                .setType(ContactsContract.Contacts.CONTENT_TYPE)
+                                .putExtra(ContactsContract.Intents.Insert.PHONE, number)
+                        } else {
+                            android.content.Intent(android.content.Intent.ACTION_INSERT_OR_EDIT)
+                                .setType(ContactsContract.Contacts.CONTENT_ITEM_TYPE)
+                                .putExtra(ContactsContract.Intents.Insert.PHONE, number)
+                        }
+                    )
+                } catch (_: Exception) {
+                    android.widget.Toast.makeText(activity, "Could not open contacts app", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            }
+            .negative()
+            .show()
+    }
+
     /** Lookup URI for the contact owning this number, for ACTION_VIEW. */
     fun lookupContactUri(ctx: Context, number: String?): Uri? {
         if (number.isNullOrBlank()) return null
