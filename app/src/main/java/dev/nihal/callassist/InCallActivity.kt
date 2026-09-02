@@ -491,7 +491,7 @@ class InCallActivity : AppCompatActivity() {
             ?: other.details.handle?.schemeSpecificPart ?: "Unknown"
         otherCard.visibility = View.VISIBLE
         otherAvatar.text = Ui.initial(label)
-        otherAvatar.backgroundTintList = ColorStateList.valueOf(Ui.avatarColor(label))
+        otherAvatar.background = Ui.avatarBg(label)
         otherName.text = label
         otherState.text = stateName(other.stateCompat())
         val ringing = state == Call.STATE_RINGING
@@ -513,7 +513,7 @@ class InCallActivity : AppCompatActivity() {
             }
             callerName.text = OngoingCall.label
             avatar.text = Ui.initial(OngoingCall.label)
-            avatar.backgroundTintList = ColorStateList.valueOf(Ui.avatarColor(OngoingCall.label))
+            avatar.background = Ui.avatarBg(OngoingCall.label)
             loadPhoto()
 
             val state = call.stateCompat()

@@ -126,6 +126,9 @@ titles on Recents/Contacts, a single radius scale (22 cards / 28 panels / 14
 inner, pills round), hairline depth on cards, springy press feedback on pills
 and call tiles, bottom-sheet drag handles, tabular figures for numbers/timers.
 
+v3.44: identity — gradient avatars, a new app icon (gradient background,
+shadowed glyph, separate themed-icon layer) and a branded splash screen.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key

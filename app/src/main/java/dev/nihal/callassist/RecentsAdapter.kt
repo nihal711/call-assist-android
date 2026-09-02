@@ -283,7 +283,7 @@ class RecentsAdapter(
         h.expNumber.text =
             PhoneNumberUtils.formatNumber(item.number, Locale.getDefault().country) ?: item.number
         h.expAvatar.text = Ui.initial(item.title)
-        h.expAvatar.backgroundTintList = ColorStateList.valueOf(Ui.avatarColor(item.title))
+        h.expAvatar.background = Ui.avatarBg(item.title)
         // Only the expanded card shows the photo; collapsed rows stay
         // as plain icon + name.
         Ui.loadPhoto(ctx, h.expPhoto, ContactsRepo.lookupCached(item.number)?.photoUri)

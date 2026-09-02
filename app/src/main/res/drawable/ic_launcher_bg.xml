@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive-icon background: a diagonal blue gradient instead of a flat fill. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:angle="315"
+        android:endColor="#1B56C8"
+        android:startColor="#4F93FF"
+        android:type="linear" />
+</shape>

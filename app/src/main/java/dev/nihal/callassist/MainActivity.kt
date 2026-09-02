@@ -1503,7 +1503,7 @@ class MainActivity : AppCompatActivity() {
 
         view.findViewById<TextView>(R.id.dlgAvatar).apply {
             text = Ui.initial(display)
-            backgroundTintList = ColorStateList.valueOf(Ui.avatarColor(display))
+            background = Ui.avatarBg(display)
         }
         Ui.loadPhoto(this, view.findViewById(R.id.dlgPhoto), contact?.photoUri)
         view.findViewById<TextView>(R.id.dlgName).text = display

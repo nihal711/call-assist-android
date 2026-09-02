@@ -133,7 +133,7 @@ class ContactsAdapter(
 
                 if (!isExpanded) {
                     h.avatar.text = Ui.initial(c.name)
-                    h.avatar.backgroundTintList = ColorStateList.valueOf(Ui.avatarColor(c.name))
+                    h.avatar.background = Ui.avatarBg(c.name)
                     Ui.loadPhoto(ctx, h.photo, c.photoUri)
                     h.title.text = item.title
                     h.subtitle.text = item.subtitle
@@ -180,7 +180,7 @@ class ContactsAdapter(
         h.expName.text = c.name
         h.expSub.text = Ui.fmt(c.numbers.first().number)
         h.expAvatar.text = Ui.initial(c.name)
-        h.expAvatar.backgroundTintList = ColorStateList.valueOf(Ui.avatarColor(c.name))
+        h.expAvatar.background = Ui.avatarBg(c.name)
         Ui.loadPhoto(ctx, h.expPhoto, c.photoUri)
         bindNumbers(h.expNumbers, c)
         if (detail) {

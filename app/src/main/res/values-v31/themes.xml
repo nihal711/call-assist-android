@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Copy of the base theme plus the API 31+ splash attributes (night/version
+         qualifiers don't merge, so the whole style is restated here). -->
+    <style name="Theme.CallAssist" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:colorBackground">@color/bg</item>
+        <item name="colorSurface">@color/bg</item>
+        <item name="colorSurfaceContainer">@color/card</item>
+        <item name="colorSurfaceContainerHigh">@color/card2</item>
+        <item name="colorPrimary">@color/accent</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondaryContainer">@color/accentSoft</item>
+        <item name="colorOnSecondaryContainer">@color/accent</item>
+        <item name="android:textColorPrimary">@color/textPrimary</item>
+        <item name="android:textColorSecondary">@color/textSecondary</item>
+        <item name="android:statusBarColor">@color/bg</item>
+        <item name="android:navigationBarColor">@color/bg</item>
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="materialButtonStyle">@style/AppButton</item>
+        <item name="materialAlertDialogTheme">@style/GlassAlertDialog</item>
+        <item name="android:alertDialogTheme">@style/GlassAlertDialog</item>
+        <item name="alertDialogTheme">@style/GlassAlertDialog</item>
+        <!-- Branded launch: app background behind the adaptive icon -->
+        <item name="android:windowSplashScreenBackground">@color/bg</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+    </style>
+</resources>

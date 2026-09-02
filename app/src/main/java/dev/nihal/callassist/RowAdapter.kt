@@ -19,6 +19,20 @@ object Ui {
     fun avatarColor(seed: String): Int =
         palette[Math.abs(seed.hashCode()) % palette.size]
 
+    /**
+     * Avatar disc: the seeded hue as a soft top-left-lit gradient rather than
+     * a flat fill — a common treatment that keeps initials
+     * from looking like coloured dots.
+     */
+    fun avatarBg(seed: String): android.graphics.drawable.Drawable {
+        val base = avatarColor(seed)
+        val light = androidx.core.graphics.ColorUtils.blendARGB(base, Color.WHITE, 0.30f)
+        val deep = androidx.core.graphics.ColorUtils.blendARGB(base, Color.BLACK, 0.10f)
+        return android.graphics.drawable.GradientDrawable(
+            android.graphics.drawable.GradientDrawable.Orientation.TL_BR, intArrayOf(light, base, deep)
+        ).apply { shape = android.graphics.drawable.GradientDrawable.OVAL }
+    }
+
     fun fmt(number: String): String =
         android.telephony.PhoneNumberUtils.formatNumber(number, java.util.Locale.getDefault().country)
             ?: number
@@ -240,7 +254,7 @@ class RowAdapter(private val onClick: (Row) -> Unit) :
         h.meta.text = r.meta
         h.meta.setTextColor(r.metaColor ?: Color.GRAY)
         h.avatar.text = Ui.initial(r.avatarSeed)
-        h.avatar.backgroundTintList = ColorStateList.valueOf(Ui.avatarColor(r.avatarSeed))
+        h.avatar.background = Ui.avatarBg(r.avatarSeed)
         // Cached + downsampled; hides itself (initial shows) when there is no photo.
         Ui.loadPhoto(h.itemView.context, h.photo, r.photoUri)
         h.itemView.setOnClickListener { onClick(r) }
