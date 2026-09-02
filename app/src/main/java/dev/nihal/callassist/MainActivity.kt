@@ -72,6 +72,9 @@ class MainActivity : AppCompatActivity() {
         /** Sent by the missed-call notification and the launcher shortcut: open straight to Recents. */
         const val ACTION_SHOW_RECENTS = "dev.nihal.callassist.SHOW_RECENTS"
 
+        /** In-call "Add call": open on a cleared keypad. */
+        const val ACTION_ADD_CALL = "dev.nihal.callassist.ADD_CALL"
+
         /** Launcher shortcuts. */
         const val ACTION_NEW_CONTACT = "dev.nihal.callassist.NEW_CONTACT"
         const val ACTION_VOICEMAIL = "dev.nihal.callassist.VOICEMAIL"
@@ -277,6 +280,12 @@ class MainActivity : AppCompatActivity() {
         }
         if (intent?.action == ACTION_SHOW_RECENTS) {
             navBar.select(1)
+            return
+        }
+        if (intent?.action == ACTION_ADD_CALL) {
+            navBar.select(0)
+            setKeypadCollapsed(false)
+            dial.set("")
             return
         }
         if (intent?.action == ACTION_NEW_CONTACT) {
@@ -1508,9 +1517,10 @@ class MainActivity : AppCompatActivity() {
         // pick is for this call only; the keypad chip / Settings change the default.
         val callBtn = view.findViewById<View>(R.id.dlgCall)
         val sims = SimUtil.sims(this)
+        val inCall = OngoingCall.call?.stateCompat().let { it != null && it != Call.STATE_DISCONNECTED }
         var chosenSim: PhoneAccountHandle? = null
         var onCallPicked: (() -> Unit)? = null
-        if (sims.size > 1) {
+        if (sims.size > 1 && !inCall) {
             val simRow = view.findViewById<LinearLayout>(R.id.dlgSimRow)
             simRow.visibility = View.VISIBLE
             val savedId = Prefs.contactSimId(this, number)
@@ -1603,7 +1613,15 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val tm = getSystemService(TelecomManager::class.java)
-        val chosen = account
+        // A second call can only ride the line the live call is on — telecom
+        // holds the current call either way, and dual-SIM phones can't run two
+        // active calls on different SIMs, so any other account choice would
+        // strand the first call on hold with nothing dialled.
+        val activeAccount = OngoingCall.call
+            ?.takeIf { it.stateCompat() != Call.STATE_DISCONNECTED }
+            ?.details?.accountHandle
+        val chosen = activeAccount
+            ?: account
             ?: Prefs.contactSimId(this, number)?.let { id -> SimUtil.byId(this, id)?.handle }
             ?: when (Prefs.simMode(this)) {
             Prefs.SIM_FIXED -> SimUtil.byId(this, Prefs.simId(this))?.handle

@@ -209,9 +209,13 @@ class InCallActivity : AppCompatActivity() {
             }
         }
         findViewById<View>(R.id.btnAddCall).setOnClickListener {
-            // The dialer keeps this call via the return-to-call bar; dialling
-            // another number from there puts this one on hold.
-            startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            // Opens the dialer on a cleared keypad; dialling from there holds
+            // this call and rides the same SIM (see MainActivity.placeCall).
+            startActivity(
+                Intent(this, MainActivity::class.java)
+                    .setAction(MainActivity.ACTION_ADD_CALL)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
         }
         btnContact.setOnClickListener { openContact() }
         btnAddContact.setOnClickListener { openContact() }

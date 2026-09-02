@@ -105,6 +105,10 @@ v3.38: targets Android 15 (SDK 35) with deliberate edge-to-edge insets on
 every screen; MainActivity's dial field, recents swipe, recents item builder
 and gate setup checklist moved into their own files (pure moves).
 
+v3.39: Add call fixed — opens a cleared keypad, and a second call always
+uses the live call's own SIM (a different SIM would strand the first call on
+hold with nothing dialled); the confirm dialog hides its SIM switcher mid-call.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key
