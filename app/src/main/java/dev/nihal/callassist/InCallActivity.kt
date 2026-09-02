@@ -14,7 +14,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.ContactsContract
 import android.telecom.Call
@@ -42,7 +41,6 @@ class InCallActivity : AppCompatActivity() {
 
     private val handler = Handler(Looper.getMainLooper())
     private var boundCall: Call? = null
-    private var proximityLock: PowerManager.WakeLock? = null
     private var muted = false
     private var speaker = false
     private var timerRunning = false
@@ -117,13 +115,6 @@ class InCallActivity : AppCompatActivity() {
         Ui.applyInsets(findViewById(R.id.contentColumn))
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         registerReceiver(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
-
-        // Screen off against the ear — otherwise
-        // FLAG_KEEP_SCREEN_ON leaves the whole call UI live under a cheek.
-        val pm = getSystemService(PowerManager::class.java)
-        if (pm.isWakeLockLevelSupported(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK)) {
-            proximityLock = pm.newWakeLock(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "callassist:proximity")
-        }
 
         bgPhoto = findViewById(R.id.bgPhoto)
         scrim = findViewById(R.id.scrim)
@@ -249,12 +240,6 @@ class InCallActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         try {
-            if (proximityLock?.isHeld == true) {
-                proximityLock?.release(PowerManager.RELEASE_FLAG_WAIT_FOR_NO_PROXIMITY)
-            }
-        } catch (_: Exception) {
-        }
-        try {
             unregisterReceiver(screenOffReceiver)
         } catch (_: Exception) {
         }
@@ -339,26 +324,6 @@ class InCallActivity : AppCompatActivity() {
             }
             .negative()
             .show()
-    }
-
-    /**
-     * Held while the voice is in the earpiece and the call is live, so the
-     * screen blanks against the ear; released (waiting for the sensor to
-     * clear) on speaker/Bluetooth, while ringing, and when the call ends.
-     */
-    private fun updateProximity(state: Int) {
-        val lock = proximityLock ?: return
-        val route = CallService.instance?.callAudioState?.route
-        val live = state == Call.STATE_ACTIVE || state == Call.STATE_DIALING || state == Call.STATE_CONNECTING
-        val onEar = route == null || route == CallAudioState.ROUTE_EARPIECE
-        try {
-            if (live && onEar) {
-                if (!lock.isHeld) lock.acquire(60 * 60 * 1000L)
-            } else if (lock.isHeld) {
-                lock.release(PowerManager.RELEASE_FLAG_WAIT_FOR_NO_PROXIMITY)
-            }
-        } catch (_: Exception) {
-        }
     }
 
     /** Muted reads as a warning — red with a crossed-out mic; speaker stays accent blue. */
@@ -554,7 +519,6 @@ class InCallActivity : AppCompatActivity() {
             // the buttons follow telecom's audio state rather than our own flags.
             CallService.instance?.callAudioState?.let { muted = it.isMuted }
             renderAudioToggles()
-            updateProximity(state)
 
             // Which SIM the call is on — for incoming calls this is what tells
             // the user which of their numbers was rung.

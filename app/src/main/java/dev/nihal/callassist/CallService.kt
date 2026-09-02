@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
 import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.telecom.Call
 import android.telecom.CallAudioState
@@ -16,6 +17,61 @@ class CallService : InCallService() {
     companion object {
         var instance: CallService? = null
             private set
+    }
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    // ---- Screen-off-on-ear (proximity) ----
+    //
+    // Owned here, not by the call screen: a PROXIMITY_SCREEN_OFF_WAKE_LOCK is
+    // system-wide — while held, covering the sensor blanks the screen in ANY
+    // app — and this process never dies, so a leak from an activity teardown
+    // race left phones blanking on the sensor long after calls ended. Every
+    // call-ended path runs through this service, so the lock cannot outlive
+    // the call list; a forced fallback release covers a sensor that never
+    // reports "far" (pocket, face-down).
+    private var proximity: PowerManager.WakeLock? = null
+    private val proximityForceRelease = Runnable {
+        try {
+            if (proximity?.isHeld == true) proximity?.release()
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun updateProximity() {
+        val pm = getSystemService(PowerManager::class.java)
+        if (proximity == null) {
+            if (!pm.isWakeLockLevelSupported(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK)) return
+            proximity = pm.newWakeLock(PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK, "callassist:proximity")
+                // One release must always fully release, whatever the acquire history.
+                .apply { setReferenceCounted(false) }
+        }
+        val lock = proximity ?: return
+        // The intercom's auto-answered call never binds our UI and rings with
+        // the screen off; it reaches here too, but only via the same rules.
+        val live = calls.any {
+            val st = it.stateCompat()
+            st == Call.STATE_ACTIVE || st == Call.STATE_DIALING || st == Call.STATE_CONNECTING
+        }
+        val route = callAudioState?.route
+        val onEar = route == null || route == CallAudioState.ROUTE_EARPIECE
+        mainHandler.removeCallbacks(proximityForceRelease)
+        try {
+            if (live && onEar) {
+                if (!lock.isHeld) lock.acquire(3 * 60 * 60 * 1000L)
+            } else if (lock.isHeld) {
+                if (live) {
+                    // Mid-call route change (speaker/Bluetooth): screen back now.
+                    lock.release()
+                } else {
+                    // Call over: wait for the phone to leave the ear, then a
+                    // hard stop in case the sensor stays covered.
+                    lock.release(PowerManager.RELEASE_FLAG_WAIT_FOR_NO_PROXIMITY)
+                    mainHandler.postDelayed(proximityForceRelease, 10_000)
+                }
+            }
+        } catch (_: Exception) {
+        }
     }
 
     // What the current call notification was built from, so it can be
@@ -56,6 +112,7 @@ class CallService : InCallService() {
     private val stateCallback = object : Call.Callback() {
         override fun onStateChanged(call: Call, state: Int) {
             if (call != shownCall) return
+            updateProximity()
             // Ringing → active swaps Answer/Decline for Hang up/Mute/Speaker.
             refreshNotification()
             // MainActivity's return-to-call banner and InCallActivity follow this.
@@ -71,17 +128,24 @@ class CallService : InCallService() {
     override fun onDestroy() {
         instance = null
         clearNotification()
+        mainHandler.removeCallbacks(proximityForceRelease)
+        try {
+            if (proximity?.isHeld == true) proximity?.release()
+        } catch (_: Exception) {
+        }
         super.onDestroy()
     }
 
     override fun onCallAudioStateChanged(audioState: CallAudioState) {
         super.onCallAudioStateChanged(audioState)
+        updateProximity()
         // Mute / Speaker labels in the notification, toggle state on the call screen.
         refreshNotification()
         OngoingCall.notifyChanged()
     }
 
     override fun onCallAdded(call: Call) {
+        updateProximity()
         val number = call.details.handle?.schemeSpecificPart
         val ringing = call.stateCompat() == Call.STATE_RINGING
 
@@ -140,6 +204,7 @@ class CallService : InCallService() {
     }
 
     override fun onCallRemoved(call: Call) {
+        updateProximity()
         // Rang out or the caller gave up — leave a missed-call record.
         // (Rejected/blocked calls carry different causes; the intercom is answered.)
         if (call.details.disconnectCause?.code == DisconnectCause.MISSED) {

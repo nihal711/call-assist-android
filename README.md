@@ -109,6 +109,11 @@ v3.39: Add call fixed — opens a cleared keypad, and a second call always
 uses the live call's own SIM (a different SIM would strand the first call on
 hold with nothing dialled); the confirm dialog hides its SIM switcher mid-call.
 
+v3.40: fixed a leaked proximity wake lock that could keep blanking the
+screen system-wide (any app, sensor covered) after calls ended — the lock is
+now owned by the call service, tied to telecom's call list, non-refcounted,
+with a forced fallback release.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key
