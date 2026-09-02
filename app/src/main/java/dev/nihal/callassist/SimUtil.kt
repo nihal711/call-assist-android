@@ -97,6 +97,17 @@ object SimUtil {
         else -> systemDefault(ctx)?.let { "System default (${it.name})" } ?: "System default"
     }
 
+    /** Selects the next physical SIM directly; intended for the keypad pill. */
+    fun cycle(ctx: Context): Sim? {
+        val available = sims(ctx)
+        if (available.size < 2) return available.firstOrNull()
+        val current = selected(ctx)
+        val index = available.indexOfFirst { it.handle == current?.handle }
+        val next = available[if (index < 0) 0 else (index + 1) % available.size]
+        Prefs.setSim(ctx, Prefs.SIM_FIXED, next.handle.id, next.name)
+        return next
+    }
+
     private fun load(ctx: Context): List<Sim> {
         val tm = ctx.getSystemService(TelecomManager::class.java)
         val handles = try {

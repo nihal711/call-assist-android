@@ -11,8 +11,8 @@ android {
         applicationId = "dev.nihal.callassist"
         minSdk = 29
         targetSdk = 35
-        versionCode = 78
-        versionName = "3.48"
+        versionCode = 79
+        versionName = "3.49"
     }
 
     // Release signing reads keystore.properties (gitignored); without it the

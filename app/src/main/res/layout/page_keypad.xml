@@ -138,8 +138,8 @@
                 android:layout_height="wrap_content"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingStart="56dp"
-                android:paddingEnd="12dp">
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp">
 
                 <!-- EditText so the user can place the cursor mid-number (e.g. to
                      prepend an IDD prefix or drop a '+'); the keypad feeds it
@@ -159,15 +159,6 @@
                     android:textSize="34sp"
                     tools:ignore="LabelFor" />
 
-                <ImageButton
-                    android:id="@+id/btnBackspace"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:background="?android:attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Backspace"
-                    android:src="@drawable/ic_backspace"
-                    android:visibility="invisible"
-                    app:tint="@color/textSecondary" />
             </LinearLayout>
 
             <GridLayout
@@ -182,56 +173,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingTop="12dp"
-                android:paddingBottom="22dp">
-
-                <!-- Dual-SIM only: which SIM the dial button will use. Tap to change. -->
-                <LinearLayout
-                    android:id="@+id/simChip"
-                    android:layout_width="wrap_content"
-                    android:layout_height="36dp"
-                    android:layout_gravity="center_vertical|start"
-                    android:layout_marginStart="24dp"
-                    android:background="@drawable/bg_sim_chip"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingStart="9dp"
-                    android:paddingEnd="6dp"
-                    android:visibility="gone">
-
-                    <TextView
-                        android:id="@+id/simChipBadge"
-                        android:layout_width="18dp"
-                        android:layout_height="18dp" />
-
-                    <ImageView
-                        android:id="@+id/simChipIcon"
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:contentDescription="@null"
-                        android:src="@drawable/ic_sim"
-                        android:visibility="gone"
-                        app:tint="@color/textSecondary" />
-
-                    <TextView
-                        android:id="@+id/simChipName"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:ellipsize="end"
-                        android:maxLines="1"
-                        android:maxWidth="104dp"
-                        android:textColor="@color/textPrimary"
-                        android:textSize="13sp" />
-
-                    <ImageView
-                        android:layout_width="16dp"
-                        android:layout_height="16dp"
-                        android:layout_marginStart="2dp"
-                        android:contentDescription="@null"
-                        android:rotation="90"
-                        android:src="@drawable/ic_chevron_right"
-                        app:tint="@color/textSecondary" />
-                </LinearLayout>
+                android:paddingBottom="4dp">
 
                 <!--
                   fitCenter + padding rather than scaleType="center": "center"
@@ -251,7 +193,61 @@
                     android:scaleType="fitCenter"
                     android:src="@drawable/ic_phone"
                     app:tint="#FFFFFF" />
+
+                <!-- Aligned with Call at the lower right. -->
+                <ImageButton
+                    android:id="@+id/btnBackspace"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_gravity="center_vertical|end"
+                    android:layout_marginEnd="56dp"
+                    android:background="?android:attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Backspace"
+                    android:src="@drawable/ic_backspace"
+                    android:visibility="invisible"
+                    app:tint="@color/textSecondary" />
             </FrameLayout>
+
+            <!-- Dual-SIM only. A tap cycles directly to the next installed SIM. -->
+            <LinearLayout
+                android:id="@+id/simChip"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="12dp"
+                android:background="@drawable/bg_sim_chip"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="9dp"
+                android:paddingEnd="12dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/simChipBadge"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp" />
+
+                <ImageView
+                    android:id="@+id/simChipIcon"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_sim"
+                    android:visibility="gone"
+                    app:tint="@color/textSecondary" />
+
+                <TextView
+                    android:id="@+id/simChipName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:maxWidth="120dp"
+                    android:textColor="@color/textPrimary"
+                    android:textSize="13sp" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 

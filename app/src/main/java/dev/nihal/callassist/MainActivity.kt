@@ -708,7 +708,13 @@ class MainActivity : AppCompatActivity() {
         simChipBadge = findViewById(R.id.simChipBadge)
         simChipIcon = findViewById(R.id.simChipIcon)
         simChipName = findViewById(R.id.simChipName)
-        simChip.setOnClickListener { SimUtil.showPicker(this) { renderSimChip() } }
+        simChip.setOnClickListener { view ->
+            SimUtil.cycle(this)?.let { selected ->
+                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                renderSimChip()
+                view.announceForAccessibility("Calling with SIM ${selected.slot + 1}, ${selected.name}")
+            }
+        }
         Ui.pressable(
             findViewById(R.id.btnDial), simChip, findViewById(R.id.fabKeypad),
             findViewById(R.id.btnAddToContacts), findViewById(R.id.btnSendMessage), btnPaste,
@@ -722,7 +728,8 @@ class MainActivity : AppCompatActivity() {
      * glyph + "Ask" when each call prompts. Hidden entirely on single-SIM phones.
      */
     private fun renderSimChip() {
-        if (!SimUtil.isDual(this)) {
+        val sims = SimUtil.sims(this)
+        if (sims.size < 2) {
             simChip.visibility = View.GONE
             return
         }
@@ -733,10 +740,17 @@ class MainActivity : AppCompatActivity() {
             simChipBadge.visibility = View.VISIBLE
             simChipIcon.visibility = View.GONE
             simChipName.text = sim.name
+            val index = sims.indexOfFirst { it.handle == sim.handle }
+            val next = sims[(index + 1).mod(sims.size)]
+            simChip.contentDescription =
+                "Calling with SIM ${sim.slot + 1}, ${sim.name}. Tap to switch to SIM ${next.slot + 1}, ${next.name}"
         } else {
             simChipBadge.visibility = View.GONE
             simChipIcon.visibility = View.VISIBLE
             simChipName.text = "Ask"
+            val first = sims.first()
+            simChip.contentDescription =
+                "Choose calling SIM. Tap to use SIM ${first.slot + 1}, ${first.name}"
         }
     }
 

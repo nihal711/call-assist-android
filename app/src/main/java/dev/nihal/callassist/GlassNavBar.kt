@@ -114,10 +114,10 @@ class GlassNavBar @JvmOverloads constructor(
             }
             iconBox.addView(badge, LayoutParams(LayoutParams.WRAP_CONTENT, dp(15), Gravity.TOP or Gravity.END))
             badges.add(badge)
-            item.addView(iconBox, LinearLayout.LayoutParams(dp(39), dp(27)))
+            item.addView(iconBox, LinearLayout.LayoutParams(dp(37), dp(25)))
             val label = TextView(context).apply label@{
                 text = t.label
-                textSize = 11.5f
+                textSize = 11f
                 gravity = Gravity.CENTER
                 includeFontPadding = false   // trims the ascent/descent slack above the text
                 importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
@@ -136,7 +136,7 @@ class GlassNavBar @JvmOverloads constructor(
                 label,
                 LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
-                ).apply { topMargin = dp(1) }
+                )
             )
             row.addView(
                 item,
@@ -158,12 +158,10 @@ class GlassNavBar @JvmOverloads constructor(
     }
 
     private fun itemWidth() = if (count == 0) 0f else width.toFloat() / count
-    // Bubble insets: 6dp all round. Any more at the sides and, on a narrow
-    // display where a tab slot is ~65dp, the pill collapses into a circle that
-    // only rings the icon; the bar itself is kept wide (see activity_main) so
-    // the pill always spans icon + label.
-    private fun bubbleW() = (itemWidth() - dp(12)).coerceAtLeast(0f)
-    private fun slotX(i: Int) = i * itemWidth() + dp(6)
+    // Compact 5dp side inset: enough separation without the oversized gaps of
+    // the previous 66dp-tall bar.
+    private fun bubbleW() = (itemWidth() - dp(10)).coerceAtLeast(0f)
+    private fun slotX(i: Int) = i * itemWidth() + dp(5)
 
     override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
         super.onSizeChanged(w, h, ow, oh)
@@ -171,8 +169,8 @@ class GlassNavBar @JvmOverloads constructor(
         // Requesting layout during a layout pass is dropped — defer so the
         // bubble is sized correctly on the very first frame.
         post {
-            val bh = height - dp(12)
-            bubble.layoutParams = LayoutParams(bubbleW().toInt(), bh).apply { topMargin = dp(6) }
+            val bh = height - dp(8)
+            bubble.layoutParams = LayoutParams(bubbleW().toInt(), bh).apply { topMargin = dp(4) }
             (bubble.background as GradientDrawable).cornerRadius = bh / 2f
             bubble.translationX = slotX(selected)
         }
@@ -236,7 +234,7 @@ class GlassNavBar @JvmOverloads constructor(
             MotionEvent.ACTION_MOVE -> if (dragging) {
                 moved = true
                 bubble.translationX = (e.x - bubbleW() / 2)
-                    .coerceIn(dp(6).toFloat(), width - bubbleW() - dp(6))
+                    .coerceIn(dp(5).toFloat(), width - bubbleW() - dp(5))
             }
             MotionEvent.ACTION_UP -> {
                 dragging = false
