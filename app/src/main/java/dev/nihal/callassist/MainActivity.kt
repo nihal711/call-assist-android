@@ -601,6 +601,17 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupKeypad() {
         numberDisplay = findViewById(R.id.numberDisplay)
+        // Keep the empty keypad visually clean while retaining a useful field
+        // label for TalkBack; hintText is semantic and is not drawn by the view.
+        numberDisplay.accessibilityDelegate = object : View.AccessibilityDelegate() {
+            override fun onInitializeAccessibilityNodeInfo(
+                host: View,
+                info: android.view.accessibility.AccessibilityNodeInfo
+            ) {
+                super.onInitializeAccessibilityNodeInfo(host, info)
+                info.hintText = "Phone number"
+            }
+        }
         btnBackspace = findViewById(R.id.btnBackspace)
         suggestionsList = findViewById(R.id.suggestionsList)
         suggestionsEmpty = findViewById(R.id.suggestionsEmpty)

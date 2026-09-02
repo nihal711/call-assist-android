@@ -188,9 +188,11 @@
 
                 <com.google.android.material.materialswitch.MaterialSwitch
                     android:id="@+id/switchEnabled"
-                    android:layout_width="48dp"
+                    android:layout_width="52dp"
                     android:layout_height="48dp"
-                    android:contentDescription="Auto-answer intercom and send code" />
+                    android:contentDescription="Auto-answer intercom and send code"
+                    android:scaleX="0.94"
+                    android:scaleY="0.94" />
             </LinearLayout>
 
             <LinearLayout
@@ -238,9 +240,11 @@
 
                 <com.google.android.material.materialswitch.MaterialSwitch
                     android:id="@+id/switchNotify"
-                    android:layout_width="48dp"
+                    android:layout_width="52dp"
                     android:layout_height="48dp"
-                    android:contentDescription="Notify when gate code runs" />
+                    android:contentDescription="Notify when gate code runs"
+                    android:scaleX="0.94"
+                    android:scaleY="0.94" />
             </LinearLayout>
         </LinearLayout>
 

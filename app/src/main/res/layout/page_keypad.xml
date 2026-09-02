@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -151,13 +152,12 @@
                     android:layout_weight="1"
                     android:background="@null"
                     android:gravity="center"
-                    android:hint="Enter phone number"
                     android:importantForAutofill="no"
                     android:inputType="phone"
                     android:maxLines="1"
                     android:minHeight="60dp"
-                    android:textColorHint="@color/textSecondary"
-                    android:textSize="34sp" />
+                    android:textSize="34sp"
+                    tools:ignore="LabelFor" />
 
                 <ImageButton
                     android:id="@+id/btnBackspace"

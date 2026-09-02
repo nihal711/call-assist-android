@@ -143,6 +143,11 @@ work and Recents construction move off the UI thread; TalkBack can operate the
 navigation bar, contacts index and lock-screen answer control; and light-theme
 contrast and cross-screen naming/spacing are consistent.
 
+v3.48: keypad and Gate polish — the empty number field no longer displays an
+oversized placeholder (while retaining its TalkBack label), and the Auto-open
+and Notify switches have enough drawing room for their rounded edges and are
+subtly scaled down to prevent clipping.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key
@@ -154,7 +159,7 @@ mute, speaker, DTMF keypad, end call.
 
 ## Install & setup
 
-1. Copy `CallAssist-v3.47-release.apk` to the phone and install (allow "install unknown
+1. Copy `CallAssist-v3.48.apk` to the phone and install (allow "install unknown
    apps" for your file manager; upgrades install straight over old versions).
 2. Open **Call Assist**:
    - Tap **Grant permissions** → allow Contacts, Phone, Notifications.
