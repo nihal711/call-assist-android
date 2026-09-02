@@ -542,6 +542,11 @@ class MainActivity : AppCompatActivity() {
         simChipIcon = findViewById(R.id.simChipIcon)
         simChipName = findViewById(R.id.simChipName)
         simChip.setOnClickListener { SimUtil.showPicker(this) { renderSimChip() } }
+        Ui.pressable(
+            findViewById(R.id.btnDial), simChip, findViewById(R.id.fabKeypad),
+            findViewById(R.id.btnAddToContacts), findViewById(R.id.btnSendMessage), btnPaste,
+            findViewById(R.id.callBanner)
+        )
         dial.set("")
     }
 
@@ -759,6 +764,7 @@ class MainActivity : AppCompatActivity() {
             // Rows are cheap but numerous; a deeper cache means switching back
             // to this tab rebinds instead of re-inflating.
             setItemViewCacheSize(12)
+            CollapsingTitle.attach(this, findViewById(R.id.recentsTitle), 30f, 20f, 36, 10)
         }
 
         ItemTouchHelper(RecentsSwipeCallback(this, recentsAdapter, { confirmCall(it) }, { openSms(it) }))
@@ -1102,6 +1108,7 @@ class MainActivity : AppCompatActivity() {
             adapter = contactsAdapter
             setHasFixedSize(true)
             setItemViewCacheSize(12)
+            CollapsingTitle.attach(this, findViewById(R.id.contactsTitle), 26f, 20f, 16, 0)
         }
         findViewById<View>(R.id.btnNewContact).setOnClickListener {
             try {
@@ -1552,6 +1559,7 @@ class MainActivity : AppCompatActivity() {
             }
             paint()
         }
+        Ui.pressable(view.findViewById(R.id.dlgCancel), callBtn)
         view.findViewById<TextView>(R.id.dlgCancel).setOnClickListener { dialog.dismiss() }
         callBtn.setOnClickListener {
             dialog.dismiss()

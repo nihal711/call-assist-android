@@ -141,9 +141,7 @@ class ContactsAdapter(
                     if (onSelect != null && c.id == selectedId) {
                         h.row.setBackgroundResource(R.drawable.bg_row_selected)
                     } else {
-                        val tv = TypedValue()
-                        ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, tv, true)
-                        h.row.setBackgroundResource(tv.resourceId)
+                        h.row.setBackgroundResource(RecentsItems.rowRipple(item.bg))
                     }
                     h.row.setOnClickListener {
                         if (onSelect != null) {

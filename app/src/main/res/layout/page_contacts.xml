@@ -11,13 +11,15 @@
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="24dp"
-        android:paddingTop="24dp"
+        android:paddingTop="8dp"
         android:paddingEnd="16dp">
 
         <TextView
+            android:id="@+id/contactsTitle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:paddingTop="16dp"
             android:text="Contacts"
             android:textSize="26sp"
             android:textStyle="bold" />

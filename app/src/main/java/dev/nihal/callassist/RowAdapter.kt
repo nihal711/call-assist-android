@@ -99,6 +99,27 @@ object Ui {
         }
     }
 
+    /**
+     * Touch-down shrink with a springy release for pill buttons and call
+     * tiles. Doesn't consume the event, so clicks and long-presses still fire.
+     */
+    @android.annotation.SuppressLint("ClickableViewAccessibility")
+    fun pressable(vararg views: View) {
+        for (v in views) {
+            v.setOnTouchListener { view, e ->
+                when (e.actionMasked) {
+                    android.view.MotionEvent.ACTION_DOWN ->
+                        view.animate().scaleX(0.94f).scaleY(0.94f).setDuration(90)
+                            .setInterpolator(android.view.animation.DecelerateInterpolator()).start()
+                    android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL ->
+                        view.animate().scaleX(1f).scaleY(1f).setDuration(240)
+                            .setInterpolator(android.view.animation.OvershootInterpolator(2.5f)).start()
+                }
+                false
+            }
+        }
+    }
+
     /** Empty-state text with a large faded glyph above it. */
     fun emptyState(tv: TextView, iconRes: Int) {
         val ctx = tv.context

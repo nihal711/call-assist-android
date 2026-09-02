@@ -121,6 +121,11 @@ v3.42: card expand/collapse animates the card's own height in place (no more
 flicker or rows sliding from another contact's spot); nav bar bubble gets
 more air around it in a slightly taller bar.
 
+v3.43: visual system — ripples masked to card corners, collapsing large
+titles on Recents/Contacts, a single radius scale (22 cards / 28 panels / 14
+inner, pills round), hairline depth on cards, springy press feedback on pills
+and call tiles, bottom-sheet drag handles, tabular figures for numbers/timers.
+
 ## Dialer features (v1.1)
 
 Four tabs: **Keypad** (T9 search over contact names + number matching, key

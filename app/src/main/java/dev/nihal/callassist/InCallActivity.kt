@@ -233,6 +233,12 @@ class InCallActivity : AppCompatActivity() {
             }
         })
 
+        Ui.pressable(
+            findViewById(R.id.btnAnswer), findViewById(R.id.btnDecline), findViewById(R.id.btnHangup),
+            btnMute, btnSpeaker, btnKeypad, btnHold, btnContact, findViewById(R.id.btnAddCall),
+            btnSwap, btnMerge, btnAddContact, btnEndAnswer,
+            findViewById(R.id.btnMessageLocked), findViewById(R.id.btnMessageSlide)
+        )
         buildKeypad()
         OngoingCall.addListener(ongoingListener)
         bindCall()

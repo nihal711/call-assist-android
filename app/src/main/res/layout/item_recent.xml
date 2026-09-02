@@ -52,6 +52,7 @@
 
         <TextView
             android:id="@+id/recentTime"
+            android:fontFeatureSettings="tnum"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="10dp"
@@ -96,6 +97,7 @@
 
                 <TextView
                     android:id="@+id/expNumber"
+            android:fontFeatureSettings="tnum"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
@@ -168,6 +170,7 @@
 
         <TextView
             android:id="@+id/expTime"
+            android:fontFeatureSettings="tnum"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"

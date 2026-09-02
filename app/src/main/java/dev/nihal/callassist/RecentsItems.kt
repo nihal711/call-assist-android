@@ -29,6 +29,14 @@ object RecentsItems {
         else -> R.drawable.bg_group_mid
     }
 
+    /** Press ripple whose mask matches the card piece a row sits in. */
+    fun rowRipple(bg: Int): Int = when (bg) {
+        R.drawable.bg_group_single -> R.drawable.bg_row_ripple_single
+        R.drawable.bg_group_top -> R.drawable.bg_row_ripple_top
+        R.drawable.bg_group_bottom -> R.drawable.bg_row_ripple_bottom
+        else -> R.drawable.bg_row_ripple_mid
+    }
+
     fun build(ctx: Context, log: List<ContactsRepo.CallEntry>): List<RecentsAdapter.Item> {
         val timeFmt = SimpleDateFormat("HH:mm", Locale.getDefault())
         // Merge consecutive entries with the same number, type, SIM, and day.

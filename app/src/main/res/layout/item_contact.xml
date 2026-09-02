@@ -58,6 +58,7 @@
 
             <TextView
                 android:id="@+id/subtitle"
+            android:fontFeatureSettings="tnum"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
@@ -116,6 +117,7 @@
 
                 <TextView
                     android:id="@+id/expSub"
+            android:fontFeatureSettings="tnum"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"

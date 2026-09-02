@@ -82,8 +82,14 @@ class Sheet(private val ctx: Context) {
         val root = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundResource(R.drawable.bg_sheet)
-            setPadding(dp(20), dp(24), dp(20), dp(14))
+            setPadding(dp(20), dp(10), dp(20), dp(14))
         }
+        // Drag handle: the standard cue that the panel is dismissible.
+        root.addView(View(ctx).apply { setBackgroundResource(R.drawable.bg_sheet_handle) },
+            LinearLayout.LayoutParams(dp(32), dp(4)).apply {
+                gravity = Gravity.CENTER_HORIZONTAL
+                bottomMargin = dp(16)
+            })
         title?.let {
             root.addView(TextView(ctx).apply {
                 text = it
@@ -157,6 +163,7 @@ class Sheet(private val ctx: Context) {
                     gravity = Gravity.CENTER
                     setBackgroundResource(R.drawable.bg_sheet_button)
                     setOnClickListener { onClick() }
+                    Ui.pressable(this)
                 }
             val lp = LinearLayout.LayoutParams(0, dp(50), 1f)
             negativeText?.let {
