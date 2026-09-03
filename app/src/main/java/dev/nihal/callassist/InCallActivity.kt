@@ -51,6 +51,10 @@ class InCallActivity : AppCompatActivity() {
     private var keypadOpen = false
     private var receiverRegistered = false
     private var endFinishScheduled = false
+    // Whether the bound call was ever more than ringing (dialling, connecting,
+    // active, held). A call that ends straight from ringing was never answered
+    // and gets no "Call ended" outro.
+    private var everLive = false
 
     private lateinit var bgPhoto: ImageView
     private lateinit var scrim: View
@@ -503,6 +507,7 @@ class InCallActivity : AppCompatActivity() {
         photoLoaded = false
         timerRunning = false
         endFinishScheduled = false
+        everLive = false
         callTimer.stop()
         callTimer.visibility = View.GONE
         if (keypadOpen) setKeypadOpen(false)
@@ -615,6 +620,18 @@ class InCallActivity : AppCompatActivity() {
             val state = call.stateCompat()
             callState.text = stateName(state)
             val ringing = state == Call.STATE_RINGING
+            val ended = state == Call.STATE_DISCONNECTED || state == Call.STATE_DISCONNECTING
+            if (!ringing && !ended && state != Call.STATE_NEW) everLive = true
+            // Rang out, caller gave up, or declined: the call was never
+            // connected, so the screen must not flip to the in-call layout
+            // (hang-up button, mute/speaker tiles) for the ended outro. Go
+            // straight away; with another live call waiting behind it the
+            // service rebinds momentarily, so just hide every control until then.
+            val unanswered = ended && !everLive
+            if (unanswered && otherCall() == null) {
+                finish()
+                return@runOnUiThread
+            }
 
             // Mute / speaker can also be toggled from the notification, so
             // the buttons follow telecom's audio state rather than our own flags.
@@ -640,7 +657,7 @@ class InCallActivity : AppCompatActivity() {
             val locked = getSystemService(KeyguardManager::class.java).isKeyguardLocked
             ringingButtons.visibility = if (ringing && !locked) View.VISIBLE else View.GONE
             ringingSlide.visibility = if (ringing && locked) View.VISIBLE else View.GONE
-            activeBar.visibility = if (ringing) View.GONE else View.VISIBLE
+            activeBar.visibility = if (ringing || unanswered) View.GONE else View.VISIBLE
 
             // Hold tile doubles as Resume while held.
             val holding = state == Call.STATE_HOLDING
@@ -655,7 +672,8 @@ class InCallActivity : AppCompatActivity() {
             val known = OngoingCall.isContact
             labelContact.text = if (known) "Contact" else "Add contact"
             btnContact.setImageResource(if (known) R.drawable.ic_person else R.drawable.ic_person_add)
-            btnAddContact.visibility = if (!known && !number.isNullOrBlank() && !ringing) View.VISIBLE else View.GONE
+            btnAddContact.visibility =
+                if (!known && !number.isNullOrBlank() && !ringing && !unanswered) View.VISIBLE else View.GONE
 
             renderOtherCall(state)
 
