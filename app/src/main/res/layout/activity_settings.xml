@@ -89,8 +89,9 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:ellipsize="end"
-                    android:maxLines="1"
-                    android:maxWidth="150dp"
+                    android:gravity="end"
+                    android:maxLines="2"
+                    android:maxWidth="200dp"
                     android:textColor="@color/accentText" />
 
                 <ImageView
@@ -206,8 +207,9 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:ellipsize="end"
-                    android:maxLines="1"
-                    android:maxWidth="150dp"
+                    android:gravity="end"
+                    android:maxLines="2"
+                    android:maxWidth="200dp"
                     android:textColor="@color/accentText" />
 
                 <ImageView
@@ -266,8 +268,9 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:ellipsize="end"
-                    android:maxLines="1"
-                    android:maxWidth="150dp"
+                    android:gravity="end"
+                    android:maxLines="2"
+                    android:maxWidth="200dp"
                     android:textColor="@color/accentText" />
 
                 <ImageView
@@ -368,8 +371,9 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:ellipsize="end"
-                    android:maxLines="1"
-                    android:maxWidth="150dp"
+                    android:gravity="end"
+                    android:maxLines="2"
+                    android:maxWidth="200dp"
                     android:textColor="@color/accentText" />
 
                 <ImageView
@@ -438,8 +442,9 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:ellipsize="end"
-                    android:maxLines="1"
-                    android:maxWidth="150dp"
+                    android:gravity="end"
+                    android:maxLines="2"
+                    android:maxWidth="200dp"
                     android:textColor="@color/accentText" />
 
                 <ImageView
@@ -498,8 +503,9 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:ellipsize="end"
-                    android:maxLines="1"
-                    android:maxWidth="150dp"
+                    android:gravity="end"
+                    android:maxLines="2"
+                    android:maxWidth="200dp"
                     android:textColor="@color/accentText" />
 
                 <ImageView
@@ -668,8 +674,9 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:ellipsize="end"
-                    android:maxLines="1"
-                    android:maxWidth="150dp"
+                    android:gravity="end"
+                    android:maxLines="2"
+                    android:maxWidth="200dp"
                     android:textColor="@color/accentText" />
 
                 <ImageView
@@ -775,8 +782,9 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:ellipsize="end"
-                    android:maxLines="1"
-                    android:maxWidth="150dp"
+                    android:gravity="end"
+                    android:maxLines="2"
+                    android:maxWidth="200dp"
                     android:textColor="@color/accentText" />
 
                 <ImageView
@@ -846,8 +854,9 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
                     android:ellipsize="end"
-                    android:maxLines="1"
-                    android:maxWidth="150dp"
+                    android:gravity="end"
+                    android:maxLines="2"
+                    android:maxWidth="200dp"
                     android:textColor="@color/accentText" />
 
                 <ImageView

@@ -1053,10 +1053,11 @@ class MainActivity : AppCompatActivity() {
             setItemViewCacheSize(12)
             // Inside apply{} `findViewById` is the list's own — the title lives on the activity.
             CollapsingTitle.attach(
-                this,
+                this@MainActivity.findViewById(R.id.recentsAppBar),
                 this@MainActivity.findViewById(R.id.recentsHeader),
                 this@MainActivity.findViewById(R.id.recentsTitle),
-                this@MainActivity.findViewById(R.id.recentsTitleSmall)
+                this@MainActivity.findViewById(R.id.recentsTitleSmall),
+                proportion = 0.36f
             )
         }
 
@@ -1122,7 +1123,7 @@ class MainActivity : AppCompatActivity() {
     private fun applySelectionChrome(on: Boolean) {
         val vis = if (on) View.VISIBLE else View.GONE
         val hidden = if (on) View.GONE else View.VISIBLE
-        Ui.fadeChanges(findViewById(R.id.recentsRoot))
+        Ui.fadeChanges(findViewById(R.id.recentsAppBar))
         findViewById<View>(R.id.btnSelectAll).visibility = vis
         findViewById<View>(R.id.btnSelectCancel).visibility = vis
         btnRecentsFilter.visibility = hidden
@@ -1216,7 +1217,7 @@ class MainActivity : AppCompatActivity() {
     private fun setRecentsSearchOpen(open: Boolean) {
         if (recentsSearchOpen == open) return
         recentsSearchOpen = open
-        Ui.fadeChanges(findViewById(R.id.recentsRoot))
+        Ui.fadeChanges(findViewById(R.id.recentsAppBar))
         recentsSearchPanel.visibility = if (open) View.VISIBLE else View.GONE
         if (open) {
             recentsSearch.requestFocus()
@@ -1258,7 +1259,7 @@ class MainActivity : AppCompatActivity() {
             getColor(if (filtered) R.color.accentText else R.color.textSecondary)
         )
         val show = recentsSearchOpen || filtered
-        if ((recentsChips.visibility == View.VISIBLE) != show) Ui.fadeChanges(findViewById(R.id.recentsRoot))
+        if ((recentsChips.visibility == View.VISIBLE) != show) Ui.fadeChanges(findViewById(R.id.recentsAppBar))
         recentsChips.visibility = if (show) View.VISIBLE else View.GONE
     }
 
@@ -1442,11 +1443,13 @@ class MainActivity : AppCompatActivity() {
             adapter = contactsAdapter
             setHasFixedSize(true)
             setItemViewCacheSize(12)
+            // Shorter than Recents: the pinned search field sits under this one.
             CollapsingTitle.attach(
-                this,
+                this@MainActivity.findViewById(R.id.contactsAppBar),
                 this@MainActivity.findViewById(R.id.contactsHeader),
                 this@MainActivity.findViewById(R.id.contactsTitle),
-                this@MainActivity.findViewById(R.id.contactsTitleSmall)
+                this@MainActivity.findViewById(R.id.contactsTitleSmall),
+                proportion = 0.25f
             )
         }
         findViewById<View>(R.id.btnNewContact).setOnClickListener {

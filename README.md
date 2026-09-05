@@ -224,3 +224,11 @@ confirmations (delete logs, block, unblock, speed-dial assign) as glass
 dialogs with capsule buttons, call green back to a vivid #1DA84E (white
 icons 3.1:1) and the caution amber vivid in dark mode with a dark glyph,
 and a fix for the nav bar measuring full-height for a frame at launch.
+
+v3.55: fixed a crash on "Select calls" in the Recents overflow (the page root
+id is replaced by the include's id, so the fade looked up a view that never
+existed); the Recents and Contacts headers now sit on AppBarLayout so the
+header collapses before the list scrolls (no more double-moving cards at the
+top), with Contacts at 25% of the screen to make room for the pinned search
+field; long Settings values ("System default (SingTel)") wrap to two lines
+instead of clipping.

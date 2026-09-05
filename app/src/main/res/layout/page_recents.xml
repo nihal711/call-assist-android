@@ -1,39 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!--
+  Extended app bar: the AppBarLayout consumes scroll first (the tall
+  header collapses to its 56dp toolbar), and only then does the list move.
+-->
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/recentsRoot"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:layout_height="match_parent">
 
-    <!-- Extended app bar: 56dp toolbar row at the top, large title
-         centred in the tall header; CollapsingTitle drives the height. -->
-    <FrameLayout
-        android:id="@+id/recentsHeader"
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/recentsAppBar"
         android:layout_width="match_parent"
-        android:layout_height="200dp">
-
-    <TextView
-        android:id="@+id/recentsTitle"
-        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:layout_marginTop="40dp"
-        android:ellipsize="end"
-        android:gravity="center"
-        android:maxLines="1"
-        android:paddingStart="24dp"
-        android:paddingEnd="24dp"
-        android:text="@string/recents"
-        android:textColor="@color/textPrimary"
-        android:textSize="32sp"
-        android:textStyle="bold" />
+        android:background="@color/bg"
+        android:stateListAnimator="@null"
+        app:elevation="0dp"
+        app:liftOnScroll="false">
+
+        <com.google.android.material.appbar.CollapsingToolbarLayout
+            android:id="@+id/recentsHeader"
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:minHeight="56dp"
+            app:contentScrim="@null"
+            app:layout_scrollFlags="scroll|exitUntilCollapsed"
+            app:statusBarScrim="@null"
+            app:titleEnabled="false">
+
+            <TextView
+                android:id="@+id/recentsTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginTop="40dp"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:paddingStart="24dp"
+                android:paddingEnd="24dp"
+                android:text="@string/recents"
+                android:textColor="@color/textPrimary"
+                android:textSize="32sp"
+                android:textStyle="bold"
+                app:layout_collapseMode="parallax"
+                app:layout_collapseParallaxMultiplier="0.6" />
 
     <LinearLayout
         android:id="@+id/recentsToolbar"
         android:layout_width="match_parent"
         android:layout_height="56dp"
         android:layout_gravity="top"
+        app:layout_collapseMode="pin"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="16dp"
@@ -116,7 +134,7 @@
             android:textStyle="bold"
             android:visibility="gone" />
     </LinearLayout>
-    </FrameLayout>
+        </com.google.android.material.appbar.CollapsingToolbarLayout>
 
     <FrameLayout
         android:id="@+id/recentsSearchPanel"
@@ -233,6 +251,14 @@
         </LinearLayout>
     </HorizontalScrollView>
 
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
     <!-- Wide screens: list on the left, detail card on the right -->
     <LinearLayout
         android:layout_width="match_parent"
@@ -325,4 +351,5 @@
                 android:layout_height="wrap_content" />
         </FrameLayout>
     </LinearLayout>
-</LinearLayout>
+    </LinearLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
