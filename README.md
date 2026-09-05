@@ -241,3 +241,8 @@ ignored when our own volume-key silence caused it). Answering from the
 heads-up banner opens the call screen. A call-waiting
 ring while the call screen is showing no longer stacks a heads-up banner over
 it. Gate automation code is untouched.
+
+v3.57: the collapsed incoming-call notification carries its own Decline and
+Answer buttons (Samsung's shade hides CallStyle's until expanded, and Do not disturb
+suppresses the heads-up that would have shown them). Expanded view and
+heads-up banner stay the system's CallStyle.

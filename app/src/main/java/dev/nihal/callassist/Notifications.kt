@@ -137,6 +137,10 @@ object Notifications {
                     )
                 )
             }
+            // Collapsed row with its own Decline / Answer: under Do not disturb
+            // there is no heads-up, and Samsung's collapsed CallStyle hides the
+            // buttons until expanded. Expanded + heads-up stay CallStyle.
+            b.setCustomContentView(incomingViews(ctx, label, number, sim, photo))
             return b.build()
         }
         b.setStyle(Notification.DecoratedCustomViewStyle())
@@ -147,6 +151,32 @@ object Notifications {
             callViews(ctx, R.layout.notification_call_big, label, number, sim, photo, muted, speaker, bluetooth, stateLabel, connectedAt)
         )
         return b.build()
+    }
+
+    private fun incomingViews(
+        ctx: Context,
+        label: String,
+        number: String?,
+        sim: String?,
+        photo: Bitmap?
+    ): android.widget.RemoteViews {
+        val rv = android.widget.RemoteViews(ctx.packageName, R.layout.notification_call_incoming)
+        if (photo != null) {
+            rv.setImageViewBitmap(R.id.notifPhoto, photo)
+        } else {
+            rv.setImageViewResource(R.id.notifPhoto, R.drawable.ic_person)
+            rv.setInt(R.id.notifPhoto, "setColorFilter", ctx.getColor(R.color.textSecondary))
+            val pad = (8 * ctx.resources.displayMetrics.density).toInt()
+            rv.setViewPadding(R.id.notifPhoto, pad, pad, pad, pad)
+        }
+        rv.setTextViewText(R.id.notifName, label)
+        val parts = mutableListOf("Incoming call")
+        if (number != null && number != label) parts.add(number)
+        sim?.let { parts.add(it) }
+        rv.setTextViewText(R.id.notifStatus, parts.joinToString("  ·  "))
+        rv.setOnClickPendingIntent(R.id.notifDecline, actionPending(ctx, CallActionReceiver.ACTION_DECLINE, 11))
+        rv.setOnClickPendingIntent(R.id.notifAnswer, actionPending(ctx, CallActionReceiver.ACTION_ANSWER, 10))
+        return rv
     }
 
     private fun callViews(
