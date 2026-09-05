@@ -19,11 +19,13 @@
     <!-- Hairline edge for glass panels and cards: same perceptual weight in both themes -->
     <color name="glassStroke">#1F000000</color>
     <color name="glassBlurFill">#B8F4F4F8</color>
-    <color name="green">#12873C</color>
+    <color name="green">#1DA84E</color>
     <color name="greenText">#117A38</color>
     <color name="red">#D2371F</color>
     <color name="redText">#C8321E</color>
     <color name="amber">#9E6800</color>
+    <!-- Glyph colour on an amber fill: white in light, near-black on the vivid dark amber -->
+    <color name="onAmber">#FFFFFF</color>
     <color name="rowPressed">#E0E0E8</color>
     <color name="sheetBg">#FFFFFF</color>
     <!-- Search / input pill: tonal against the page, not the card white -->

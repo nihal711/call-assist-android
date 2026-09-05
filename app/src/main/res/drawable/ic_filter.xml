@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Single-weight outline set: 1.75dp round-capped stroke in a 24dp viewport -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
-        android:fillColor="#FF000000"
-        android:pathData="M3,6h18v2H3V6zM3,11h12v2H3v-2zM3,16h7v2H3v-2zM15,14l3,4 3,-4h-6z" />
+        android:fillColor="#00000000"
+        android:strokeColor="#FF000000"
+        android:strokeWidth="1.75"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M3.5,7H20.5M6.5,12H17.5M10,17H14" />
 </vector>

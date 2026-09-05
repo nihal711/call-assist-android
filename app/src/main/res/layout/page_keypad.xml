@@ -232,14 +232,14 @@
 
                 <TextView
                     android:id="@+id/simChipBadge"
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
                     android:importantForAccessibility="no" />
 
                 <ImageView
                     android:id="@+id/simChipIcon"
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
                     android:importantForAccessibility="no"
                     android:src="@drawable/ic_sim"
                     android:visibility="gone"

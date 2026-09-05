@@ -63,7 +63,10 @@ class GlassNavBar @JvmOverloads constructor(
         bubble.background = GradientDrawable().apply {
             setColor(ContextCompat.getColor(context, R.color.navBubble))
         }
-        addView(bubble)
+        // Explicit 0×0 params: a plain View added with the default MATCH_PARENT
+        // params measures to the whole screen under the bar's wrap_content, so the
+        // bar came up full-height for a frame and visibly shrank into place.
+        addView(bubble, LayoutParams(0, 0))
         row.orientation = LinearLayout.HORIZONTAL
         addView(row, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
@@ -83,7 +86,7 @@ class GlassNavBar @JvmOverloads constructor(
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
                 // Vertical padding, not a fixed bar height, so labels can grow with the font scale.
-                setPadding(0, dp(7), 0, dp(7))
+                setPadding(0, dp(8), 0, dp(8))
                 importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
                 isFocusable = true
                 isClickable = true

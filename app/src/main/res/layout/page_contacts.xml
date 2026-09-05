@@ -6,24 +6,47 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
+    <FrameLayout
+        android:id="@+id/contactsHeader"
+        android:layout_width="match_parent"
+        android:layout_height="200dp">
+
+    <TextView
+        android:id="@+id/contactsTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginTop="40dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:text="@string/contacts"
+        android:textColor="@color/textPrimary"
+        android:textSize="32sp"
+        android:textStyle="bold" />
+
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="56dp"
+        android:layout_gravity="top"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="16dp"
         android:paddingEnd="8dp">
 
         <TextView
-            android:id="@+id/contactsTitle"
-            style="@style/Text.PageTitle"
+            android:id="@+id/contactsTitleSmall"
+            style="@style/Text.Heading"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:alpha="0"
+            android:ellipsize="end"
+            android:maxLines="1"
             android:paddingStart="8dp"
-            android:paddingTop="24dp"
             android:paddingEnd="8dp"
-            android:paddingBottom="8dp"
             android:text="@string/contacts" />
 
         <ImageButton
@@ -38,13 +61,14 @@
             android:contentDescription="@string/more_options"
             android:src="@drawable/ic_more_vert" />
     </LinearLayout>
+    </FrameLayout>
 
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="4dp"
-        android:layout_marginEnd="16dp">
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="8dp">
 
         <EditText
             android:id="@+id/contactSearch"

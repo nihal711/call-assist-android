@@ -235,7 +235,7 @@ class ContactsAdapter(
         }
         val density = ctx.resources.displayMetrics.density
         // 44dp minimum row so each number is a real tap target
-        val padV = (10 * density).toInt()
+        val padV = (12 * density).toInt()
         val padH = (8 * density).toInt()
         val minH = (44 * density).toInt()
         box.removeAllViews()

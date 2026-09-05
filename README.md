@@ -215,3 +215,12 @@ cross-fades for tab, search and in-call state changes; a decline button on
 the locked incoming screen; the keypad auto-shrinks long numbers and rows
 drop to 72dp so a 360×640 screen keeps its suggestions; speed dial on 2–9;
 portrait lock on phones; RTL mirroring; TalkBack selection/expand state.
+
+v3.54: extended app bar on Recents and Contacts (title centred in a
+header 36% of the screen, collapsing to a 56dp toolbar whose small title
+fades in), single-weight 1.75dp outline icon set for the header, nav and
+list glyphs, every gap on the 4/8dp grid with 16dp SIM badges, yes/no
+confirmations (delete logs, block, unblock, speed-dial assign) as glass
+dialogs with capsule buttons, call green back to a vivid #1DA84E (white
+icons 3.1:1) and the caution amber vivid in dark mode with a dark glyph,
+and a fix for the nav bar measuring full-height for a frame at launch.

@@ -22,6 +22,6 @@
     <!-- Gap between consecutive status issue rows on the Gate tab -->
     <dimen name="status_row_gap">8dp</dimen>
     <!-- Floating nav: 58dp bar + 6dp margin + 8dp clearance -->
-    <dimen name="nav_content_clearance">72dp</dimen>
+    <dimen name="nav_content_clearance">76dp</dimen>
     <dimen name="nav_width">264dp</dimen>
 </resources>

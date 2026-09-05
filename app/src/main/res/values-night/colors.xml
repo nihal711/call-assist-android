@@ -13,11 +13,12 @@
     <color name="navBubble">#FF3A3A3E</color>
     <color name="glassStroke">#1FFFFFFF</color>
     <color name="glassBlurFill">#99202024</color>
-    <color name="green">#12873C</color>
+    <color name="green">#1DA84E</color>
     <color name="greenText">#34C46A</color>
     <color name="red">#D2371F</color>
     <color name="redText">#FF6E5A</color>
-    <color name="amber">#B87A00</color>
+    <color name="amber">#FFC107</color>
+    <color name="onAmber">#17171A</color>
     <color name="rowPressed">#3A3A3E</color>
     <color name="sheetBg">#28282C</color>
     <color name="fieldBg">#222226</color>

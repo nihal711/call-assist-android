@@ -206,7 +206,7 @@ object SimUtil {
     // ---------------- Shared UI pieces ----------------
 
     /** Small coloured square carrying the slot number; the SIM's identity everywhere in the app. */
-    fun badge(ctx: Context, sim: Sim, sizeDp: Int = 18): TextView =
+    fun badge(ctx: Context, sim: Sim, sizeDp: Int = 16): TextView =
         TextView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(dp(ctx, sizeDp), dp(ctx, sizeDp))
             bind(this, sim)

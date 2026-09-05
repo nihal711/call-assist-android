@@ -32,7 +32,7 @@
                 android:background="@drawable/bg_circle"
                 android:backgroundTint="@color/green"
                 android:contentDescription="@null"
-                android:padding="10dp"
+                android:padding="8dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_phone"
                 app:tint="#FFFFFF" />
@@ -124,8 +124,8 @@
         android:layout_height="wrap_content"
         android:minHeight="58dp"
         android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="6dp"
-        android:elevation="10dp" />
+        android:layout_marginBottom="8dp"
+        android:elevation="8dp" />
 
     <!-- Recents selection mode: swaps in for the nav bar -->
     <LinearLayout
@@ -134,9 +134,9 @@
         android:layout_height="wrap_content"
         android:minHeight="58dp"
         android:layout_gravity="bottom|center_horizontal"
-        android:layout_marginBottom="6dp"
+        android:layout_marginBottom="8dp"
         android:background="@drawable/bg_navbar"
-        android:elevation="10dp"
+        android:elevation="8dp"
         android:orientation="horizontal"
         android:visibility="gone">
 

@@ -185,6 +185,7 @@ class MainActivity : AppCompatActivity() {
 
     // Recents selection mode (long-press)
     private lateinit var recentsTitle: TextView
+    private lateinit var recentsTitleSmall: TextView
     private lateinit var recentsSelectBar: View
     private lateinit var selectAllIcon: ImageView
     private var pendingDeleteIds: List<Long>? = null
@@ -792,10 +793,9 @@ class MainActivity : AppCompatActivity() {
             confirmCall(saved)
             return
         }
-        Sheet(this)
+        GlassConfirm(this)
             .title("Speed dial $key")
             .message("No number is assigned to this key yet. Pick a contact to call it with a long press.")
-            .negative()
             .positive("Assign") {
                 speedDialKey = key
                 try {
@@ -1052,7 +1052,12 @@ class MainActivity : AppCompatActivity() {
             // to this tab rebinds instead of re-inflating.
             setItemViewCacheSize(12)
             // Inside apply{} `findViewById` is the list's own — the title lives on the activity.
-            CollapsingTitle.attach(this, this@MainActivity.findViewById(R.id.recentsTitle), 26f, 20f, 24, 8)
+            CollapsingTitle.attach(
+                this,
+                this@MainActivity.findViewById(R.id.recentsHeader),
+                this@MainActivity.findViewById(R.id.recentsTitle),
+                this@MainActivity.findViewById(R.id.recentsTitleSmall)
+            )
         }
 
         RecentsSwipeCallback(this, recentsAdapter, { confirmCall(it) }, { openSms(it) }).attach(recentsList)
@@ -1083,6 +1088,7 @@ class MainActivity : AppCompatActivity() {
         btnRecentsFilter.setOnClickListener { showRecentsFilterDialog() }
 
         recentsTitle = findViewById(R.id.recentsTitle)
+        recentsTitleSmall = findViewById(R.id.recentsTitleSmall)
         recentsSelectBar = findViewById(R.id.recentsSelectBar)
         selectAllIcon = findViewById(R.id.selectAllIcon)
         recentsAdapter.onLongPress = { e ->
@@ -1130,11 +1136,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun renderSelectionState() {
         if (!recentsAdapter.selectionMode) {
-            recentsTitle.text = "Recents"
+            recentsTitle.text = getString(R.string.recents)
+            recentsTitleSmall.text = getString(R.string.recents)
             return
         }
         val n = recentsAdapter.selectedCount()
         recentsTitle.text = if (n == 0) "Select calls" else "$n selected"
+        recentsTitleSmall.text = recentsTitle.text
         val all = recentsAdapter.allSelected()
         selectAllIcon.setImageResource(if (all) R.drawable.ic_check_circle else R.drawable.ic_circle)
         selectAllIcon.imageTintList = ColorStateList.valueOf(
@@ -1166,10 +1174,9 @@ class MainActivity : AppCompatActivity() {
             return
         }
         val n = ids.size
-        Sheet(this)
+        GlassConfirm(this)
             .title(if (n == 1) "Delete call log?" else "Delete $n call logs?")
             .message("This removes ${if (n == 1) "it" else "them"} from the phone's call history.")
-            .negative()
             .positive("Delete", destructive = true) {
                 if (has(Manifest.permission.WRITE_CALL_LOG)) {
                     deleteCallLogs(ids)
@@ -1435,7 +1442,12 @@ class MainActivity : AppCompatActivity() {
             adapter = contactsAdapter
             setHasFixedSize(true)
             setItemViewCacheSize(12)
-            CollapsingTitle.attach(this, this@MainActivity.findViewById(R.id.contactsTitle), 26f, 20f, 24, 8)
+            CollapsingTitle.attach(
+                this,
+                this@MainActivity.findViewById(R.id.contactsHeader),
+                this@MainActivity.findViewById(R.id.contactsTitle),
+                this@MainActivity.findViewById(R.id.contactsTitleSmall)
+            )
         }
         findViewById<View>(R.id.btnNewContact).setOnClickListener {
             try {
@@ -1755,7 +1767,9 @@ class MainActivity : AppCompatActivity() {
         badge.setImageResource(if (issues.isEmpty()) R.drawable.ic_check_small else R.drawable.ic_gate_warn)
         // Both glyphs sit on the coloured pill, so force white over whatever
         // tint they carry (ic_gate_warn defaults to a grey control colour).
-        badge.imageTintList = android.content.res.ColorStateList.valueOf(0xFFFFFFFF.toInt())
+        badge.imageTintList = android.content.res.ColorStateList.valueOf(
+            if (blockers == 0 && issues.isNotEmpty()) getColor(R.color.onAmber) else 0xFFFFFFFF.toInt()
+        )
         headline.text = when {
             blockers > 0 -> "Automation is off"
             issues.isNotEmpty() -> "Ready, with warnings"
@@ -2079,10 +2093,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun confirmBlock(number: String) {
-        Sheet(this)
+        GlassConfirm(this)
             .title("Block ${fmt(number)}?")
             .message("Calls from this number will be rejected system-wide. You can unblock it in Settings → Blocked numbers.")
-            .negative()
             .positive("Block", destructive = true) { BlockedNumbersActivity.block(this, number) }
             .show()
     }

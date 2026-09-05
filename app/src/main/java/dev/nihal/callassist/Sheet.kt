@@ -82,7 +82,7 @@ class Sheet(private val ctx: Context) {
         val root = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             setBackgroundResource(R.drawable.bg_sheet)
-            setPadding(dp(20), dp(10), dp(20), dp(14))
+            setPadding(dp(20), dp(8), dp(20), dp(16))
         }
         // Drag handle: the standard cue that the panel is dismissible.
         root.addView(View(ctx).apply { setBackgroundResource(R.drawable.bg_sheet_handle) },
@@ -96,7 +96,7 @@ class Sheet(private val ctx: Context) {
                 textSize = 20f
                 setTextColor(primary)
                 setTypeface(typeface, Typeface.BOLD)
-                setPadding(dp(8), 0, dp(8), dp(6))
+                setPadding(dp(8), 0, dp(8), dp(8))
             })
         }
         message?.let {
@@ -105,7 +105,7 @@ class Sheet(private val ctx: Context) {
                 textSize = 15f
                 setTextColor(secondary)
                 setLineSpacing(0f, 1.15f)
-                setPadding(dp(8), dp(6), dp(8), dp(6))
+                setPadding(dp(8), dp(8), dp(8), dp(8))
             })
         }
         custom?.let { v ->
@@ -201,7 +201,7 @@ class Sheet(private val ctx: Context) {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             minimumHeight = dp(54)
-            setPadding(dp(10), dp(6), dp(10), dp(6))
+            setPadding(dp(12), dp(8), dp(12), dp(8))
             setBackgroundResource(R.drawable.bg_sheet_row)
             lead?.let { iv ->
                 addView(iv, LinearLayout.LayoutParams(dp(24), dp(24)).apply { marginEnd = dp(20) })

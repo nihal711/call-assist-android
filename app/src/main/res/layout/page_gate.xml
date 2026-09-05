@@ -12,45 +12,54 @@
     android:paddingEnd="16dp"
     android:paddingBottom="@dimen/nav_content_clearance">
 
-    <LinearLayout
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:layout_marginEnd="-8dp"
-        android:orientation="horizontal">
+        android:layout_height="120dp"
+        android:layout_marginStart="-16dp"
+        android:layout_marginEnd="-16dp">
 
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:paddingStart="8dp"
-            android:paddingTop="24dp"
-            android:paddingBottom="8dp">
+            android:layout_gravity="center"
+            android:layout_marginTop="32dp"
+            android:gravity="center"
+            android:orientation="vertical">
 
             <TextView
-                style="@style/Text.PageTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:includeFontPadding="false"
-                android:text="@string/gate" />
+                android:text="@string/gate"
+                android:textColor="@color/textPrimary"
+                android:textSize="32sp"
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/versionText"
                 style="@style/Text.Caption"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="4dp"
                 android:includeFontPadding="false"
                 android:textColor="@color/textSecondary" />
         </LinearLayout>
 
-        <ImageButton
-            android:id="@+id/btnGateMore"
-            style="@style/HeaderAction"
-            android:contentDescription="@string/more_options"
-            android:src="@drawable/ic_more_vert" />
-    </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_gravity="top"
+            android:gravity="center_vertical|end"
+            android:orientation="horizontal"
+            android:paddingEnd="8dp">
+
+            <ImageButton
+                android:id="@+id/btnGateMore"
+                style="@style/HeaderAction"
+                android:contentDescription="@string/more_options"
+                android:src="@drawable/ic_more_vert" />
+        </LinearLayout>
+    </FrameLayout>
 
     <!-- Status and automation belong together, so they share one dense card. -->
     <LinearLayout
@@ -262,9 +271,9 @@
                 android:gravity="center_vertical"
                 android:orientation="vertical"
                 android:paddingStart="12dp"
-                android:paddingTop="6dp"
+                android:paddingTop="8dp"
                 android:paddingEnd="12dp"
-                android:paddingBottom="6dp">
+                android:paddingBottom="8dp">
 
                 <TextView
                     style="@style/Text.Caption"
@@ -301,9 +310,9 @@
                 android:gravity="center_vertical"
                 android:orientation="vertical"
                 android:paddingStart="12dp"
-                android:paddingTop="6dp"
+                android:paddingTop="8dp"
                 android:paddingEnd="12dp"
-                android:paddingBottom="6dp">
+                android:paddingBottom="8dp">
 
                 <TextView
                     style="@style/Text.Caption"

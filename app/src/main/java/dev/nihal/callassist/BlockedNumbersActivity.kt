@@ -28,10 +28,9 @@ class BlockedNumbersActivity : AppCompatActivity() {
         Ui.emptyState(empty, R.drawable.ic_block)
         adapter = RowAdapter { row ->
             val id = row.payload as Long
-            Sheet(this)
+            GlassConfirm(this)
                 .title(row.title)
                 .message("Unblock this number?")
-                .negative()
                 .positive("Unblock") {
                     try {
                         contentResolver.delete(
