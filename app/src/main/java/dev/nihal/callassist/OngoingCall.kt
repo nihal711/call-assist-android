@@ -16,6 +16,16 @@ object OngoingCall {
 
     private val listeners = CopyOnWriteArraySet<() -> Unit>()
 
+    /**
+     * Fired when the system silences the ringer (power key on Samsung phones, a
+     * "silence" from the shade, a headset). The incoming screen turns this
+     * into a decline when it is the one showing the ring.
+     */
+    private val silenceListeners = CopyOnWriteArraySet<() -> Unit>()
+    fun notifySilenced() = silenceListeners.forEach { it() }
+    fun addSilenceListener(l: () -> Unit) = silenceListeners.add(l)
+    fun removeSilenceListener(l: () -> Unit) = silenceListeners.remove(l)
+
     fun set(c: Call, lbl: String, photo: Uri?, knownContact: Boolean = false) {
         call = c
         label = lbl

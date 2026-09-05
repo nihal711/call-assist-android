@@ -42,7 +42,15 @@ import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 
 class InCallActivity : AppCompatActivity() {
 
+    companion object {
+        /** True while the call screen is resumed; the service uses it to skip heads-up banners. */
+        @Volatile var visible = false
+            private set
+    }
+
     private val handler = Handler(Looper.getMainLooper())
+    /** When our own volume-key handler last silenced the ringer; that silence is not a decline. */
+    private var volumeSilencedAt = 0L
     private var boundCall: Call? = null
     private var muted = false
     private var speaker = false
@@ -109,10 +117,28 @@ class InCallActivity : AppCompatActivity() {
         }
     }
 
-    // Power button while ringing: the screen turning off is our signal (apps
-    // can't see the power key itself). This receiver is registered only while
-    // the activity is visible; FLAG_KEEP_SCREEN_ON then means a timeout cannot
-    // fire it, while a background call screen cannot reject a waiting call.
+    // Power button while ringing, first press: Samsung phones answer it by silencing
+    // the ringer and keeping the screen on, which telecom reports as
+    // onSilenceRinger. With the ringing screen up that press is a decline —
+    // unless the silence came from our own volume-key handler.
+    private val silenceListener: () -> Unit = {
+        runOnUiThread {
+            val call = boundCall
+            if (visible && call != null && call.stateCompat() == Call.STATE_RINGING &&
+                SystemClock.elapsedRealtime() - volumeSilencedAt > 1_000
+            ) {
+                haptic(findViewById(R.id.contentColumn))
+                try {
+                    call.reject(false, null)
+                } catch (_: Exception) {
+                }
+            }
+        }
+    }
+
+    // Second press (or any device that sleeps on the first): the screen turning
+    // off is the fallback signal. Registered only while the activity is visible;
+    // FLAG_KEEP_SCREEN_ON means a timeout cannot fire it.
     private val screenOffReceiver = object : BroadcastReceiver() {
         override fun onReceive(c: Context?, i: Intent?) {
             val call = boundCall ?: return
@@ -294,9 +320,21 @@ class InCallActivity : AppCompatActivity() {
             registerReceiver(screenOffReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF))
             receiverRegistered = true
         }
+        OngoingCall.addSilenceListener(silenceListener)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        visible = true
+    }
+
+    override fun onPause() {
+        visible = false
+        super.onPause()
     }
 
     override fun onStop() {
+        OngoingCall.removeSilenceListener(silenceListener)
         if (receiverRegistered) {
             try {
                 unregisterReceiver(screenOffReceiver)
@@ -325,6 +363,7 @@ class InCallActivity : AppCompatActivity() {
             boundCall?.stateCompat() == Call.STATE_RINGING
         ) {
             // Silence ring + vibration locally; the caller keeps hearing ringback.
+            volumeSilencedAt = SystemClock.elapsedRealtime()
             try {
                 getSystemService(TelecomManager::class.java).silenceRinger()
             } catch (_: Exception) {

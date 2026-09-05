@@ -232,3 +232,12 @@ header collapses before the list scrolls (no more double-moving cards at the
 top), with Contacts at 25% of the screen to make room for the pinned search
 field; long Settings values ("System default (SingTel)") wrap to two lines
 instead of clipping.
+
+v3.56: call behaviour made consistent. One press of the power button now
+declines a ringing call on the incoming screen (Samsung phones use the first press to
+silence the ringer and keeps the screen on, so the old screen-off hook only
+saw the second press; telecom's onSilenceRinger is the first-press signal,
+ignored when our own volume-key silence caused it). Answering from the
+heads-up banner opens the call screen. A call-waiting
+ring while the call screen is showing no longer stacks a heads-up banner over
+it. Gate automation code is untouched.

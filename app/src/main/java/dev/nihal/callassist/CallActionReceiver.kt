@@ -11,7 +11,17 @@ class CallActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val svc = CallService.instance
         when (intent.action) {
-            ACTION_ANSWER -> OngoingCall.call?.answer(VideoProfile.STATE_AUDIO_ONLY)
+            ACTION_ANSWER -> {
+                OngoingCall.call?.answer(VideoProfile.STATE_AUDIO_ONLY)
+                // Answered from the heads-up banner: bring up the call screen,
+                // as users expect, instead of leaving only the notification.
+                try {
+                    context.startActivity(
+                        Intent(context, InCallActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
+                } catch (_: Exception) {
+                }
+            }
             ACTION_DECLINE -> OngoingCall.call?.reject(false, null)
             ACTION_HANGUP -> OngoingCall.call?.disconnect()
             // The audio-state callback re-posts the notification with the new labels.

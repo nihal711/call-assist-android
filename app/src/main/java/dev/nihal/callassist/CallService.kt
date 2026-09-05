@@ -175,6 +175,16 @@ class CallService : InCallService() {
         super.onDestroy()
     }
 
+    /**
+     * The first power press during a ring silences the ringer on Samsung phones and
+     * leaves the screen on, so a screen-off receiver alone only sees the
+     * second press. Telecom reports that first press here.
+     */
+    override fun onSilenceRinger() {
+        super.onSilenceRinger()
+        OngoingCall.notifySilenced()
+    }
+
     override fun onCallAudioStateChanged(audioState: CallAudioState) {
         super.onCallAudioStateChanged(audioState)
         updateProximity()
@@ -247,7 +257,9 @@ class CallService : InCallService() {
                 val km = getSystemService(KeyguardManager::class.java)
                 val pm = getSystemService(PowerManager::class.java)
                 val deviceInUse = pm.isInteractive && !km.isKeyguardLocked
-                val headsUp = ringing && deviceInUse
+                // Call waiting while our own call screen is up: it shows the
+                // ringing call itself, so no banner may stack on top of it.
+                val headsUp = ringing && deviceInUse && !InCallActivity.visible
                 showNotification(call, label, number, photo, quiet = !headsUp)
                 if (headsUp) return@post
                 try {
