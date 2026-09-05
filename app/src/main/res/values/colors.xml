@@ -2,27 +2,30 @@
 <resources>
     <color name="ic_launcher_bg">#0381FE</color>
 
-    <!-- Light palette (dark overrides in values-night) -->
+    <!-- Light palette (dark overrides in values-night).
+         Fill tokens carry white glyphs/text (>= 4.5:1 on the fill);
+         *Text tokens are for coloured text/icons on surfaces (>= 4.5:1 on card2). -->
     <color name="bg">#F4F4F8</color>
     <color name="card">#FFFFFF</color>
     <color name="card2">#ECECF1</color>
     <color name="textPrimary">#17171A</color>
-    <!-- AA against the light card2 surface as well as the page background. -->
     <color name="textSecondary">#686872</color>
     <color name="accent">#2E6FE8</color>
+    <color name="accentText">#1F5FD6</color>
     <color name="accentSoft">#DCE8FF</color>
     <color name="trackBg">#14000000</color>
     <color name="navBg">#F2F4F4F8</color>
     <color name="navBubble">#E8E4E4EA</color>
-    <!-- Hairline highlight that gives glass panels an edge against the page -->
-    <color name="glassStroke">#14000000</color>
-    <!-- Fill used when real blur is active; far more transparent -->
+    <!-- Hairline edge for glass panels and cards: same perceptual weight in both themes -->
+    <color name="glassStroke">#1F000000</color>
     <color name="glassBlurFill">#B8F4F4F8</color>
-    <color name="green">#26B858</color>
-    <color name="red">#F4523B</color>
-    <color name="amber">#FFC107</color>
-    <!-- Ripple/pressed fill for the tappable status issue rows -->
+    <color name="green">#12873C</color>
+    <color name="greenText">#117A38</color>
+    <color name="red">#D2371F</color>
+    <color name="redText">#C8321E</color>
+    <color name="amber">#9E6800</color>
     <color name="rowPressed">#E0E0E8</color>
-    <!-- Bottom sheet surface -->
     <color name="sheetBg">#FFFFFF</color>
+    <!-- Search / input pill: tonal against the page, not the card white -->
+    <color name="fieldBg">#E6E6EC</color>
 </resources>

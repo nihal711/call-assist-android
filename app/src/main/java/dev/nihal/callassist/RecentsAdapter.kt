@@ -139,7 +139,10 @@ class RecentsAdapter(
     class EntryVH(v: View) : RecyclerView.ViewHolder(v) {
         val row: View = v.findViewById(R.id.recentRow)
         val check: ImageView = v.findViewById(R.id.recentCheck)
+        val rowAvatar: TextView = v.findViewById(R.id.rowAvatar)
+        val rowPhoto: ImageView = v.findViewById(R.id.rowPhoto)
         val icon: ImageView = v.findViewById(R.id.recentIcon)
+        val sub: TextView = v.findViewById(R.id.recentSub)
         val title: TextView = v.findViewById(R.id.recentTitle)
         val sim: TextView = v.findViewById(R.id.recentSim)
         val time: TextView = v.findViewById(R.id.recentTime)
@@ -170,9 +173,9 @@ class RecentsAdapter(
     override fun getItemCount() = items.size
 
     private fun iconFor(ctx: android.content.Context, type: Int): Pair<Int, Int> {
-        val green = ContextCompat.getColor(ctx, R.color.green)
-        val red = ContextCompat.getColor(ctx, R.color.red)
-        val accent = ContextCompat.getColor(ctx, R.color.accent)
+        val green = ContextCompat.getColor(ctx, R.color.greenText)
+        val red = ContextCompat.getColor(ctx, R.color.redText)
+        val accent = ContextCompat.getColor(ctx, R.color.accentText)
         val gray = ContextCompat.getColor(ctx, R.color.textSecondary)
         return when (type) {
             CallLog.Calls.OUTGOING_TYPE -> R.drawable.ic_call_out to green
@@ -182,14 +185,16 @@ class RecentsAdapter(
         }
     }
 
+    private fun typeLabel(type: Int): String = when (type) {
+        CallLog.Calls.OUTGOING_TYPE -> "Outgoing call"
+        CallLog.Calls.MISSED_TYPE -> "Missed call"
+        CallLog.Calls.REJECTED_TYPE -> "Rejected call"
+        CallLog.Calls.BLOCKED_TYPE -> "Blocked call"
+        else -> "Incoming call"
+    }
+
     private fun statusText(e: Item.Entry): String {
-        val base = when (e.type) {
-            CallLog.Calls.OUTGOING_TYPE -> "Outgoing call"
-            CallLog.Calls.MISSED_TYPE -> "Missed call"
-            CallLog.Calls.REJECTED_TYPE -> "Rejected call"
-            CallLog.Calls.BLOCKED_TYPE -> "Blocked call"
-            else -> "Incoming call"
-        }
+        val base = typeLabel(e.type)
         val withDuration = e.type == CallLog.Calls.OUTGOING_TYPE || e.type == CallLog.Calls.INCOMING_TYPE
         return if (withDuration) "$base, ${e.duration / 60} mins ${e.duration % 60} secs" else base
     }
@@ -219,7 +224,7 @@ class RecentsAdapter(
             is Item.Header -> (h as HeaderVH).text.text = item.text
             is Item.Entry -> {
                 h as EntryVH
-                val red = ContextCompat.getColor(ctx, R.color.red)
+                val red = ContextCompat.getColor(ctx, R.color.redText)
                 val gray = ContextCompat.getColor(ctx, R.color.textSecondary)
                 val isExpanded = key(item) == expandedKey && !selectionMode && onSelect == null
                 val (iconRes, tint) = iconFor(ctx, item.type)
@@ -232,9 +237,15 @@ class RecentsAdapter(
                 if (!isExpanded) {
                     h.icon.setImageResource(iconRes)
                     h.icon.imageTintList = ColorStateList.valueOf(tint)
+                    val label = typeLabel(item.type)
+                    h.sub.text = label
+                    h.sub.setTextColor(if (item.type == CallLog.Calls.MISSED_TYPE) red else gray)
                     h.title.text = if (item.count > 1) "${item.title} (${item.count})" else item.title
                     h.time.text = item.time
                     h.time.setTextColor(if (item.type == CallLog.Calls.MISSED_TYPE) red else gray)
+                    h.rowAvatar.text = Ui.initial(item.title)
+                    h.rowAvatar.background = Ui.avatarBg(item.title)
+                    Ui.loadPhoto(ctx, h.rowPhoto, ContactsRepo.lookupCached(item.number)?.photoUri)
                     if (item.sim != null) {
                         SimUtil.bind(h.sim, item.sim)
                         h.sim.visibility = View.VISIBLE
@@ -242,11 +253,28 @@ class RecentsAdapter(
                         h.sim.visibility = View.GONE
                     }
                     h.check.visibility = if (selectionMode) View.VISIBLE else View.GONE
+                    // TalkBack: type and time are visual-only children, so the row
+                    // carries the whole sentence; selection is exposed as state.
+                    h.row.contentDescription = buildString {
+                        append(h.title.text); append(", "); append(label); append(", "); append(item.time)
+                        item.sim?.let { append(", SIM ${it.slot + 1} ${it.name}") }
+                    }
                     if (selectionMode) {
                         val on = key(item) in selected
                         h.check.setImageResource(if (on) R.drawable.ic_check_circle else R.drawable.ic_circle)
                         h.check.imageTintList = ColorStateList.valueOf(
-                            if (on) ContextCompat.getColor(ctx, R.color.accent) else gray
+                            if (on) ContextCompat.getColor(ctx, R.color.accentText) else gray
+                        )
+                        androidx.core.view.ViewCompat.setStateDescription(h.row, if (on) "Selected" else "Not selected")
+                        androidx.core.view.ViewCompat.replaceAccessibilityAction(
+                            h.row, androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK,
+                            if (on) "deselect" else "select", null
+                        )
+                    } else {
+                        androidx.core.view.ViewCompat.setStateDescription(h.row, null)
+                        androidx.core.view.ViewCompat.replaceAccessibilityAction(
+                            h.row, androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK,
+                            if (onSelect != null) "show details" else if (expandable) "expand" else "call", null
                         )
                     }
                     if (onSelect != null && !selectionMode && key(item) == selectedKey) {
@@ -321,9 +349,14 @@ class RecentsAdapter(
         h.expSim.visibility = simVis
         h.expSimName.visibility = simVis
         h.expTime.text = item.time
+        h.expandedHeader.contentDescription = "${h.expName.text}, ${h.expNumber.text}"
         if (detail) {
             h.expandedHeader.isClickable = false
         } else {
+            androidx.core.view.ViewCompat.replaceAccessibilityAction(
+                h.expandedHeader, androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK,
+                "collapse", null
+            )
             h.expandedHeader.setOnClickListener {
                 val p = h.bindingAdapterPosition
                 expandedKey = null

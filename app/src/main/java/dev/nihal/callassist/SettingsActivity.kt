@@ -18,8 +18,18 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<TextView>(id).text = text
     }
 
+    /** Disabled rows dim only their title and value (0.38), never the hint or chevron. */
     private fun rowEnabled(id: Int, enabled: Boolean) {
-        findViewById<View>(id).apply { isEnabled = enabled; alpha = if (enabled) 1f else 0.45f }
+        val row = findViewById<View>(id)
+        row.isEnabled = enabled
+        val a = if (enabled) 1f else 0.38f
+        val (titleId, valueId) = when (id) {
+            R.id.rowIddCode -> R.id.rowIddCodeTitle to R.id.valIddCode
+            R.id.rowBattery -> R.id.rowBatteryTitle to R.id.valBattery
+            else -> return
+        }
+        findViewById<View>(titleId).alpha = a
+        findViewById<View>(valueId).alpha = a
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -27,6 +37,7 @@ class SettingsActivity : AppCompatActivity() {
         Ui.edgeToEdge(this)
         setContentView(R.layout.activity_settings)
         Ui.applyInsets(findViewById(R.id.settingsColumn))
+        findViewById<View>(R.id.btnBack).setOnClickListener { onBackPressedDispatcher.onBackPressed() }
         if (resources.configuration.smallestScreenWidthDp >= 600) {
             (findViewById<View>(R.id.settingsColumn).layoutParams as android.widget.FrameLayout.LayoutParams).apply {
                 width = dp(640)
@@ -231,7 +242,8 @@ class SettingsActivity : AppCompatActivity() {
             this.text = "Share…"
             textSize = 15f
             gravity = android.view.Gravity.CENTER
-            setTextColor(getColor(R.color.accent))
+            setTextColor(getColor(R.color.accentText))
+            minimumHeight = dp(48)
             setBackgroundResource(R.drawable.bg_compact_tile)
             setPadding(0, dp(11), 0, dp(11))
             setOnClickListener {

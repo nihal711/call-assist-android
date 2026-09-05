@@ -82,6 +82,8 @@ class GlassNavBar @JvmOverloads constructor(
             val item = LinearLayout(context).apply {
                 orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER
+                // Vertical padding, not a fixed bar height, so labels can grow with the font scale.
+                setPadding(0, dp(7), 0, dp(7))
                 importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
                 isFocusable = true
                 isClickable = true
@@ -98,12 +100,12 @@ class GlassNavBar @JvmOverloads constructor(
             iconBox.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
             iconBox.addView(icon, LayoutParams(dp(23), dp(23), Gravity.CENTER))
             val badge = TextView(context).apply {
-                textSize = 9.5f
+                textSize = 10f
                 setTextColor(0xFFFFFFFF.toInt())
                 setTypeface(typeface, Typeface.BOLD)
                 gravity = Gravity.CENTER
                 includeFontPadding = false
-                minWidth = dp(15)
+                minWidth = dp(16)
                 setPadding(dp(4), 0, dp(4), 0)
                 background = GradientDrawable().apply {
                     setColor(ContextCompat.getColor(context, R.color.red))
@@ -112,7 +114,7 @@ class GlassNavBar @JvmOverloads constructor(
                 visibility = GONE
                 importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
             }
-            iconBox.addView(badge, LayoutParams(LayoutParams.WRAP_CONTENT, dp(15), Gravity.TOP or Gravity.END))
+            iconBox.addView(badge, LayoutParams(LayoutParams.WRAP_CONTENT, dp(16), Gravity.TOP or Gravity.END))
             badges.add(badge)
             item.addView(iconBox, LinearLayout.LayoutParams(dp(37), dp(25)))
             val label = TextView(context).apply label@{
@@ -158,10 +160,10 @@ class GlassNavBar @JvmOverloads constructor(
     }
 
     private fun itemWidth() = if (count == 0) 0f else width.toFloat() / count
-    // Compact 5dp side inset: enough separation without the oversized gaps of
-    // the previous 66dp-tall bar.
-    private fun bubbleW() = (itemWidth() - dp(10)).coerceAtLeast(0f)
-    private fun slotX(i: Int) = i * itemWidth() + dp(5)
+    // 4dp side inset: 66dp items on the 264dp bar give a 58dp bubble, wider
+    // than the longest bold label ("Contacts").
+    private fun bubbleW() = (itemWidth() - dp(8)).coerceAtLeast(0f)
+    private fun slotX(i: Int) = i * itemWidth() + dp(4)
 
     override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
         super.onSizeChanged(w, h, ow, oh)
@@ -234,7 +236,7 @@ class GlassNavBar @JvmOverloads constructor(
             MotionEvent.ACTION_MOVE -> if (dragging) {
                 moved = true
                 bubble.translationX = (e.x - bubbleW() / 2)
-                    .coerceIn(dp(5).toFloat(), width - bubbleW() - dp(5))
+                    .coerceIn(dp(4).toFloat(), width - bubbleW() - dp(4))
             }
             MotionEvent.ACTION_UP -> {
                 dragging = false

@@ -29,8 +29,8 @@ class CallAssistApp : Application() {
             AppCompatDelegate.setDefaultNightMode(
                 when (Prefs.themeMode(ctx)) {
                     "light" -> AppCompatDelegate.MODE_NIGHT_NO
-                    "system" -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-                    else -> AppCompatDelegate.MODE_NIGHT_YES
+                    "dark" -> AppCompatDelegate.MODE_NIGHT_YES
+                    else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
                 }
             )
         }

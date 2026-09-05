@@ -7,4 +7,122 @@
     <string name="shortcut_recents_long">Recent calls</string>
     <string name="shortcut_voicemail_short">Voicemail</string>
     <string name="shortcut_voicemail_long">Call voicemail</string>
+
+    <!-- Shared -->
+    <string name="cancel">Cancel</string>
+    <string name="call">Call</string>
+    <string name="message">Message</string>
+    <string name="contact">Contact</string>
+    <string name="settings">Settings</string>
+    <string name="more_options">More options</string>
+    <string name="back">Back</string>
+    <string name="delete">Delete</string>
+    <string name="allow">Allow</string>
+    <string name="select_calls">Select calls</string>
+
+    <!-- Main / banner / selection -->
+    <string name="return_to_call">Return</string>
+    <string name="copy_number">Copy number</string>
+
+    <!-- Keypad -->
+    <string name="add_to_contacts">Add to contacts</string>
+    <string name="send_message">Send message</string>
+    <string name="paste_number">Paste number</string>
+    <string name="backspace">Backspace</string>
+    <string name="show_keypad">Show keypad</string>
+    <string name="phone_number">Phone number</string>
+
+    <!-- Recents -->
+    <string name="recents">Recents</string>
+    <string name="filter_calls">Filter calls</string>
+    <string name="search_calls">Search calls</string>
+    <string name="close_search">Close search</string>
+    <string name="select_all">Select all</string>
+    <string name="all">All</string>
+    <string name="today">Today</string>
+    <string name="past_7_days">Past 7 days</string>
+    <string name="past_30_days">Past 30 days</string>
+    <string name="no_calls_yet">No calls yet</string>
+    <string name="select_a_call">Select a call</string>
+    <string name="call_history">Call history</string>
+
+    <!-- Contacts -->
+    <string name="contacts">Contacts</string>
+    <string name="new_contact">New contact</string>
+    <string name="search_contacts">Search contacts</string>
+    <string name="clear">Clear</string>
+    <string name="no_contacts">No contacts</string>
+    <string name="select_a_contact">Select a contact</string>
+    <string name="contact_index">Alphabetical contact index</string>
+    <string name="favourite">Favourite</string>
+    <string name="edit">Edit</string>
+    <string name="block">Block</string>
+
+    <!-- Gate -->
+    <string name="gate">Gate</string>
+    <string name="gate_setup">Gate setup</string>
+    <string name="status">Status</string>
+    <string name="auto_open">Auto-open</string>
+    <string name="answer_plus_code">Answer + code</string>
+    <string name="auto_open_desc">Auto-answer intercom and send code</string>
+    <string name="notify">Notify</string>
+    <string name="on_gate_run">On gate run</string>
+    <string name="notify_desc">Notify when gate code runs</string>
+    <string name="contact_label">Contact name / number</string>
+    <string name="code">Code</string>
+    <string name="save_gate_setup">Save gate setup</string>
+    <string name="event_log">Event log</string>
+    <string name="refresh_log">Refresh event log</string>
+    <string name="clear_log">Clear event log</string>
+    <string name="no_gate_events">No gate events yet</string>
+
+    <!-- In-call -->
+    <string name="merge_calls">Merge calls</string>
+    <string name="swap_calls">Swap calls</string>
+    <string name="end_current_answer">End current &amp; answer</string>
+    <string name="decline">Decline</string>
+    <string name="answer">Answer</string>
+    <string name="slide_to_answer">Slide to answer</string>
+    <string name="mute">Mute</string>
+    <string name="keypad">Keypad</string>
+    <string name="speaker">Speaker</string>
+    <string name="add_call">Add call</string>
+    <string name="hold">Hold</string>
+    <string name="end_call">End call</string>
+    <string name="hang_up">Hang up</string>
+
+    <!-- Settings -->
+    <string name="appearance">Appearance</string>
+    <string name="theme">Theme</string>
+    <string name="calling">Calling</string>
+    <string name="confirm_before_calling">Confirm before calling</string>
+    <string name="confirm_desc">Shows who you\'re about to call, and lets you pick a SIM.</string>
+    <string name="call_with">Call with</string>
+    <string name="call_with_desc">Default SIM for outgoing calls</string>
+    <string name="quick_replies">Quick reply messages</string>
+    <string name="quick_replies_desc">Sent when declining a call with a message</string>
+    <string name="idd_title">Use IDD code for web links</string>
+    <string name="idd_code">IDD code</string>
+    <string name="gate_timing">Gate timing</string>
+    <string name="wait_for_gate">Wait for gate</string>
+    <string name="wait_for_gate_desc">How long to give the gate before re-sending the code. Raise this if the log shows retries on calls that opened anyway.</string>
+    <string name="code_attempts">Code attempts</string>
+    <string name="code_attempts_desc">Times the code is sent before hanging up, including the first. The last attempt listens an extra 5s before giving up.</string>
+    <string name="sounds_haptics">Sounds and haptics</string>
+    <string name="keypad_tones">Keypad tones</string>
+    <string name="keypad_tones_desc">Always silenced in vibrate and mute mode.</string>
+    <string name="keypad_vibration">Keypad vibration</string>
+    <string name="call_protection">Call protection</string>
+    <string name="last_crash">Last crash report</string>
+    <string name="last_crash_desc">The app closed unexpectedly — tap to view</string>
+    <string name="block_unknown">Block unknown numbers</string>
+    <string name="block_unknown_desc">Calls with no number are rejected before they ring.</string>
+    <string name="blocked_numbers">Blocked numbers</string>
+    <string name="blocked_numbers_desc">Blocked callers are rejected system-wide by Android.</string>
+    <string name="system">System</string>
+    <string name="battery_opt">Disable battery optimisation</string>
+
+    <!-- Blocked numbers -->
+    <string name="add_number_to_block">Add a number to block</string>
+    <string name="no_blocked_numbers">No blocked numbers</string>
 </resources>

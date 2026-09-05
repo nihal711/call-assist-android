@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/contactsRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
@@ -10,138 +11,167 @@
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="24dp"
-        android:paddingTop="8dp"
-        android:paddingEnd="16dp">
+        android:paddingStart="16dp"
+        android:paddingEnd="8dp">
 
         <TextView
             android:id="@+id/contactsTitle"
+            style="@style/Text.PageTitle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:paddingTop="16dp"
-            android:text="Contacts"
-            android:textSize="26sp"
-            android:textStyle="bold" />
+            android:paddingStart="8dp"
+            android:paddingTop="24dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="8dp"
+            android:text="@string/contacts" />
 
         <ImageButton
             android:id="@+id/btnNewContact"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="New contact"
-            android:src="@drawable/ic_person_add"
-            app:tint="@color/textSecondary" />
+            style="@style/HeaderAction"
+            android:contentDescription="@string/new_contact"
+            android:src="@drawable/ic_person_add" />
 
         <ImageButton
-            android:id="@+id/gearContacts"
-            android:layout_width="44dp"
-            android:layout_height="44dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Settings"
-            android:src="@drawable/ic_settings"
-            app:tint="@color/textSecondary" />
+            android:id="@+id/btnContactsMore"
+            style="@style/HeaderAction"
+            android:contentDescription="@string/more_options"
+            android:src="@drawable/ic_more_vert" />
     </LinearLayout>
 
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="14dp"
+        android:layout_marginTop="4dp"
         android:layout_marginEnd="16dp">
 
         <EditText
             android:id="@+id/contactSearch"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:minHeight="48dp"
             android:background="@drawable/bg_search"
             android:drawableStart="@drawable/ic_search"
             android:drawablePadding="12dp"
             android:drawableTint="@color/textSecondary"
-            android:hint="Search contacts"
+            android:hint="@string/search_contacts"
             android:imeOptions="actionSearch"
+            android:importantForAutofill="no"
             android:inputType="text"
-            android:paddingStart="18dp"
+            android:paddingStart="20dp"
             android:paddingTop="12dp"
-            android:paddingEnd="48dp"
+            android:paddingEnd="52dp"
             android:paddingBottom="12dp"
             android:singleLine="true"
+            android:textColor="@color/textPrimary"
             android:textColorHint="@color/textSecondary"
             android:textSize="15sp" />
 
         <ImageButton
             android:id="@+id/contactSearchClear"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            style="@style/HeaderAction"
             android:layout_gravity="end|center_vertical"
-            android:layout_marginEnd="6dp"
-            android:background="?android:attr/selectableItemBackgroundBorderless"
-            android:contentDescription="Clear"
+            android:contentDescription="@string/clear"
             android:src="@drawable/ic_close"
-            android:visibility="gone"
-            app:tint="@color/textSecondary" />
+            android:visibility="gone" />
     </FrameLayout>
-
-    <TextView
-        android:id="@+id/contactsEmpty"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:padding="32dp"
-        android:text="No contacts"
-        android:textColor="@color/textSecondary"
-        android:visibility="gone" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="horizontal">
 
-    <FrameLayout
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
-        android:layout_weight="1">
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/contactsList"
-            android:layout_width="match_parent"
+        <FrameLayout
+            android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:paddingBottom="@dimen/nav_content_clearance"
-            android:scrollbars="none" />
+            android:layout_weight="1">
 
-        <!-- A–Z fast scroller; letters are added in code from the section headers -->
-        <dev.nihal.callassist.AccessibleIndexLayout
-            android:id="@+id/contactsIndex"
-            android:layout_width="20dp"
-            android:layout_height="match_parent"
-            android:layout_gravity="end"
-            android:layout_marginEnd="8dp"
-            android:layout_marginBottom="@dimen/nav_content_clearance"
-            android:gravity="center"
-            android:contentDescription="Alphabetical contact index"
-            android:focusable="true"
-            android:orientation="vertical"
-            android:paddingTop="8dp"
-            android:paddingBottom="8dp"
-            android:visibility="gone" />
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/contactsList"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingStart="16dp"
+                android:paddingTop="8dp"
+                android:paddingEnd="16dp"
+                android:paddingBottom="@dimen/nav_content_clearance"
+                android:scrollbars="none" />
 
-        <TextView
-            android:id="@+id/contactsIndexBubble"
-            android:layout_width="72dp"
-            android:layout_height="72dp"
-            android:layout_gravity="center"
-            android:background="@drawable/bg_circle"
-            android:backgroundTint="@color/accent"
-            android:elevation="8dp"
-            android:gravity="center"
-            android:textColor="#FFFFFF"
-            android:textSize="30sp"
-            android:textStyle="bold"
-            android:visibility="gone" />
-    </FrameLayout>
+            <!-- A–Z fast scroller; letters are added in code from the section headers -->
+            <dev.nihal.callassist.AccessibleIndexLayout
+                android:id="@+id/contactsIndex"
+                android:layout_width="24dp"
+                android:layout_height="match_parent"
+                android:layout_gravity="end"
+                android:layout_marginEnd="4dp"
+                android:layout_marginBottom="@dimen/nav_content_clearance"
+                android:gravity="center"
+                android:contentDescription="@string/contact_index"
+                android:focusable="true"
+                android:orientation="vertical"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/contactsIndexBubble"
+                android:layout_width="72dp"
+                android:layout_height="72dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_circle"
+                android:backgroundTint="@color/accent"
+                android:elevation="8dp"
+                android:gravity="center"
+                android:importantForAccessibility="no"
+                android:textColor="#FFFFFF"
+                android:textSize="32sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:id="@+id/contactsEmptyBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginBottom="@dimen/nav_content_clearance"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="32dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/contactsEmpty"
+                    style="@style/Text.Body"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="@string/no_contacts"
+                    android:textColor="@color/textSecondary" />
+
+                <TextView
+                    android:id="@+id/contactsEmptyAction"
+                    style="@style/Text.Body"
+                    android:layout_width="wrap_content"
+                    android:layout_height="@dimen/touch_min"
+                    android:layout_marginTop="16dp"
+                    android:background="@drawable/bg_sim_chip"
+                    android:gravity="center"
+                    android:paddingStart="20dp"
+                    android:paddingEnd="20dp"
+                    android:text="@string/allow"
+                    android:textColor="@color/accentText"
+                    android:textStyle="bold"
+                    android:visibility="gone" />
+
+                <ProgressBar
+                    android:id="@+id/contactsLoading"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:indeterminateTint="@color/accent"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </FrameLayout>
 
         <FrameLayout
             android:id="@+id/contactsDetail"
@@ -156,12 +186,12 @@
 
             <TextView
                 android:id="@+id/contactsDetailEmpty"
+                style="@style/Text.Body"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:text="Select a contact"
-                android:textColor="@color/textSecondary"
-                android:textSize="15sp" />
+                android:text="@string/select_a_contact"
+                android:textColor="@color/textSecondary" />
 
             <FrameLayout
                 android:id="@+id/contactsDetailCard"

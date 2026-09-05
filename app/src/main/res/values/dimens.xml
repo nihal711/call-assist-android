@@ -1,6 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- 4dp grid -->
+    <dimen name="gutter">16dp</dimen>
+    <dimen name="row_pad_h">20dp</dimen>
+    <dimen name="row_pad_v">12dp</dimen>
+    <!-- Content-aligned divider inset: 20 gutter + 48 avatar + 16 gap -->
+    <dimen name="divider_inset">84dp</dimen>
+    <dimen name="divider_inset_icon">56dp</dimen>
+    <!-- Circle control tiers -->
+    <dimen name="circle_secondary">48dp</dimen>
+    <dimen name="circle_action">56dp</dimen>
+    <dimen name="circle_primary">72dp</dimen>
+    <dimen name="avatar">48dp</dimen>
+    <dimen name="avatar_expanded">56dp</dimen>
+    <!-- Corner radii: cards/dialogs/sheets, nested tiles -->
+    <dimen name="radius_card">26dp</dimen>
+    <dimen name="radius_tile">14dp</dimen>
+    <dimen name="touch_min">48dp</dimen>
+    <dimen name="icon_action">48dp</dimen>
+    <dimen name="chip_height">40dp</dimen>
     <!-- Gap between consecutive status issue rows on the Gate tab -->
     <dimen name="status_row_gap">8dp</dimen>
-    <dimen name="nav_content_clearance">77dp</dimen>
+    <!-- Floating nav: 58dp bar + 6dp margin + 8dp clearance -->
+    <dimen name="nav_content_clearance">72dp</dimen>
+    <dimen name="nav_width">264dp</dimen>
 </resources>

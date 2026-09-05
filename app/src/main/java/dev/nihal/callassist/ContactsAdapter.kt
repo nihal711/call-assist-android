@@ -155,6 +155,10 @@ class ContactsAdapter(
                     h.title.text = item.title
                     h.subtitle.text = item.subtitle
                     h.star.visibility = if (c.starred) View.VISIBLE else View.GONE
+                    androidx.core.view.ViewCompat.replaceAccessibilityAction(
+                        h.row, androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK,
+                        if (onSelect != null) "show details" else "expand", null
+                    )
                     if (onSelect != null && c.id == selectedId) {
                         h.row.setBackgroundResource(R.drawable.bg_row_selected)
                     } else {
@@ -205,6 +209,10 @@ class ContactsAdapter(
         if (detail) {
             h.expandedHeader.isClickable = false
         } else {
+            androidx.core.view.ViewCompat.replaceAccessibilityAction(
+                h.expandedHeader, androidx.core.view.accessibility.AccessibilityNodeInfoCompat.AccessibilityActionCompat.ACTION_CLICK,
+                "collapse", null
+            )
             h.expandedHeader.setOnClickListener {
                 val p = h.bindingAdapterPosition
                 expandedId = null
@@ -226,8 +234,10 @@ class ContactsAdapter(
             ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, it, true)
         }
         val density = ctx.resources.displayMetrics.density
-        val padV = (7 * density).toInt()
-        val padH = (4 * density).toInt()
+        // 44dp minimum row so each number is a real tap target
+        val padV = (10 * density).toInt()
+        val padH = (8 * density).toInt()
+        val minH = (44 * density).toInt()
         box.removeAllViews()
         for (n in c.numbers) {
             val label = n.label.ifBlank { "Phone" }
@@ -244,8 +254,11 @@ class ContactsAdapter(
             box.addView(TextView(ctx).apply {
                 this.text = text
                 textSize = 15f
-                setPadding(padH, padV, padH, padV)
+                minimumHeight = minH
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                setPaddingRelative(padH, padV, padH, padV)
                 setBackgroundResource(ripple.resourceId)
+                contentDescription = "Call $label ${n.formatted}"
                 setOnClickListener { onCall(c, n) }
             })
         }

@@ -14,19 +14,22 @@ class RecentsSwipeCallback(
     private val adapter: RecentsAdapter,
     private val onCall: (String) -> Unit,
     private val onMessage: (String) -> Unit
-) : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
+// START/END rather than LEFT/RIGHT so the gesture mirrors under RTL.
+) : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.START or ItemTouchHelper.END) {
 
     private val cap = dp(110).toFloat()
     private val helper = ItemTouchHelper(this)
     private var list: RecyclerView? = null
+    /** Key of the row currently past the trigger threshold, for a single haptic tick. */
+    private var armedFor: RecyclerView.ViewHolder? = null
 
     // Mutated once: tint/alpha set per frame must not leak into the shared
     // drawable state that every other ic_phone / ic_message instance reads.
     private val callIcon: Drawable? = ContextCompat.getDrawable(ctx, R.drawable.ic_phone)?.mutate()?.apply {
-        setTint(ContextCompat.getColor(ctx, R.color.green))
+        setTint(ContextCompat.getColor(ctx, R.color.greenText))
     }
     private val messageIcon: Drawable? = ContextCompat.getDrawable(ctx, R.drawable.ic_message)?.mutate()?.apply {
-        setTint(ContextCompat.getColor(ctx, R.color.accent))
+        setTint(ContextCompat.getColor(ctx, R.color.accentText))
     }
 
     fun attach(rv: RecyclerView) {
@@ -60,7 +63,11 @@ class RecentsSwipeCallback(
             vh.itemView.translationX = 0f
             adapter.notifyItemChanged(pos)
         }
-        if (direction == ItemTouchHelper.RIGHT) onCall(e.number) else onMessage(e.number)
+        armedFor = null
+        val rtl = vh.itemView.layoutDirection == View.LAYOUT_DIRECTION_RTL
+        // END (towards the trailing edge) calls; START messages.
+        val towardsEnd = if (rtl) direction == ItemTouchHelper.LEFT else direction == ItemTouchHelper.RIGHT
+        if (towardsEnd) onCall(e.number) else onMessage(e.number)
     }
 
     override fun onChildDraw(
@@ -68,14 +75,26 @@ class RecentsSwipeCallback(
         dX: Float, dY: Float, actionState: Int, isCurrentlyActive: Boolean
     ) {
         val x = dX.coerceIn(-cap, cap)
-        if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) drawHint(c, vh.itemView, x)
+        if (actionState == ItemTouchHelper.ACTION_STATE_SWIPE) {
+            drawHint(c, vh.itemView, x)
+            // One tick as the finger crosses the trigger distance, none on the way back.
+            val armed = kotlin.math.abs(dX) >= vh.itemView.width * getSwipeThreshold(vh)
+            if (armed && armedFor !== vh && isCurrentlyActive) {
+                armedFor = vh
+                vh.itemView.performHapticFeedback(android.view.HapticFeedbackConstants.CONTEXT_CLICK)
+            } else if (!armed) {
+                armedFor = null
+            }
+        }
         super.onChildDraw(c, rv, vh, x, dY, actionState, isCurrentlyActive)
     }
 
     /** Phone (right) or message (left) glyph fading in behind the swiped row. */
     private fun drawHint(c: Canvas, item: View, dX: Float) {
         if (dX == 0f) return
-        val icon = (if (dX > 0) callIcon else messageIcon) ?: return
+        val rtl = item.layoutDirection == View.LAYOUT_DIRECTION_RTL
+        val towardsEnd = if (rtl) dX < 0 else dX > 0
+        val icon = (if (towardsEnd) callIcon else messageIcon) ?: return
         icon.alpha = (kotlin.math.abs(dX) / cap * 255).toInt().coerceAtMost(255)
         val size = dp(24)
         val cy = (item.top + item.bottom) / 2

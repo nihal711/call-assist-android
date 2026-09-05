@@ -11,8 +11,8 @@ android {
         applicationId = "dev.nihal.callassist"
         minSdk = 29
         targetSdk = 35
-        versionCode = 82
-        versionName = "3.52"
+        versionCode = 83
+        versionName = "3.53"
     }
 
     // Release signing reads keystore.properties (gitignored); without it the
@@ -55,4 +55,5 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.9.0")
     implementation("com.google.android.material:material:1.12.0")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
+    implementation("androidx.transition:transition:1.5.0")
 }

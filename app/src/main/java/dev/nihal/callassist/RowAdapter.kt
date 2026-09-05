@@ -10,10 +10,11 @@ import androidx.activity.enableEdgeToEdge
 import androidx.recyclerview.widget.RecyclerView
 
 object Ui {
+    // Every seed keeps white initials at >= 4.2:1 (WCAG large-text 3:1 with margin).
     private val palette = intArrayOf(
-        0xFF7E57C2.toInt(), 0xFF26A69A.toInt(), 0xFFEF5350.toInt(),
-        0xFF42A5F5.toInt(), 0xFFFFA726.toInt(), 0xFF66BB6A.toInt(),
-        0xFFEC407A.toInt(), 0xFF5C6BC0.toInt(), 0xFF8D6E63.toInt()
+        0xFF6A4FB6.toInt(), 0xFF00897B.toInt(), 0xFFD84335.toInt(),
+        0xFF1E6FBF.toInt(), 0xFFB36A00.toInt(), 0xFF2E8B57.toInt(),
+        0xFFC2185B.toInt(), 0xFF4552A8.toInt(), 0xFF7A5548.toInt()
     )
 
     fun avatarColor(seed: String): Int =
@@ -26,8 +27,9 @@ object Ui {
      */
     fun avatarBg(seed: String): android.graphics.drawable.Drawable {
         val base = avatarColor(seed)
-        val light = androidx.core.graphics.ColorUtils.blendARGB(base, Color.WHITE, 0.30f)
-        val deep = androidx.core.graphics.ColorUtils.blendARGB(base, Color.BLACK, 0.10f)
+        // Subtle lighting only: a stronger highlight pushed the top-left below contrast.
+        val light = androidx.core.graphics.ColorUtils.blendARGB(base, Color.WHITE, 0.12f)
+        val deep = androidx.core.graphics.ColorUtils.blendARGB(base, Color.BLACK, 0.08f)
         return android.graphics.drawable.GradientDrawable(
             android.graphics.drawable.GradientDrawable.Orientation.TL_BR, intArrayOf(light, base, deep)
         ).apply { shape = android.graphics.drawable.GradientDrawable.OVAL }
@@ -114,8 +116,8 @@ object Ui {
     }
 
     /**
-     * Touch-down shrink with a springy release for pill buttons and call
-     * tiles. Doesn't consume the event, so clicks and long-presses still fire.
+     * Press feedback: a flat 0.96 shrink on touch-down, eased back on release —
+     * no overshoot. Doesn't consume the event, so clicks and long-presses still fire.
      */
     @android.annotation.SuppressLint("ClickableViewAccessibility")
     fun pressable(vararg views: View) {
@@ -123,14 +125,68 @@ object Ui {
             v.setOnTouchListener { view, e ->
                 when (e.actionMasked) {
                     android.view.MotionEvent.ACTION_DOWN ->
-                        view.animate().scaleX(0.94f).scaleY(0.94f).setDuration(90)
+                        view.animate().scaleX(0.96f).scaleY(0.96f).setDuration(100)
                             .setInterpolator(android.view.animation.DecelerateInterpolator()).start()
                     android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL ->
-                        view.animate().scaleX(1f).scaleY(1f).setDuration(240)
-                            .setInterpolator(android.view.animation.OvershootInterpolator(2.5f)).start()
+                        view.animate().scaleX(1f).scaleY(1f).setDuration(150)
+                            .setInterpolator(android.view.animation.DecelerateInterpolator()).start()
                 }
                 false
             }
+        }
+    }
+
+    /**
+     * Grows a small pill's hit area to the 48dp minimum without changing its
+     * visual size: a TouchDelegate on the parent, refreshed after every layout.
+     */
+    fun expandTouch(v: View, extraDp: Int = 4) {
+        val parent = v.parent as? View ?: return
+        val extra = (extraDp * v.resources.displayMetrics.density).toInt()
+        parent.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            val r = android.graphics.Rect()
+            v.getHitRect(r)
+            r.inset(-extra, -extra)
+            parent.touchDelegate = android.view.TouchDelegate(r, v)
+        }
+    }
+
+    /** 150ms cross-fade between two sibling pages; [to] ends VISIBLE, [from] INVISIBLE. */
+    fun crossfade(from: View?, to: View, duration: Long = 150) {
+        // A fade-out still running on [to] (fast tab flicking) must not hide it at its end.
+        to.animate().cancel()
+        if (to.visibility != View.VISIBLE) {
+            to.alpha = 0f
+            to.visibility = View.VISIBLE
+        }
+        to.animate().alpha(1f).setDuration(duration).setInterpolator(android.view.animation.DecelerateInterpolator()).start()
+        if (from != null && from !== to && from.visibility == View.VISIBLE) {
+            from.animate().alpha(0f).setDuration(duration)
+                .withEndAction { if (from.alpha == 0f) { from.visibility = View.INVISIBLE; from.alpha = 1f } }.start()
+        }
+    }
+
+    /** Fades any visibility changes made to [root]'s children in this frame. */
+    fun fadeChanges(root: android.view.ViewGroup, duration: Long = 180) {
+        androidx.transition.TransitionManager.beginDelayedTransition(
+            root, androidx.transition.Fade().setDuration(duration)
+        )
+    }
+
+    /**
+     * Keypad glyphs follow the font scale up to 1.3x, then stop: past that the
+     * digits would no longer fit their fixed-height rows, and the keypad's
+     * legibility comes from its size, not its type.
+     */
+    fun keyTextSize(tv: TextView, sp: Float) {
+        val scale = tv.resources.configuration.fontScale.coerceAtMost(1.3f)
+        tv.setTextSize(android.util.TypedValue.COMPLEX_UNIT_DIP, sp * scale)
+    }
+
+    /** Portrait-only on phones; the unfolded/tablet layouts rotate freely. */
+    fun lockPhonePortrait(a: android.app.Activity) {
+        if (a.resources.configuration.smallestScreenWidthDp < 600) {
+            a.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
         }
     }
 
@@ -301,7 +357,9 @@ class RowAdapter(private val onClick: (Row) -> Unit) :
         val avatarSeed: String,
         val payload: Any?,
         val metaColor: Int? = null,
-        val photoUri: String? = null
+        val photoUri: String? = null,
+        /** Glyph in place of the initial (e.g. blocked numbers) */
+        val iconRes: Int? = null
     )
 
     var rows: List<Row> = emptyList()
@@ -314,6 +372,7 @@ class RowAdapter(private val onClick: (Row) -> Unit) :
     class VH(v: View) : RecyclerView.ViewHolder(v) {
         val avatar: TextView = v.findViewById(R.id.avatar)
         val photo: android.widget.ImageView = v.findViewById(R.id.avatarPhoto)
+        val icon: android.widget.ImageView = v.findViewById(R.id.avatarIcon)
         val title: TextView = v.findViewById(R.id.title)
         val subtitle: TextView = v.findViewById(R.id.subtitle)
         val meta: TextView = v.findViewById(R.id.meta)
@@ -330,11 +389,22 @@ class RowAdapter(private val onClick: (Row) -> Unit) :
         h.subtitle.text = r.subtitle
         h.subtitle.visibility = if (r.subtitle.isEmpty()) View.GONE else View.VISIBLE
         h.meta.text = r.meta
-        h.meta.setTextColor(r.metaColor ?: Color.GRAY)
-        h.avatar.text = Ui.initial(r.avatarSeed)
-        h.avatar.background = Ui.avatarBg(r.avatarSeed)
-        // Cached + downsampled; hides itself (initial shows) when there is no photo.
-        Ui.loadPhoto(h.itemView.context, h.photo, r.photoUri)
+        h.meta.setTextColor(
+            r.metaColor ?: androidx.core.content.ContextCompat.getColor(h.itemView.context, R.color.textSecondary)
+        )
+        if (r.iconRes != null) {
+            h.icon.setImageResource(r.iconRes)
+            h.icon.visibility = View.VISIBLE
+            h.avatar.visibility = View.INVISIBLE
+            h.photo.visibility = View.GONE
+        } else {
+            h.icon.visibility = View.GONE
+            h.avatar.visibility = View.VISIBLE
+            h.avatar.text = Ui.initial(r.avatarSeed)
+            h.avatar.background = Ui.avatarBg(r.avatarSeed)
+            // Cached + downsampled; hides itself (initial shows) when there is no photo.
+            Ui.loadPhoto(h.itemView.context, h.photo, r.photoUri)
+        }
         h.itemView.setOnClickListener { onClick(r) }
     }
 }

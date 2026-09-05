@@ -53,7 +53,13 @@ object Prefs {
     fun setNotifyGate(ctx: Context, v: Boolean) = sp(ctx).edit().putBoolean("notifyGate", v).apply()
 
     // "dark" (default), "light", "system"
-    fun themeMode(ctx: Context): String = sp(ctx).getString("themeMode", "dark")!!
+    fun themeMode(ctx: Context): String = sp(ctx).getString("themeMode", "system")!!
+
+    /** Speed dial: keypad long-press on 2–9 dials the number stored for that key. */
+    fun speedDial(ctx: Context, key: Char): String? =
+        sp(ctx).getString("speedDial_$key", null)?.takeIf { it.isNotBlank() }
+    fun setSpeedDial(ctx: Context, key: Char, number: String?) =
+        sp(ctx).edit().putString("speedDial_$key", number).apply()
     fun setThemeMode(ctx: Context, v: String) = sp(ctx).edit().putString("themeMode", v).apply()
 
     fun confirmCall(ctx: Context): Boolean = sp(ctx).getBoolean("confirmCall", true)

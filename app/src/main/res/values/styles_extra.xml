@@ -1,11 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="CircleButton">
-        <item name="cornerFamily">rounded</item>
-        <item name="cornerSize">50%</item>
+    <!--
+      Type scale (sp). Every TextView in the app maps to one of these roles:
+        Caption 11 · Secondary 13 · Body 15 · Title 17 · Heading 20 · CardTitle 22
+        PageTitle 26 · Display 32 · Number 40 · Hero 46
+    -->
+    <style name="Text.Caption" parent="android:Widget.TextView">
+        <item name="android:textSize">11sp</item>
+    </style>
+    <style name="Text.Secondary" parent="android:Widget.TextView">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/textSecondary</item>
+    </style>
+    <style name="Text.Body" parent="android:Widget.TextView">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">@color/textPrimary</item>
+    </style>
+    <style name="Text.Title" parent="android:Widget.TextView">
+        <item name="android:textSize">17sp</item>
+        <item name="android:textColor">@color/textPrimary</item>
+    </style>
+    <style name="Text.Heading" parent="android:Widget.TextView">
+        <item name="android:textSize">20sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/textPrimary</item>
+    </style>
+    <style name="Text.CardTitle" parent="android:Widget.TextView">
+        <item name="android:textSize">22sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/textPrimary</item>
+    </style>
+    <style name="Text.PageTitle" parent="android:Widget.TextView">
+        <item name="android:textSize">26sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/textPrimary</item>
     </style>
 
-    <!-- Pill button: dark gray, white text, no caps -->
+    <!-- Section sub-header: sentence case, accent, sits 24dp in from the gutter -->
+    <style name="SectionTitle">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/accentText</item>
+        <item name="android:layout_marginBottom">8dp</item>
+    </style>
+
+    <!-- Header action button: 48dp target, 24dp glyph -->
+    <style name="HeaderAction">
+        <item name="android:layout_width">48dp</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:background">?android:attr/selectableItemBackgroundBorderless</item>
+        <item name="android:padding">12dp</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="tint">@color/textSecondary</item>
+    </style>
+
+    <!-- Pill button: capsule, no caps -->
     <style name="AppButton" parent="Widget.Material3.Button">
         <item name="backgroundTint">@color/card2</item>
         <item name="android:textColor">@color/textPrimary</item>
@@ -13,31 +62,21 @@
         <item name="android:textAllCaps">false</item>
         <item name="android:letterSpacing">0</item>
         <item name="android:textSize">15sp</item>
-        <item name="android:insetTop">4dp</item>
-        <item name="android:insetBottom">4dp</item>
-    </style>
-
-    <style name="SectionTitle">
-        <item name="android:textSize">13sp</item>
-        <item name="android:textStyle">bold</item>
-        <item name="android:textColor">@color/accent</item>
-        <item name="android:layout_marginBottom">8dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:minHeight">48dp</item>
     </style>
 
     <style name="NavIndicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
         <item name="android:color">@color/accentSoft</item>
     </style>
 
-    <!-- Transparent window: the glass panel is the layout's own background, so
-         the platform must not draw its own square opaque frame behind it. -->
+    <!-- Transparent window: the glass panel is the layout's own background. -->
     <style name="GlassDialog" parent="Theme.Material3.DayNight.Dialog">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsFloating">true</item>
         <item name="android:backgroundDimAmount">0.55</item>
         <item name="android:windowAnimationStyle">@style/GlassDialogAnim</item>
-        <!-- Required for Window#setBackgroundBlurRadius to take effect at all
-             (AOSP window-blurs contract). The blur radius itself is declared in
-             values-v31, where the attribute exists. -->
         <item name="android:windowIsTranslucent">true</item>
     </style>
 
@@ -46,53 +85,20 @@
         <item name="android:windowExitAnimation">@anim/dialog_out</item>
     </style>
 
-    <!-- Rounded/glass treatment for the plain AlertDialogs elsewhere in the app
-         (SIM chooser, settings pickers, block confirmations). -->
-    <style name="GlassAlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
-        <item name="alertDialogStyle">@style/GlassAlertDialogStyle</item>
-        <item name="materialAlertDialogTitleTextStyle">@style/GlassAlertTitle</item>
-        <item name="buttonBarPositiveButtonStyle">@style/GlassAlertButton</item>
-        <item name="buttonBarNegativeButtonStyle">@style/GlassAlertButton</item>
-        <item name="buttonBarNeutralButtonStyle">@style/GlassAlertButton</item>
-        <item name="android:backgroundDimAmount">0.55</item>
-    </style>
-
-    <style name="GlassAlertDialogStyle" parent="MaterialAlertDialog.Material3">
-        <item name="shapeAppearanceOverlay">@style/GlassAlertShape</item>
-        <item name="backgroundTint">@color/navBg</item>
-    </style>
-
-    <style name="GlassAlertShape">
-        <item name="cornerFamily">rounded</item>
-        <item name="cornerSize">30dp</item>
-    </style>
-
-    <style name="GlassAlertTitle" parent="MaterialAlertDialog.Material3.Title.Text">
-        <item name="android:textColor">@color/textPrimary</item>
-        <item name="android:textSize">20sp</item>
-        <item name="android:textStyle">bold</item>
-    </style>
-
-    <style name="GlassAlertButton" parent="Widget.Material3.Button.TextButton.Dialog">
-        <item name="android:textColor">@color/accent</item>
-        <item name="android:textAllCaps">false</item>
-        <item name="android:textSize">16sp</item>
-        <item name="android:letterSpacing">0</item>
-    </style>
-
-    <!-- Outlined filter pill: hairline stroke, soft accent fill when checked -->
+    <!-- Outlined filter pill: hairline stroke, soft accent fill when checked.
+         Visual height 40dp; Material pads the hit area out to 48dp. -->
     <style name="AppChip" parent="Widget.Material3.Chip.Filter">
         <item name="chipBackgroundColor">@color/chip_bg</item>
         <item name="chipStrokeColor">@color/chip_stroke</item>
         <item name="chipStrokeWidth">1dp</item>
         <item name="android:textColor">@color/chip_text</item>
-        <item name="android:textSize">14sp</item>
+        <item name="android:textSize">15sp</item>
         <item name="chipCornerRadius">20dp</item>
-        <item name="chipMinHeight">38dp</item>
+        <item name="chipMinHeight">40dp</item>
         <item name="checkedIconVisible">false</item>
-        <item name="chipStartPadding">14dp</item>
-        <item name="chipEndPadding">14dp</item>
-        <item name="ensureMinTouchTargetSize">false</item>
+        <item name="chipStartPadding">16dp</item>
+        <item name="chipEndPadding">16dp</item>
+        <item name="ensureMinTouchTargetSize">true</item>
         <item name="rippleColor">@color/accentSoft</item>
     </style>
 
@@ -105,5 +111,14 @@
         <item name="backgroundTint">@android:color/transparent</item>
         <item name="android:background">@android:color/transparent</item>
         <item name="shapeAppearance">@null</item>
+    </style>
+
+    <!-- Overflow menu: rounded surface matching the cards -->
+    <style name="AppPopup" parent="Widget.Material3.PopupMenu">
+        <item name="android:popupBackground">@drawable/bg_popup</item>
+    </style>
+    <style name="AppPopupOverlay" parent="ThemeOverlay.Material3">
+        <item name="popupMenuStyle">@style/AppPopup</item>
+        <item name="android:textColorPrimary">@color/textPrimary</item>
     </style>
 </resources>

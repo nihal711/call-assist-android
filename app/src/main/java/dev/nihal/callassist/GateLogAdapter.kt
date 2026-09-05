@@ -61,9 +61,9 @@ class GateLogAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private fun iconFor(ctx: Context, outcome: GateLog.Outcome): Pair<Int, Int> = when (outcome) {
         GateLog.Outcome.OPENED ->
-            R.drawable.ic_gate_ok to ContextCompat.getColor(ctx, R.color.green)
+            R.drawable.ic_gate_ok to ContextCompat.getColor(ctx, R.color.greenText)
         GateLog.Outcome.WARNING ->
-            R.drawable.ic_gate_warn to ContextCompat.getColor(ctx, R.color.red)
+            R.drawable.ic_gate_warn to ContextCompat.getColor(ctx, R.color.redText)
         GateLog.Outcome.RUNNING ->
             R.drawable.ic_phone to ContextCompat.getColor(ctx, R.color.textSecondary)
     }
@@ -143,10 +143,10 @@ class GateLogAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         // Colour only the steps that decide the outcome, so they stand out from
         // the routine ones without turning the list into confetti.
         val color = when {
-            step.text.contains("code accepted") -> R.color.green
+            step.text.contains("code accepted") -> R.color.greenText
             step.text.contains("may not have opened") ||
                 step.text.startsWith("Failsafe") ||
-                step.text.startsWith("Could not mute") -> R.color.red
+                step.text.startsWith("Could not mute") -> R.color.redText
             else -> R.color.textSecondary
         }
         val text = TextView(ctx).apply {

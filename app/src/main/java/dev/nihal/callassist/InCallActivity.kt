@@ -176,6 +176,8 @@ class InCallActivity : AppCompatActivity() {
 
         findViewById<View>(R.id.btnAnswer).setOnClickListener { haptic(it); answer() }
         findViewById<View>(R.id.btnDecline).setOnClickListener { haptic(it); boundCall?.reject(false, null) }
+        // Locked screen: a real decline control beside the slider, not just the power button.
+        findViewById<View>(R.id.btnDeclineSlide).setOnClickListener { haptic(it); boundCall?.reject(false, null) }
         findViewById<View>(R.id.btnMessageLocked).setOnClickListener { showQuickReplies() }
         findViewById<View>(R.id.btnMessageSlide).setOnClickListener { showQuickReplies() }
         findViewById<View>(R.id.btnHangup).setOnClickListener { haptic(it); boundCall?.disconnect() }
@@ -272,8 +274,11 @@ class InCallActivity : AppCompatActivity() {
             }
         })
 
+        Ui.lockPhonePortrait(this)
+        Ui.expandTouch(btnAddContact)
         Ui.pressable(
-            findViewById(R.id.btnAnswer), findViewById(R.id.btnDecline), findViewById(R.id.btnHangup),
+            findViewById(R.id.btnAnswer), findViewById(R.id.btnDecline), findViewById(R.id.btnDeclineSlide),
+            findViewById(R.id.btnHangup),
             btnMute, btnSpeaker, btnKeypad, btnHold, btnContact, findViewById(R.id.btnAddCall),
             btnSwap, btnMerge, btnAddContact, btnEndAnswer,
             findViewById(R.id.btnMessageLocked), findViewById(R.id.btnMessageSlide)
@@ -437,6 +442,7 @@ class InCallActivity : AppCompatActivity() {
 
     private fun setKeypadOpen(open: Boolean) {
         keypadOpen = open
+        Ui.fadeChanges(findViewById(R.id.contentColumn))
         keypadPanel.visibility = if (open) View.VISIBLE else View.GONE
         // The keypad needs the vertical room the avatar was using.
         avatarFrame.visibility = if (open) View.GONE else View.VISIBLE
@@ -470,11 +476,12 @@ class InCallActivity : AppCompatActivity() {
                 layoutParams = GridLayout.LayoutParams(
                     GridLayout.spec(GridLayout.UNDEFINED, 1f),
                     GridLayout.spec(GridLayout.UNDEFINED, 1f)
-                ).apply { width = 0; height = dp(64) }
+                ).apply { width = 0; height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT }
+                minimumHeight = dp(60)
             }
             cell.addView(TextView(this).apply {
                 text = digit.toString()
-                textSize = 30f
+                Ui.keyTextSize(this, 32f)
                 typeface = font
                 setTextColor(getColor(R.color.textPrimary))
                 gravity = Gravity.CENTER
@@ -482,7 +489,7 @@ class InCallActivity : AppCompatActivity() {
             })
             if (letters.isNotEmpty()) cell.addView(TextView(this).apply {
                 text = letters
-                textSize = 10f
+                Ui.keyTextSize(this, 11f)
                 typeface = font
                 alpha = 0.6f
                 setTextColor(getColor(R.color.textPrimary))
@@ -655,6 +662,12 @@ class InCallActivity : AppCompatActivity() {
             }
 
             val locked = getSystemService(KeyguardManager::class.java).isKeyguardLocked
+            val wantRinging = if (ringing && !locked) View.VISIBLE else View.GONE
+            val wantSlide = if (ringing && locked) View.VISIBLE else View.GONE
+            val wantActive = if (ringing || unanswered) View.GONE else View.VISIBLE
+            if (ringingButtons.visibility != wantRinging || ringingSlide.visibility != wantSlide ||
+                activeBar.visibility != wantActive
+            ) Ui.fadeChanges(findViewById(R.id.contentColumn))
             ringingButtons.visibility = if (ringing && !locked) View.VISIBLE else View.GONE
             ringingSlide.visibility = if (ringing && locked) View.VISIBLE else View.GONE
             activeBar.visibility = if (ringing || unanswered) View.GONE else View.VISIBLE

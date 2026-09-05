@@ -12,15 +12,17 @@
         android:layout_height="wrap_content"
         android:background="?android:attr/selectableItemBackground"
         android:gravity="center_vertical"
+        android:minHeight="72dp"
         android:orientation="horizontal"
-        android:paddingStart="16dp"
-        android:paddingTop="12dp"
-        android:paddingEnd="20dp"
-        android:paddingBottom="12dp">
+        android:paddingStart="@dimen/row_pad_h"
+        android:paddingTop="@dimen/row_pad_v"
+        android:paddingEnd="@dimen/row_pad_h"
+        android:paddingBottom="@dimen/row_pad_v">
 
         <FrameLayout
-            android:layout_width="46dp"
-            android:layout_height="46dp">
+            android:layout_width="@dimen/avatar"
+            android:layout_height="@dimen/avatar"
+            android:importantForAccessibility="noHideDescendants">
 
             <TextView
                 android:id="@+id/avatar"
@@ -29,7 +31,8 @@
                 android:background="@drawable/bg_circle"
                 android:gravity="center"
                 android:textColor="#FFFFFF"
-                android:textSize="19sp" />
+                android:textSize="20sp"
+                android:textStyle="bold" />
 
             <ImageView
                 android:id="@+id/photo"
@@ -49,31 +52,29 @@
 
             <TextView
                 android:id="@+id/title"
+                style="@style/Text.Title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="@color/textPrimary"
-                android:textSize="17sp" />
+                android:maxLines="1" />
 
             <TextView
                 android:id="@+id/subtitle"
-            android:fontFeatureSettings="tnum"
+                style="@style/Text.Secondary"
+                android:fontFeatureSettings="tnum"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
                 android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="@color/textSecondary"
-                android:textSize="14sp" />
+                android:maxLines="1" />
         </LinearLayout>
 
         <ImageView
             android:id="@+id/star"
             android:layout_width="16dp"
             android:layout_height="16dp"
-            android:layout_marginStart="10dp"
-            android:contentDescription="Favourite"
+            android:layout_marginStart="12dp"
+            android:contentDescription="@string/favourite"
             android:src="@drawable/ic_star"
             android:visibility="gone"
             app:tint="@color/amber" />
@@ -107,28 +108,27 @@
 
                 <TextView
                     android:id="@+id/expName"
+                    style="@style/Text.CardTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
-                    android:maxLines="2"
-                    android:textColor="@color/textPrimary"
-                    android:textSize="23sp"
-                    android:textStyle="bold" />
+                    android:maxLines="2" />
 
                 <TextView
                     android:id="@+id/expSub"
-            android:fontFeatureSettings="tnum"
+                    style="@style/Text.Body"
+                    android:fontFeatureSettings="tnum"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:textColor="@color/textSecondary"
-                    android:textSize="14sp" />
+                    android:textColor="@color/textSecondary" />
             </LinearLayout>
 
             <FrameLayout
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:layout_marginStart="12dp">
+                android:layout_width="@dimen/avatar_expanded"
+                android:layout_height="@dimen/avatar_expanded"
+                android:layout_marginStart="12dp"
+                android:importantForAccessibility="noHideDescendants">
 
                 <TextView
                     android:id="@+id/expAvatar"
@@ -137,7 +137,8 @@
                     android:background="@drawable/bg_circle"
                     android:gravity="center"
                     android:textColor="#FFFFFF"
-                    android:textSize="22sp" />
+                    android:textSize="22sp"
+                    android:textStyle="bold" />
 
                 <ImageView
                     android:id="@+id/expPhoto"
@@ -154,13 +155,13 @@
             android:id="@+id/expNumbers"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="8dp"
             android:orientation="vertical" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="18dp"
+            android:layout_marginTop="16dp"
             android:orientation="horizontal">
 
             <FrameLayout
@@ -170,15 +171,17 @@
 
                 <ImageButton
                     android:id="@+id/btnCall"
-                    android:layout_width="54dp"
-                    android:layout_height="54dp"
+                    android:layout_width="@dimen/circle_action"
+                    android:layout_height="@dimen/circle_action"
                     android:layout_gravity="center"
                     android:background="@drawable/bg_circle"
                     android:backgroundTint="@color/card2"
-                    android:contentDescription="Call"
-                    android:scaleType="center"
+                    android:contentDescription="@string/call"
+                    android:foreground="@drawable/fg_circle"
+                    android:padding="14dp"
+                    android:scaleType="fitCenter"
                     android:src="@drawable/ic_phone"
-                    app:tint="@color/green" />
+                    app:tint="@color/greenText" />
             </FrameLayout>
 
             <FrameLayout
@@ -188,15 +191,17 @@
 
                 <ImageButton
                     android:id="@+id/btnMessage"
-                    android:layout_width="54dp"
-                    android:layout_height="54dp"
+                    android:layout_width="@dimen/circle_action"
+                    android:layout_height="@dimen/circle_action"
                     android:layout_gravity="center"
                     android:background="@drawable/bg_circle"
                     android:backgroundTint="@color/card2"
-                    android:contentDescription="Message"
-                    android:scaleType="center"
+                    android:contentDescription="@string/message"
+                    android:foreground="@drawable/fg_circle"
+                    android:padding="14dp"
+                    android:scaleType="fitCenter"
                     android:src="@drawable/ic_message"
-                    app:tint="@color/accent" />
+                    app:tint="@color/accentText" />
             </FrameLayout>
 
             <FrameLayout
@@ -206,13 +211,15 @@
 
                 <ImageButton
                     android:id="@+id/btnEdit"
-                    android:layout_width="54dp"
-                    android:layout_height="54dp"
+                    android:layout_width="@dimen/circle_action"
+                    android:layout_height="@dimen/circle_action"
                     android:layout_gravity="center"
                     android:background="@drawable/bg_circle"
                     android:backgroundTint="@color/card2"
-                    android:contentDescription="Edit"
-                    android:scaleType="center"
+                    android:contentDescription="@string/edit"
+                    android:foreground="@drawable/fg_circle"
+                    android:padding="14dp"
+                    android:scaleType="fitCenter"
                     android:src="@drawable/ic_edit"
                     app:tint="@color/textPrimary" />
             </FrameLayout>
@@ -224,15 +231,17 @@
 
                 <ImageButton
                     android:id="@+id/btnBlock"
-                    android:layout_width="54dp"
-                    android:layout_height="54dp"
+                    android:layout_width="@dimen/circle_action"
+                    android:layout_height="@dimen/circle_action"
                     android:layout_gravity="center"
                     android:background="@drawable/bg_circle"
                     android:backgroundTint="@color/card2"
-                    android:contentDescription="Block"
-                    android:scaleType="center"
+                    android:contentDescription="@string/block"
+                    android:foreground="@drawable/fg_circle"
+                    android:padding="14dp"
+                    android:scaleType="fitCenter"
                     android:src="@drawable/ic_block"
-                    app:tint="@color/red" />
+                    app:tint="@color/redText" />
             </FrameLayout>
         </LinearLayout>
     </LinearLayout>
@@ -241,7 +250,7 @@
         android:id="@+id/contactDivider"
         android:layout_width="match_parent"
         android:layout_height="0.5dp"
-        android:layout_marginStart="78dp"
+        android:layout_marginStart="@dimen/divider_inset"
         android:layout_marginEnd="20dp"
         android:background="@color/trackBg" />
 </LinearLayout>

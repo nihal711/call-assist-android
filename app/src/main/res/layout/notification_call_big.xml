@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingTop="10dp"
+    android:paddingTop="12dp"
     android:paddingBottom="8dp"
     tools:ignore="UseAppTint">
 
@@ -18,8 +18,8 @@
 
         <ImageView
             android:id="@+id/notifPhoto"
-            android:layout_width="42dp"
-            android:layout_height="42dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:background="@drawable/bg_notif_btn"
             android:contentDescription="@null"
             android:scaleType="centerCrop" />
@@ -38,7 +38,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/textPrimary"
-                android:textSize="15sp"
+                android:textSize="17sp"
                 android:textStyle="bold" />
 
             <LinearLayout
@@ -49,11 +49,11 @@
 
                 <Chronometer
                     android:id="@+id/notifTimer"
-            android:fontFeatureSettings="tnum"
+                    android:fontFeatureSettings="tnum"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:textColor="@color/textSecondary"
-                    android:textSize="12sp" />
+                    android:textSize="13sp" />
 
                 <TextView
                     android:id="@+id/notifStatus"
@@ -62,7 +62,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:textColor="@color/textSecondary"
-                    android:textSize="12sp" />
+                    android:textSize="13sp" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
@@ -70,39 +70,39 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="14dp"
+        android:layout_marginTop="16dp"
         android:gravity="center"
         android:orientation="horizontal">
 
         <ImageButton
             android:id="@+id/notifMute"
-            android:layout_width="46dp"
-            android:layout_height="46dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:background="@drawable/bg_notif_btn"
-            android:contentDescription="Mute"
-            android:padding="11dp"
+            android:contentDescription="@string/mute"
+            android:padding="12dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_mic" />
 
         <ImageButton
             android:id="@+id/notifSpeaker"
-            android:layout_width="46dp"
-            android:layout_height="46dp"
-            android:layout_marginStart="28dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="24dp"
             android:background="@drawable/bg_notif_btn"
-            android:contentDescription="Speaker"
-            android:padding="11dp"
+            android:contentDescription="@string/speaker"
+            android:padding="12dp"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_speaker" />
 
         <ImageButton
             android:id="@+id/notifHangup"
-            android:layout_width="46dp"
-            android:layout_height="46dp"
-            android:layout_marginStart="28dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="24dp"
             android:background="@drawable/bg_notif_btn_red"
-            android:contentDescription="Hang up"
-            android:padding="11dp"
+            android:contentDescription="@string/hang_up"
+            android:padding="12dp"
             android:rotation="135"
             android:scaleType="fitCenter"
             android:src="@drawable/ic_phone"

@@ -14,24 +14,25 @@
         <LinearLayout
             android:id="@+id/callBanner"
             android:layout_width="match_parent"
-            android:layout_height="54dp"
+            android:layout_height="wrap_content"
+            android:minHeight="56dp"
             android:layout_marginStart="16dp"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="8dp"
             android:layout_marginEnd="16dp"
             android:background="@drawable/bg_call_banner"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingStart="9dp"
-            android:paddingEnd="14dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="16dp"
             android:visibility="gone">
 
             <ImageView
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
                 android:background="@drawable/bg_circle"
                 android:backgroundTint="@color/green"
                 android:contentDescription="@null"
-                android:padding="9dp"
+                android:padding="10dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_phone"
                 app:tint="#FFFFFF" />
@@ -45,12 +46,11 @@
 
                 <TextView
                     android:id="@+id/callBannerName"
+                    style="@style/Text.Body"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:ellipsize="end"
                     android:maxLines="1"
-                    android:textColor="@color/textPrimary"
-                    android:textSize="15sp"
                     android:textStyle="bold" />
 
                 <LinearLayout
@@ -60,19 +60,18 @@
 
                     <TextView
                         android:id="@+id/callBannerState"
+                        style="@style/Text.Secondary"
                         android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:textColor="@color/textSecondary"
-                        android:textSize="12sp" />
+                        android:layout_height="wrap_content" />
 
                     <Chronometer
                         android:id="@+id/callBannerTimer"
-            android:fontFeatureSettings="tnum"
+                        android:fontFeatureSettings="tnum"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="5dp"
-                        android:textColor="@color/green"
-                        android:textSize="12sp"
+                        android:layout_marginStart="4dp"
+                        android:textColor="@color/greenText"
+                        android:textSize="13sp"
                         android:visibility="gone" />
                 </LinearLayout>
             </LinearLayout>
@@ -80,49 +79,50 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Return"
-                android:textColor="@color/accent"
-                android:textSize="14sp"
+                android:text="@string/return_to_call"
+                android:textColor="@color/accentText"
+                android:textSize="15sp"
                 android:textStyle="bold" />
 
             <ImageView
-                android:layout_width="18dp"
-                android:layout_height="18dp"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_chevron_right"
-                app:tint="@color/accent" />
+                app:tint="@color/accentText" />
         </LinearLayout>
 
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
 
-        <include
-            android:id="@+id/pageKeypad"
-            layout="@layout/page_keypad" />
+            <include
+                android:id="@+id/pageKeypad"
+                layout="@layout/page_keypad" />
 
-        <include
-            android:id="@+id/pageRecents"
-            layout="@layout/page_recents"
-            android:visibility="gone" />
+            <include
+                android:id="@+id/pageRecents"
+                layout="@layout/page_recents"
+                android:visibility="gone" />
 
-        <include
-            android:id="@+id/pageContacts"
-            layout="@layout/page_contacts"
-            android:visibility="gone" />
+            <include
+                android:id="@+id/pageContacts"
+                layout="@layout/page_contacts"
+                android:visibility="gone" />
 
-        <include
-            android:id="@+id/pageGate"
-            layout="@layout/page_gate"
-            android:visibility="gone" />
-    </FrameLayout>
+            <include
+                android:id="@+id/pageGate"
+                layout="@layout/page_gate"
+                android:visibility="gone" />
+        </FrameLayout>
     </LinearLayout>
 
     <dev.nihal.callassist.GlassNavBar
         android:id="@+id/navBar"
-        android:layout_width="216dp"
-        android:layout_height="58dp"
+        android:layout_width="@dimen/nav_width"
+        android:layout_height="wrap_content"
+        android:minHeight="58dp"
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="6dp"
         android:elevation="10dp" />
@@ -130,8 +130,9 @@
     <!-- Recents selection mode: swaps in for the nav bar -->
     <LinearLayout
         android:id="@+id/recentsSelectBar"
-        android:layout_width="216dp"
-        android:layout_height="58dp"
+        android:layout_width="@dimen/nav_width"
+        android:layout_height="wrap_content"
+        android:minHeight="58dp"
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="6dp"
         android:background="@drawable/bg_navbar"
@@ -145,23 +146,27 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/copy_number"
             android:gravity="center"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp">
 
             <ImageView
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:contentDescription="@null"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:importantForAccessibility="no"
                 android:src="@drawable/ic_copy"
                 app:tint="@color/textPrimary" />
 
             <TextView
+                style="@style/Text.Caption"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:text="Copy number"
-                android:textColor="@color/textPrimary"
-                android:textSize="12sp" />
+                android:layout_marginTop="4dp"
+                android:importantForAccessibility="no"
+                android:text="@string/copy_number"
+                android:textColor="@color/textPrimary" />
         </LinearLayout>
 
         <LinearLayout
@@ -170,23 +175,27 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/delete"
             android:gravity="center"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp">
 
             <ImageView
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:contentDescription="@null"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:importantForAccessibility="no"
                 android:src="@drawable/ic_delete"
                 app:tint="@color/textPrimary" />
 
             <TextView
+                style="@style/Text.Caption"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
-                android:text="Delete"
-                android:textColor="@color/textPrimary"
-                android:textSize="12sp" />
+                android:layout_marginTop="4dp"
+                android:importantForAccessibility="no"
+                android:text="@string/delete"
+                android:textColor="@color/textPrimary" />
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>

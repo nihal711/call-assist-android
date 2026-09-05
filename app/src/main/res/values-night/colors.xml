@@ -6,13 +6,19 @@
     <color name="textPrimary">#F2F2F2</color>
     <color name="textSecondary">#96969B</color>
     <color name="accent">#3B7EFF</color>
+    <color name="accentText">#6B9EFF</color>
     <color name="accentSoft">#1A2A47</color>
     <color name="trackBg">#2EFFFFFF</color>
     <color name="navBg">#F0202024</color>
     <color name="navBubble">#FF3A3A3E</color>
     <color name="glassStroke">#1FFFFFFF</color>
     <color name="glassBlurFill">#99202024</color>
+    <color name="green">#12873C</color>
+    <color name="greenText">#34C46A</color>
+    <color name="red">#D2371F</color>
+    <color name="redText">#FF6E5A</color>
+    <color name="amber">#B87A00</color>
     <color name="rowPressed">#3A3A3E</color>
-    <!-- Bottom sheet surface -->
     <color name="sheetBg">#28282C</color>
+    <color name="fieldBg">#222226</color>
 </resources>

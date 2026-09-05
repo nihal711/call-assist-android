@@ -213,6 +213,34 @@ class MainActivity : AppCompatActivity() {
     private lateinit var logAdapter: GateLogAdapter
     private lateinit var logEmpty: TextView
 
+    /** Empty / loading state boxes over the two lists */
+    private lateinit var recentsEmptyBox: View
+    private lateinit var recentsEmptyAction: TextView
+    private lateinit var recentsLoading: View
+    private lateinit var contactsEmptyBox: View
+    private lateinit var contactsEmptyAction: TextView
+    private lateinit var contactsLoading: View
+    private var firstLoadDone = false
+
+    /** Speed dial: the key being assigned while the contact picker is open. */
+    private var speedDialKey: Char? = null
+    private val speedDialPicker =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            val key = speedDialKey ?: return@registerForActivityResult
+            speedDialKey = null
+            val uri = result.data?.data ?: return@registerForActivityResult
+            val number = try {
+                contentResolver.query(
+                    uri, arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER), null, null, null
+                )?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+            } catch (_: Exception) {
+                null
+            }
+            if (number.isNullOrBlank()) return@registerForActivityResult
+            Prefs.setSpeedDial(this, key, PhoneNumberUtils.stripSeparators(number))
+            Toast.makeText(this, "Speed dial $key set", Toast.LENGTH_SHORT).show()
+        }
+
     private lateinit var pages: Map<Int, View>
     private lateinit var navBar: GlassNavBar
     private var currentTab = 0
@@ -277,6 +305,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Ui.edgeToEdge(this)
+        Ui.lockPhonePortrait(this)
         setContentView(R.layout.activity_main)
         Ui.applyInsets(findViewById(R.id.mainRoot), ime = true)
         Notifications.ensureChannels(this)
@@ -305,10 +334,17 @@ class MainActivity : AppCompatActivity() {
         setupGate()
         applyWideLayout()
 
-        for (id in intArrayOf(R.id.gearRecents, R.id.gearContacts, R.id.gearGate)) {
-            findViewById<ImageButton>(id).setOnClickListener {
-                startActivity(Intent(this, SettingsActivity::class.java))
+        // One overflow per tab (Settings lives behind ⋮, not a gear on every page)
+        findViewById<View>(R.id.btnRecentsMore).setOnClickListener { anchor ->
+            showOverflow(anchor, listOf(getString(R.string.select_calls), getString(R.string.settings))) { i ->
+                if (i == 0) setRecentsSelection(true) else openSettings()
             }
+        }
+        findViewById<View>(R.id.btnContactsMore).setOnClickListener { anchor ->
+            showOverflow(anchor, listOf(getString(R.string.settings))) { openSettings() }
+        }
+        findViewById<View>(R.id.btnGateMore).setOnClickListener { anchor ->
+            showOverflow(anchor, listOf(getString(R.string.settings))) { openSettings() }
         }
 
         findViewById<View>(R.id.callBanner).setOnClickListener {
@@ -367,6 +403,17 @@ class MainActivity : AppCompatActivity() {
             return
         }
         handleDialIntent(intent)
+    }
+
+    private fun openSettings() = startActivity(Intent(this, SettingsActivity::class.java))
+
+    private fun showOverflow(anchor: View, items: List<String>, onPick: (Int) -> Unit) {
+        val menu = android.widget.PopupMenu(
+            android.view.ContextThemeWrapper(this, R.style.AppPopupOverlay), anchor, Gravity.END
+        )
+        items.forEachIndexed { i, label -> menu.menu.add(0, i, i, label) }
+        menu.setOnMenuItemClickListener { onPick(it.itemId); true }
+        menu.show()
     }
 
     private fun restoreUiState(state: Bundle) {
@@ -551,13 +598,13 @@ class MainActivity : AppCompatActivity() {
         suggestionsList.setPadding(side, suggestionsList.paddingTop, side, suggestionsList.paddingBottom)
 
         (navBar.layoutParams as android.widget.FrameLayout.LayoutParams).apply {
-            width = dp(216)
+            width = dp(264)
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
             marginStart = 0
             marginEnd = 0
         }
         (recentsSelectBar.layoutParams as android.widget.FrameLayout.LayoutParams).apply {
-            width = dp(216)
+            width = dp(264)
             gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
             marginStart = 0
             marginEnd = 0
@@ -660,31 +707,33 @@ class MainActivity : AppCompatActivity() {
                     '#' -> "Hash"
                     '0' -> "0, long press for plus"
                     '1' -> "1, long press for voicemail"
-                    else -> k.digit.toString()
+                    else -> "${k.digit}, long press for speed dial"
                 }
+                // 72dp rows that still grow with the font scale.
                 layoutParams = GridLayout.LayoutParams(
                     GridLayout.spec(GridLayout.UNDEFINED, 1f),
                     GridLayout.spec(GridLayout.UNDEFINED, 1f)
-                ).apply { width = 0; height = dp(92) }
+                ).apply { width = 0; height = android.view.ViewGroup.LayoutParams.WRAP_CONTENT }
+                minimumHeight = dp(72)
             }
             cell.addView(TextView(this).apply {
                 text = k.digit.toString()
-                textSize = 36f
+                Ui.keyTextSize(this, 32f)
                 typeface = dialFont
+                setTextColor(getColor(R.color.textPrimary))
                 gravity = Gravity.CENTER
             })
             if (k.letters.isNotEmpty()) cell.addView(TextView(this).apply {
                 text = k.letters
-                textSize = 11f
+                Ui.keyTextSize(this, 11f)
                 typeface = dialFont
-                alpha = 0.6f
+                setTextColor(getColor(R.color.textSecondary))
                 gravity = Gravity.CENTER
             })
             if (k.digit == '1') cell.addView(ImageView(this).apply {
                 setImageResource(R.drawable.ic_voicemail)
-                imageTintList = ColorStateList.valueOf(getColor(R.color.textPrimary))
-                alpha = 0.6f
-                layoutParams = LinearLayout.LayoutParams(dp(17), dp(13))
+                imageTintList = ColorStateList.valueOf(getColor(R.color.textSecondary))
+                layoutParams = LinearLayout.LayoutParams(dp(16), dp(16))
             })
             cell.setOnClickListener {
                 if (Prefs.keyHaptics(this)) it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
@@ -697,6 +746,10 @@ class MainActivity : AppCompatActivity() {
                 }
                 '1' -> cell.setOnLongClickListener {
                     dialVoicemail()
+                    true
+                }
+                in '2'..'9' -> cell.setOnLongClickListener {
+                    speedDial(k.digit)
                     true
                 }
                 else -> {}
@@ -728,7 +781,33 @@ class MainActivity : AppCompatActivity() {
             findViewById(R.id.btnAddToContacts), findViewById(R.id.btnSendMessage), btnPaste,
             findViewById(R.id.callBanner)
         )
+        Ui.expandTouch(simChip)
         dial.set("")
+    }
+
+    /** Long-press 2–9: call the stored number, or offer to assign one from Contacts. */
+    private fun speedDial(key: Char) {
+        val saved = Prefs.speedDial(this, key)
+        if (saved != null) {
+            confirmCall(saved)
+            return
+        }
+        Sheet(this)
+            .title("Speed dial $key")
+            .message("No number is assigned to this key yet. Pick a contact to call it with a long press.")
+            .negative()
+            .positive("Assign") {
+                speedDialKey = key
+                try {
+                    speedDialPicker.launch(
+                        Intent(Intent.ACTION_PICK).setType(ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE)
+                    )
+                } catch (_: Exception) {
+                    speedDialKey = null
+                    Toast.makeText(this, "Could not open contacts", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .show()
     }
 
     /**
@@ -810,7 +889,7 @@ class MainActivity : AppCompatActivity() {
         val raw = dial.raw()
         btnBackspace.visibility = if (raw.isEmpty()) View.INVISIBLE else View.VISIBLE
         if (renderBg.isShutdown) return
-        val accent = getColor(R.color.accent)
+        val accent = getColor(R.color.accentText)
         val generation = ++dialRenderGeneration
         renderBg.execute {
         val matches = ContactsRepo.search(raw)
@@ -947,7 +1026,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupRecents() {
         recentsEmpty = findViewById(R.id.recentsEmpty)
+        recentsEmptyBox = findViewById(R.id.recentsEmptyBox)
+        recentsEmptyAction = findViewById(R.id.recentsEmptyAction)
+        recentsLoading = findViewById(R.id.recentsLoading)
         Ui.emptyState(recentsEmpty, R.drawable.ic_recents)
+        recentsEmptyAction.setOnClickListener {
+            permLauncher.launch(arrayOf(Manifest.permission.READ_CALL_LOG, Manifest.permission.WRITE_CALL_LOG))
+        }
+        Ui.pressable(recentsEmptyAction)
         recentsAdapter = RecentsAdapter(
             expandable = true,
             onCall = { confirmCall(it) },
@@ -982,8 +1068,9 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.btnRecentsSearch).setOnClickListener {
             setRecentsSearchOpen(!recentsSearchOpen)
         }
+        // Same X as Contacts: clears the text first, closes only when already empty.
         findViewById<View>(R.id.btnRecentsSearchClose).setOnClickListener {
-            setRecentsSearchOpen(false)
+            if (recentsSearch.text.isNotEmpty()) recentsSearch.setText("") else setRecentsSearchOpen(false)
         }
         recentsSearch.doAfterTextChanged { if (!restoringUi) renderRecents() }
         recentsSearch.setOnEditorActionListener { v, actionId, _ ->
@@ -1029,10 +1116,12 @@ class MainActivity : AppCompatActivity() {
     private fun applySelectionChrome(on: Boolean) {
         val vis = if (on) View.VISIBLE else View.GONE
         val hidden = if (on) View.GONE else View.VISIBLE
+        Ui.fadeChanges(findViewById(R.id.recentsRoot))
         findViewById<View>(R.id.btnSelectAll).visibility = vis
         findViewById<View>(R.id.btnSelectCancel).visibility = vis
         btnRecentsFilter.visibility = hidden
-        findViewById<View>(R.id.gearRecents).visibility = hidden
+        findViewById<View>(R.id.btnRecentsSearch).visibility = hidden
+        findViewById<View>(R.id.btnRecentsMore).visibility = hidden
         recentsSelectBar.visibility = vis
         navBar.visibility = hidden
         renderSelectionState()
@@ -1049,7 +1138,7 @@ class MainActivity : AppCompatActivity() {
         val all = recentsAdapter.allSelected()
         selectAllIcon.setImageResource(if (all) R.drawable.ic_check_circle else R.drawable.ic_circle)
         selectAllIcon.imageTintList = ColorStateList.valueOf(
-            getColor(if (all) R.color.accent else R.color.textSecondary)
+            getColor(if (all) R.color.accentText else R.color.textSecondary)
         )
     }
 
@@ -1120,6 +1209,7 @@ class MainActivity : AppCompatActivity() {
     private fun setRecentsSearchOpen(open: Boolean) {
         if (recentsSearchOpen == open) return
         recentsSearchOpen = open
+        Ui.fadeChanges(findViewById(R.id.recentsRoot))
         recentsSearchPanel.visibility = if (open) View.VISIBLE else View.GONE
         if (open) {
             recentsSearch.requestFocus()
@@ -1158,9 +1248,10 @@ class MainActivity : AppCompatActivity() {
     private fun updateRecentsChips() {
         val filtered = recentsTypeFilter != 0 || recentsSimFilter != null || recentsDays != 0
         btnRecentsFilter.imageTintList = ColorStateList.valueOf(
-            getColor(if (filtered) R.color.accent else R.color.textSecondary)
+            getColor(if (filtered) R.color.accentText else R.color.textSecondary)
         )
         val show = recentsSearchOpen || filtered
+        if ((recentsChips.visibility == View.VISIBLE) != show) Ui.fadeChanges(findViewById(R.id.recentsRoot))
         recentsChips.visibility = if (show) View.VISIBLE else View.GONE
     }
 
@@ -1178,7 +1269,7 @@ class MainActivity : AppCompatActivity() {
                     orientation = LinearLayout.HORIZONTAL
                     gravity = Gravity.CENTER
                     setBackgroundResource(R.drawable.bg_sim_toggle)
-                    setPadding(dp(10), 0, dp(12), 0)
+                    setPaddingRelative(dp(12), 0, dp(14), 0)
                     badge?.let { addView(it) }
                     addView(TextView(this@MainActivity).apply {
                         text = label
@@ -1196,7 +1287,7 @@ class MainActivity : AppCompatActivity() {
                 val (label, sim) = p
                 val seg = segment(label, sim?.handle?.id, sim?.let { SimUtil.badge(this, it) })
                 segments.add(seg to sim?.handle?.id)
-                row.addView(seg, LinearLayout.LayoutParams(0, dp(38), 1f).apply { if (i > 0) marginStart = dp(8) })
+                row.addView(seg, LinearLayout.LayoutParams(0, dp(48), 1f).apply { if (i > 0) marginStart = dp(8) })
             }
             paint()
             sheet.view(row)
@@ -1303,9 +1394,13 @@ class MainActivity : AppCompatActivity() {
                 }
                 recentsAdapter.selectedDetail()?.let { showRecentDetail(it) }
                 if (recentsAdapter.selectionMode) renderSelectionState()
-                recentsEmpty.visibility = if (shown.isEmpty()) View.VISIBLE else View.GONE
+                val loading = !firstLoadDone && hasPerm && shown.isEmpty()
+                recentsEmptyBox.visibility = if (shown.isEmpty()) View.VISIBLE else View.GONE
+                recentsLoading.visibility = if (loading) View.VISIBLE else View.GONE
+                recentsEmpty.visibility = if (loading) View.GONE else View.VISIBLE
+                recentsEmptyAction.visibility = if (!hasPerm) View.VISIBLE else View.GONE
                 recentsEmpty.text = when {
-                    !hasPerm -> "Call log permission needed — grant it in the Gate tab"
+                    !hasPerm -> "Call log permission is needed to show your calls"
                     source.isEmpty() -> "No calls yet"
                     else -> "No matching calls"
                 }
@@ -1317,7 +1412,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupContacts() {
         contactsEmpty = findViewById(R.id.contactsEmpty)
+        contactsEmptyBox = findViewById(R.id.contactsEmptyBox)
+        contactsEmptyAction = findViewById(R.id.contactsEmptyAction)
+        contactsLoading = findViewById(R.id.contactsLoading)
         Ui.emptyState(contactsEmpty, R.drawable.ic_person_outline)
+        contactsEmptyAction.setOnClickListener {
+            permLauncher.launch(arrayOf(Manifest.permission.READ_CONTACTS))
+        }
+        Ui.pressable(contactsEmptyAction)
         contactSearch = findViewById(R.id.contactSearch)
         contactsAdapter = ContactsAdapter(
             onCall = { c, n ->
@@ -1333,7 +1435,7 @@ class MainActivity : AppCompatActivity() {
             adapter = contactsAdapter
             setHasFixedSize(true)
             setItemViewCacheSize(12)
-            CollapsingTitle.attach(this, this@MainActivity.findViewById(R.id.contactsTitle), 26f, 20f, 16, 0)
+            CollapsingTitle.attach(this, this@MainActivity.findViewById(R.id.contactsTitle), 26f, 20f, 24, 8)
         }
         findViewById<View>(R.id.btnNewContact).setOnClickListener {
             try {
@@ -1438,7 +1540,7 @@ class MainActivity : AppCompatActivity() {
         // Fewer than a handful of sections isn't worth a scroller.
         val show = sections.size >= 4
         contactsIndex.visibility = if (show) View.VISIBLE else View.GONE
-        // Cards stop 8dp short of the 20dp letter column, which sits 8dp from
+        // Cards stop 8dp short of the 24dp letter column, which sits 4dp from
         // the edge — equal air on both sides instead of letters over card edges.
         findViewById<RecyclerView>(R.id.contactsList).let { rv ->
             val end = if (show) dp(36) else dp(16)
@@ -1450,7 +1552,7 @@ class MainActivity : AppCompatActivity() {
         for (l in letters) {
             contactsIndex.addView(TextView(this).apply {
                 text = l
-                textSize = 10f
+                textSize = 11f
                 gravity = Gravity.CENTER
                 includeFontPadding = false
                 setTextColor(secondary)
@@ -1491,7 +1593,7 @@ class MainActivity : AppCompatActivity() {
         val source = ContactsRepo.contacts
         val generation = ++contactsRenderGeneration
         val hasPerm = has(Manifest.permission.READ_CONTACTS)
-        val accent = getColor(R.color.accent)
+        val accent = getColor(R.color.accentText)
         renderBg.execute {
         val qDigits = q.filter { it.isDigit() }
         val numberSearch = qDigits.length >= 3
@@ -1515,16 +1617,13 @@ class MainActivity : AppCompatActivity() {
                     setSpan(StyleSpan(Typeface.BOLD), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
                 }
             } else c.name
+            // One number per row: the matching one while searching
+            // by digits, otherwise the primary. The expanded card lists them all.
             val subtitle: CharSequence = if (nameHit < 0 && numberSearch) {
-                val parts = c.numbers.map { n ->
-                    val at = n.digits.indexOf(qDigits)
-                    if (at >= 0) highlightNumber(n.formatted, at until at + qDigits.length, accent)
-                    else n.formatted
-                }
-                android.text.TextUtils.concat(*parts.flatMapIndexed { i, p ->
-                    if (i == 0) listOf(p) else listOf("  ·  ", p)
-                }.toTypedArray())
-            } else c.numbers.joinToString("  ·  ") { it.formatted }
+                val hit = c.numbers.firstOrNull { it.digits.contains(qDigits) } ?: c.numbers.first()
+                val at = hit.digits.indexOf(qDigits)
+                if (at >= 0) highlightNumber(hit.formatted, at until at + qDigits.length, accent) else hit.formatted
+            } else c.numbers.first().formatted
             return ContactsAdapter.Item.Entry(
                 contact = c,
                 title = title,
@@ -1563,9 +1662,13 @@ class MainActivity : AppCompatActivity() {
                 }
                 contactsAdapter.selectedDetail()?.let { showContactDetail(it) }
                 renderContactsIndex(if (q.isEmpty()) sections else emptyList())
-                contactsEmpty.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+                val loading = !firstLoadDone && hasPerm && list.isEmpty()
+                contactsEmptyBox.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+                contactsLoading.visibility = if (loading) View.VISIBLE else View.GONE
+                contactsEmpty.visibility = if (loading) View.GONE else View.VISIBLE
+                contactsEmptyAction.visibility = if (!hasPerm) View.VISIBLE else View.GONE
                 contactsEmpty.text = when {
-                    !hasPerm -> "Contacts permission needed — grant it in the Gate tab"
+                    !hasPerm -> "Contacts permission is needed to show your contacts"
                     q.isEmpty() -> "No contacts"
                     else -> "No matching contacts"
                 }
@@ -1577,6 +1680,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupGate() {
         logEmpty = findViewById(R.id.logEmpty)
+        Ui.emptyState(logEmpty, R.drawable.ic_shield_outline)
         logAdapter = GateLogAdapter()
         findViewById<RecyclerView>(R.id.logList).apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
@@ -1657,7 +1761,8 @@ class MainActivity : AppCompatActivity() {
             issues.isNotEmpty() -> "Ready, with warnings"
             else -> "Ready"
         }
-        headline.setTextColor(if (blockers > 0) tint else getColor(R.color.textPrimary))
+        badge.contentDescription = headline.text
+        headline.setTextColor(getColor(if (blockers > 0) R.color.redText else R.color.textPrimary))
         sub.text = when {
             blockers > 0 -> issues.first { it.blocking }.detail
             else -> "${Prefs.contactName(this)}  →  ${Prefs.gateCode(this)}"
@@ -1725,10 +1830,12 @@ class MainActivity : AppCompatActivity() {
         // keeps it measured, which makes the swap a draw-only change.
         // Only touch visibility for pages whose state actually changes —
         // re-setting VISIBLE on the current page would re-trigger layout.
+        val leaving = pages.values.firstOrNull { it.visibility == View.VISIBLE && it !== pages[idx] }
         pages.forEach { (i, v) ->
-            val want = if (i == idx) View.VISIBLE else View.INVISIBLE
-            if (v.visibility != want) v.visibility = want
+            if (i != idx && v !== leaving && v.visibility != View.INVISIBLE) v.visibility = View.INVISIBLE
         }
+        // Draw-only cross-fade: both pages stay measured, so the swap costs no layout.
+        Ui.crossfade(leaving, pages.getValue(idx))
         if (idx == 0 && userInitiated) setKeypadCollapsed(false)
         if (idx != 1 && recentsAdapter.selectionMode) setRecentsSelection(false)
         updateBackState()
@@ -1790,6 +1897,7 @@ class MainActivity : AppCompatActivity() {
             val log = if (loadLog) ContactsRepo.loadCallLog(this) else null
             runOnUiThread {
                 if (isDestroyed) return@runOnUiThread
+                firstLoadDone = true
                 if (log != null) callLog = log
                 if (loadLog || loadContacts) renderRecents()
                 if (loadContacts) {
@@ -1871,7 +1979,7 @@ class MainActivity : AppCompatActivity() {
                 seg.setOnClickListener { chosenSim = s.handle; paint() }
                 simRow.addView(
                     seg,
-                    LinearLayout.LayoutParams(0, dp(40), 1f).apply { if (i > 0) marginStart = dp(8) }
+                    LinearLayout.LayoutParams(0, dp(48), 1f).apply { if (i > 0) marginStart = dp(8) }
                 )
                 segments.add(seg)
             }
@@ -1903,7 +2011,7 @@ class MainActivity : AppCompatActivity() {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER
             setBackgroundResource(R.drawable.bg_sim_toggle)
-            setPadding(dp(12), 0, dp(14), 0)
+            setPaddingRelative(dp(12), 0, dp(14), 0)
             addView(SimUtil.badge(this@MainActivity, sim))
             addView(TextView(this@MainActivity).apply {
                 text = sim.name

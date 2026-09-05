@@ -19,9 +19,7 @@
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
         <item name="materialButtonStyle">@style/AppButton</item>
-        <item name="materialAlertDialogTheme">@style/GlassAlertDialog</item>
-        <item name="android:alertDialogTheme">@style/GlassAlertDialog</item>
-        <item name="alertDialogTheme">@style/GlassAlertDialog</item>
+        <item name="popupMenuStyle">@style/AppPopup</item>
         <!-- Branded launch: app background behind the adaptive icon -->
         <item name="android:windowSplashScreenBackground">@color/bg</item>
         <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>

@@ -203,3 +203,15 @@ release build is left unsigned.
 - `MainActivity.kt` — tabbed UI: T9 keypad, recents, contacts, gate settings
 - `ContactsRepo.kt` — contact/T9 index + call-log loading
 - `RowAdapter.kt` — shared list adapter + avatar colors
+
+v3.53: design-system pass from a full UI audit. Colour tokens split into fill
+vs text so every control clears WCAG AA in both themes (call green #12873C,
+avatars, chips, section titles); three circle tiers (48/56/72dp), one card
+radius (26dp) and a nine-step type scale replace the one-offs; 48dp targets
+everywhere (header actions, chips, in-call swap/merge, notification buttons);
+Recents rows gain contact avatars and a call-type line; Settings and Blocked
+numbers get a back button; one overflow menu per tab instead of a gear;
+cross-fades for tab, search and in-call state changes; a decline button on
+the locked incoming screen; the keypad auto-shrinks long numbers and rows
+drop to 72dp so a 360×640 screen keeps its suggestions; speed dial on 2–9;
+portrait lock on phones; RTL mirroring; TalkBack selection/expand state.

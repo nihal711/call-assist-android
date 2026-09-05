@@ -7,22 +7,20 @@
     android:paddingStart="8dp"
     android:paddingTop="20dp"
     android:paddingEnd="8dp"
-    android:paddingBottom="10dp">
+    android:paddingBottom="8dp">
 
     <TextView
         android:id="@+id/headerText"
+        style="@style/Text.Secondary"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:textColor="@color/textSecondary"
-        android:textSize="14sp"
         android:textStyle="bold" />
 
     <TextView
         android:id="@+id/headerCount"
+        style="@style/Text.Secondary"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textColor="@color/textSecondary"
-        android:textSize="14sp"
         android:visibility="gone" />
 </LinearLayout>

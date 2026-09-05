@@ -22,6 +22,7 @@ class BlockedNumbersActivity : AppCompatActivity() {
         Ui.edgeToEdge(this)
         setContentView(R.layout.activity_blocked)
         Ui.applyInsets(findViewById(R.id.blockedRoot), ime = true)
+        findViewById<android.view.View>(R.id.btnBack).setOnClickListener { onBackPressedDispatcher.onBackPressed() }
 
         empty = findViewById(R.id.blockedEmpty)
         Ui.emptyState(empty, R.drawable.ic_block)
@@ -89,7 +90,8 @@ class BlockedNumbersActivity : AppCompatActivity() {
                             subtitle = "Tap to unblock",
                             meta = "",
                             avatarSeed = number,
-                            payload = c.getLong(0)
+                            payload = c.getLong(0),
+                            iconRes = R.drawable.ic_block
                         )
                     )
                 }

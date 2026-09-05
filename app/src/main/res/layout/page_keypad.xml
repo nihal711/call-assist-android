@@ -21,9 +21,9 @@
 
             <TextView
                 android:id="@+id/suggestionsEmpty"
+                style="@style/Text.Secondary"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/textSecondary"
                 android:textSize="15sp" />
 
             <!-- Typed number with no match: offer to save or text it -->
@@ -37,54 +37,56 @@
                 <LinearLayout
                     android:id="@+id/btnAddToContacts"
                     android:layout_width="wrap_content"
-                    android:layout_height="38dp"
+                    android:layout_height="@dimen/touch_min"
                     android:background="@drawable/bg_sim_chip"
+                    android:contentDescription="@string/add_to_contacts"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="14dp"
-                    android:paddingEnd="16dp">
+                    android:paddingStart="16dp"
+                    android:paddingEnd="20dp">
 
                     <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:contentDescription="@null"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:importantForAccessibility="no"
                         android:src="@drawable/ic_person_add"
-                        app:tint="@color/accent" />
+                        app:tint="@color/accentText" />
 
                     <TextView
+                        style="@style/Text.Body"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
-                        android:text="Add to contacts"
-                        android:textColor="@color/textPrimary"
-                        android:textSize="14sp" />
+                        android:importantForAccessibility="no"
+                        android:text="@string/add_to_contacts" />
                 </LinearLayout>
 
                 <LinearLayout
                     android:id="@+id/btnSendMessage"
                     android:layout_width="wrap_content"
-                    android:layout_height="38dp"
-                    android:layout_marginStart="10dp"
+                    android:layout_height="@dimen/touch_min"
+                    android:layout_marginStart="12dp"
                     android:background="@drawable/bg_sim_chip"
+                    android:contentDescription="@string/send_message"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingStart="14dp"
-                    android:paddingEnd="16dp">
+                    android:paddingStart="16dp"
+                    android:paddingEnd="20dp">
 
                     <ImageView
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
-                        android:contentDescription="@null"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:importantForAccessibility="no"
                         android:src="@drawable/ic_message"
-                        app:tint="@color/accent" />
+                        app:tint="@color/accentText" />
 
                     <TextView
+                        style="@style/Text.Body"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="8dp"
-                        android:text="Send message"
-                        android:textColor="@color/textPrimary"
-                        android:textSize="14sp" />
+                        android:importantForAccessibility="no"
+                        android:text="@string/send_message" />
                 </LinearLayout>
             </LinearLayout>
 
@@ -92,28 +94,29 @@
             <LinearLayout
                 android:id="@+id/btnPaste"
                 android:layout_width="wrap_content"
-                android:layout_height="38dp"
+                android:layout_height="@dimen/touch_min"
                 android:background="@drawable/bg_sim_chip"
+                android:contentDescription="@string/paste_number"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingStart="14dp"
-                android:paddingEnd="16dp"
+                android:paddingStart="16dp"
+                android:paddingEnd="20dp"
                 android:visibility="gone">
 
                 <ImageView
-                    android:layout_width="18dp"
-                    android:layout_height="18dp"
-                    android:contentDescription="@null"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:importantForAccessibility="no"
                     android:src="@drawable/ic_copy"
-                    app:tint="@color/accent" />
+                    app:tint="@color/accentText" />
 
                 <TextView
+                    style="@style/Text.Body"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
-                    android:text="Paste number"
-                    android:textColor="@color/textPrimary"
-                    android:textSize="14sp" />
+                    android:importantForAccessibility="no"
+                    android:text="@string/paste_number" />
             </LinearLayout>
         </LinearLayout>
 
@@ -141,12 +144,13 @@
                 android:paddingStart="24dp"
                 android:paddingEnd="24dp">
 
-                <!-- EditText so the user can place the cursor mid-number (e.g. to
-                     prepend an IDD prefix or drop a '+'); the keypad feeds it
-                     directly and the soft keyboard is suppressed in code -->
+                <!-- EditText so the user can place the cursor mid-number; the keypad
+                     feeds it directly and the soft keyboard is suppressed in code.
+                     Auto-sizes 40 → 22sp so a 15-digit international number stays
+                     whole instead of scrolling the leading "+" out of view. -->
                 <EditText
                     android:id="@+id/numberDisplay"
-            android:fontFeatureSettings="tnum"
+                    android:fontFeatureSettings="tnum"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
@@ -155,8 +159,13 @@
                     android:importantForAutofill="no"
                     android:inputType="phone"
                     android:maxLines="1"
-                    android:minHeight="60dp"
-                    android:textSize="34sp"
+                    android:minHeight="64dp"
+                    android:textColor="@color/textPrimary"
+                    android:textSize="40sp"
+                    app:autoSizeMaxTextSize="40sp"
+                    app:autoSizeMinTextSize="22sp"
+                    app:autoSizeStepGranularity="2sp"
+                    app:autoSizeTextType="uniform"
                     tools:ignore="LabelFor" />
 
             </LinearLayout>
@@ -172,37 +181,35 @@
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:paddingTop="12dp"
+                android:paddingTop="8dp"
                 android:paddingBottom="4dp">
 
-                <!--
-                  fitCenter + padding rather than scaleType="center": "center"
-                  would pin the vector at its intrinsic 24dp and leave the
-                  handset marooned in the circle. 15dp of padding scales it
-                  up to ~36dp, a chunkier glyph-to-circle ratio.
-                -->
+                <!-- 72dp primary circle, 36dp glyph (50%). -->
                 <ImageButton
                     android:id="@+id/btnDial"
-                    android:layout_width="66dp"
-                    android:layout_height="66dp"
+                    android:layout_width="@dimen/circle_primary"
+                    android:layout_height="@dimen/circle_primary"
                     android:layout_gravity="center"
                     android:background="@drawable/bg_circle"
                     android:backgroundTint="@color/green"
-                    android:contentDescription="Call"
-                    android:padding="15dp"
+                    android:contentDescription="@string/call"
+                    android:foreground="@drawable/fg_circle_on_color"
+                    android:padding="18dp"
                     android:scaleType="fitCenter"
                     android:src="@drawable/ic_phone"
                     app:tint="#FFFFFF" />
 
-                <!-- Aligned with Call at the lower right. -->
+                <!-- Centred under the # key: 12dp grid padding + 2.5 cells of (w-24)/3. -->
                 <ImageButton
                     android:id="@+id/btnBackspace"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
+                    android:layout_width="@dimen/touch_min"
+                    android:layout_height="@dimen/touch_min"
                     android:layout_gravity="center_vertical|end"
-                    android:layout_marginEnd="56dp"
+                    android:layout_marginEnd="44dp"
                     android:background="?android:attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Backspace"
+                    android:contentDescription="@string/backspace"
+                    android:padding="12dp"
+                    android:scaleType="fitCenter"
                     android:src="@drawable/ic_backspace"
                     android:visibility="invisible"
                     app:tint="@color/textSecondary" />
@@ -212,57 +219,61 @@
             <LinearLayout
                 android:id="@+id/simChip"
                 android:layout_width="wrap_content"
-                android:layout_height="36dp"
+                android:layout_height="@dimen/chip_height"
                 android:layout_gravity="center_horizontal"
-                android:layout_marginTop="10dp"
-                android:layout_marginBottom="6dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="4dp"
                 android:background="@drawable/bg_sim_chip"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
-                android:paddingStart="9dp"
-                android:paddingEnd="12dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="16dp"
                 android:visibility="gone">
 
                 <TextView
                     android:id="@+id/simChipBadge"
                     android:layout_width="18dp"
-                    android:layout_height="18dp" />
+                    android:layout_height="18dp"
+                    android:importantForAccessibility="no" />
 
                 <ImageView
                     android:id="@+id/simChipIcon"
                     android:layout_width="18dp"
                     android:layout_height="18dp"
-                    android:contentDescription="@null"
+                    android:importantForAccessibility="no"
                     android:src="@drawable/ic_sim"
                     android:visibility="gone"
                     app:tint="@color/textSecondary" />
 
                 <TextView
                     android:id="@+id/simChipName"
+                    style="@style/Text.Secondary"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
                     android:ellipsize="end"
+                    android:importantForAccessibility="no"
                     android:maxLines="1"
                     android:maxWidth="120dp"
-                    android:textColor="@color/textPrimary"
-                    android:textSize="13sp" />
+                    android:textColor="@color/textPrimary" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 
     <ImageButton
         android:id="@+id/fabKeypad"
-        android:layout_width="62dp"
-        android:layout_height="62dp"
+        android:layout_width="@dimen/circle_action"
+        android:layout_height="@dimen/circle_action"
         android:layout_gravity="bottom|end"
         android:layout_marginEnd="24dp"
         android:layout_marginBottom="@dimen/nav_content_clearance"
         android:background="@drawable/bg_circle"
         android:backgroundTint="@color/green"
-        android:contentDescription="Show keypad"
+        android:contentDescription="@string/show_keypad"
         android:elevation="8dp"
-        android:scaleType="center"
+        android:foreground="@drawable/fg_circle_on_color"
+        android:padding="14dp"
+        android:scaleType="fitCenter"
         android:src="@drawable/ic_dialpad"
         android:visibility="gone"
         app:tint="#FFFFFF" />

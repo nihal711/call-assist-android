@@ -77,7 +77,7 @@ class Sheet(private val ctx: Context) {
         val dialog = BottomSheetDialog(ctx, R.style.AppSheet)
         val primary = ContextCompat.getColor(ctx, R.color.textPrimary)
         val secondary = ContextCompat.getColor(ctx, R.color.textSecondary)
-        val accent = ContextCompat.getColor(ctx, R.color.accent)
+        val accent = ContextCompat.getColor(ctx, R.color.accentText)
 
         val root = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
@@ -161,11 +161,12 @@ class Sheet(private val ctx: Context) {
                     setTextColor(color)
                     if (bold) setTypeface(typeface, Typeface.BOLD)
                     gravity = Gravity.CENTER
+                    minimumHeight = dp(50)
                     setBackgroundResource(R.drawable.bg_sheet_button)
                     setOnClickListener { onClick() }
                     Ui.pressable(this)
                 }
-            val lp = LinearLayout.LayoutParams(0, dp(50), 1f)
+            val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             negativeText?.let {
                 bar.addView(button(it, primary, false) { dialog.dismiss(); negativeClick?.invoke() }, lp)
             }
@@ -175,7 +176,7 @@ class Sheet(private val ctx: Context) {
                 }, LinearLayout.LayoutParams(dp(1), dp(22)))
             }
             positiveText?.let {
-                val color = if (positiveDestructive) ContextCompat.getColor(ctx, R.color.red) else primary
+                val color = if (positiveDestructive) ContextCompat.getColor(ctx, R.color.redText) else primary
                 bar.addView(button(it, color, true) {
                     dialog.dismiss()
                     if (choiceLabels != null) choiceClick?.invoke(picked)
