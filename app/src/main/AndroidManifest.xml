@@ -18,6 +18,7 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- The call notification is posted as a phoneCall foreground service: the
          only form of CallStyle notification Android 14+ accepts without a
          full-screen intent -->
@@ -90,14 +91,18 @@
             android:exported="false" />
 
         <!-- Its presence stops Telecom posting a second missed-call
-             notification alongside ours. Telecom runs as the system uid, so
-             the permission only shuts out other apps. -->
+             notification alongside ours; on boot it re-posts the unread ones.
+             Both broadcasts come from the system uid, so the permission only
+             shuts out other apps. -->
         <receiver
             android:name=".MissedCallsReceiver"
             android:exported="true"
             android:permission="android.permission.MODIFY_PHONE_STATE">
             <intent-filter>
                 <action android:name="android.telecom.action.SHOW_MISSED_CALLS_NOTIFICATION" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
 

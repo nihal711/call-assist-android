@@ -249,3 +249,8 @@ heads-up banner stay the system's CallStyle.
 
 v3.58: declares a receiver for Telecom's show-missed-calls broadcast, so the
 system no longer posts its own missed-call notification alongside ours.
+
+v3.59: missed-call notifications survive a reboot, as Telecom's did. Each one
+is recorded when posted and forgotten when tapped, swiped away, called back or
+cleared by opening Recents; BOOT_COMPLETED re-posts whatever is left with its
+original time.

@@ -6,7 +6,10 @@ import android.content.Intent
 import android.telecom.CallAudioState
 import android.telecom.VideoProfile
 
-/** Handles the answer / decline / hang-up / mute / speaker buttons on the call notification. */
+/**
+ * Handles the answer / decline / hang-up / mute / speaker buttons on the call
+ * notification, and the swipe-away of a missed-call one.
+ */
 class CallActionReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val svc = CallService.instance
@@ -30,6 +33,8 @@ class CallActionReceiver : BroadcastReceiver() {
                 if (svc.callAudioState?.route == CallAudioState.ROUTE_SPEAKER) CallAudioState.ROUTE_WIRED_OR_EARPIECE
                 else CallAudioState.ROUTE_SPEAKER
             )
+            ACTION_MISSED_DISMISSED -> intent.getStringExtra(Notifications.EXTRA_MISSED_TAG)
+                ?.let { Notifications.forgetMissed(context, it) }
         }
     }
 
@@ -39,5 +44,6 @@ class CallActionReceiver : BroadcastReceiver() {
         const val ACTION_HANGUP = "dev.nihal.callassist.HANGUP"
         const val ACTION_MUTE = "dev.nihal.callassist.MUTE"
         const val ACTION_SPEAKER = "dev.nihal.callassist.SPEAKER"
+        const val ACTION_MISSED_DISMISSED = "dev.nihal.callassist.MISSED_DISMISSED"
     }
 }

@@ -378,6 +378,8 @@ class MainActivity : AppCompatActivity() {
             return
         }
         if (intent?.action == ACTION_SHOW_RECENTS) {
+            // A tapped missed-call notification has auto-cancelled itself.
+            intent.getStringExtra(Notifications.EXTRA_MISSED_TAG)?.let { Notifications.forgetMissed(this, it) }
             navBar.select(1)
             return
         }

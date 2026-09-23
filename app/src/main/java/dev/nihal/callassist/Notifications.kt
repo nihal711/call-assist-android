@@ -12,6 +12,7 @@ import android.media.AudioManager
 import android.net.Uri
 import android.graphics.drawable.Icon
 import android.os.Build
+import org.json.JSONObject
 
 object Notifications {
     private const val CH_INCOMING = "incoming_calls_v2"
@@ -27,6 +28,7 @@ object Notifications {
     const val ID_CALL = 1
     const val ID_AUTOMATION = 2
     const val ID_MISSED = 4
+    const val EXTRA_MISSED_TAG = "dev.nihal.callassist.MISSED_TAG"
     @Volatile private var channelsReady = false
 
     fun ensureChannels(ctx: Context) {
@@ -276,14 +278,35 @@ object Notifications {
             }
     }
 
-    /** One per number (tagged); cleared when Recents opens. */
-    fun missedCall(ctx: Context, label: String, number: String?, photo: Bitmap?) {
+    /**
+     * One per number (tagged); cleared when Recents opens.
+     * Each is also recorded in [missedStore] so [restoreMissed] can bring back
+     * the ones still unread after a reboot, as Telecom's own notification did.
+     */
+    fun missedCall(
+        ctx: Context,
+        label: String,
+        number: String?,
+        photo: Bitmap?,
+        time: Long = System.currentTimeMillis()
+    ) {
         ensureChannels(ctx)
+        val tag = number ?: label
+        // Per-tag request codes: the tag extra must not be overwritten by the
+        // next missed call's (UPDATE_CURRENT).
         val openRecents = PendingIntent.getActivity(
-            ctx, 3,
+            ctx, tag.hashCode(),
             Intent(ctx, MainActivity::class.java)
                 .setAction(MainActivity.ACTION_SHOW_RECENTS)
+                .putExtra(EXTRA_MISSED_TAG, tag)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val dismissed = PendingIntent.getBroadcast(
+            ctx, tag.hashCode(),
+            Intent(ctx, CallActionReceiver::class.java)
+                .setAction(CallActionReceiver.ACTION_MISSED_DISMISSED)
+                .putExtra(EXTRA_MISSED_TAG, tag),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val b = Notification.Builder(ctx, CH_MISSED)
@@ -292,9 +315,11 @@ object Notifications {
             .setContentTitle("Missed call")
             .setContentText(label)
             .setCategory(Notification.CATEGORY_MISSED_CALL)
+            .setWhen(time)
             .setShowWhen(true)
             .setAutoCancel(true)
             .setContentIntent(openRecents)
+            .setDeleteIntent(dismissed)
         photo?.let { b.setLargeIcon(Icon.createWithBitmap(it)) }
         if (number != null) {
             // Distinct request codes per number, or UPDATE_CURRENT would make
@@ -316,9 +341,31 @@ object Notifications {
             b.addAction(action2(ctx, R.drawable.ic_message, "Message", sms))
         }
         try {
-            ctx.getSystemService(NotificationManager::class.java)
-                .notify(number ?: label, ID_MISSED, b.build())
+            ctx.getSystemService(NotificationManager::class.java).notify(tag, ID_MISSED, b.build())
+            missedStore(ctx).edit()
+                .putString(tag, JSONObject().put("label", label).put("number", number).put("time", time).toString())
+                .apply()
         } catch (_: Exception) {
+        }
+    }
+
+    private fun missedStore(ctx: Context) = ctx.getSharedPreferences("missed_calls", Context.MODE_PRIVATE)
+
+    /** Tapped or swiped away: it shouldn't come back after a reboot. */
+    fun forgetMissed(ctx: Context, tag: String) = missedStore(ctx).edit().remove(tag).apply()
+
+    /** Re-posts the missed calls still unread when the phone shut down. Blocking — call off the main thread. */
+    fun restoreMissed(ctx: Context) {
+        for ((tag, raw) in missedStore(ctx).all) {
+            try {
+                val o = JSONObject(raw as String)
+                val number = if (o.has("number")) o.getString("number") else null
+                val info = ContactHelper.lookup(ctx, number)
+                val photo = ContactHelper.loadPhoto(ctx, info.photoUri)
+                missedCall(ctx, info.name ?: o.getString("label"), number, photo, o.getLong("time"))
+            } catch (_: Exception) {
+                forgetMissed(ctx, tag)
+            }
         }
     }
 
@@ -335,6 +382,7 @@ object Notifications {
             nm.activeNotifications.filter { it.id == ID_MISSED }.forEach { nm.cancel(it.tag, ID_MISSED) }
         } catch (_: Exception) {
         }
+        missedStore(ctx).edit().clear().apply()
     }
 
     fun cancelMissed(ctx: Context, tag: String) {
@@ -342,6 +390,7 @@ object Notifications {
             ctx.getSystemService(NotificationManager::class.java).cancel(tag, ID_MISSED)
         } catch (_: Exception) {
         }
+        forgetMissed(ctx, tag)
     }
 
     private fun action2(ctx: Context, icon: Int, title: String, pi: PendingIntent): Notification.Action =
