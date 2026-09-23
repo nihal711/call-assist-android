@@ -89,6 +89,18 @@
             android:name=".CallActionReceiver"
             android:exported="false" />
 
+        <!-- Its presence stops Telecom posting a second missed-call
+             notification alongside ours. Telecom runs as the system uid, so
+             the permission only shuts out other apps. -->
+        <receiver
+            android:name=".MissedCallsReceiver"
+            android:exported="true"
+            android:permission="android.permission.MODIFY_PHONE_STATE">
+            <intent-filter>
+                <action android:name="android.telecom.action.SHOW_MISSED_CALLS_NOTIFICATION" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name=".CallService"
             android:exported="true"

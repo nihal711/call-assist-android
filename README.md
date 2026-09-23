@@ -246,3 +246,6 @@ v3.57: the collapsed incoming-call notification carries its own Decline and
 Answer buttons (Samsung's shade hides CallStyle's until expanded, and Do not disturb
 suppresses the heads-up that would have shown them). Expanded view and
 heads-up banner stay the system's CallStyle.
+
+v3.58: declares a receiver for Telecom's show-missed-calls broadcast, so the
+system no longer posts its own missed-call notification alongside ours.
