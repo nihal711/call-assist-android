@@ -254,3 +254,7 @@ v3.59: missed-call notifications survive a reboot, as Telecom's did. Each one
 is recorded when posted and forgotten when tapped, swiped away, called back or
 cleared by opening Recents; BOOT_COMPLETED re-posts whatever is left with its
 original time.
+
+v3.60: the "Opened" gate notification uses an open-lock icon instead of the
+handset ("Answering…" and "Attempted" keep the handset). Gate automation code
+is untouched.

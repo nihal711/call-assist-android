@@ -410,8 +410,11 @@ object Notifications {
         if (!Prefs.notifyGate(ctx)) return
         ensureChannels(ctx)
         val ringerOn = ctx.getSystemService(AudioManager::class.java).ringerMode == AudioManager.RINGER_MODE_NORMAL
+        // Keyed off AutomationEngine's wording so the engine itself stays untouched:
+        // "Answering…" keeps the handset, the "Opened" update swaps to an open lock.
+        val icon = if (text.startsWith("Opened")) R.drawable.ic_lock_open else R.drawable.ic_phone
         val n = Notification.Builder(ctx, if (ringerOn) CH_GATE else CH_GATE_QUIET)
-            .setSmallIcon(R.drawable.ic_phone)
+            .setSmallIcon(icon)
             .setColor(ctx.getColor(R.color.green))
             .setContentTitle("Call Assist")
             .setContentText(text)
