@@ -1,5 +1,11 @@
 # Changelog
 
+## v3.61 — 2026-10-08
+
+Tapping the battery-optimisation warning on the Gate tab opens the system's
+Allow dialog instead of the battery-optimisation list, where the default phone
+app's switch can't be changed. The list stays as a fallback.
+
 ## v3.60 — 2026-09-24
 
 The "Opened" gate notification uses an open-lock icon instead of the handset

@@ -106,8 +106,19 @@ object GateSetup {
     }
 
     fun openBatterySettings(activity: Activity) {
-        // The direct request dialog needs REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-        // which Play flags; the settings list gets there without it.
+        // The direct request dialog, as in Settings: the system's own list shows
+        // the default phone app as already unrestricted with its switch locked,
+        // yet never adds it to the exemption list this check reads. The list is
+        // only the fallback for devices without the dialog.
+        try {
+            @Suppress("BatteryLife")
+            activity.startActivity(
+                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                    .setData(Uri.parse("package:${activity.packageName}"))
+            )
+            return
+        } catch (_: Exception) {
+        }
         try {
             activity.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
         } catch (_: Exception) {
