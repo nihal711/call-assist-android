@@ -25,6 +25,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
 
+    <!-- Lets DialerCodes see which apps registered a *#code# service menu, so
+         only those codes stay on the phone. Package visibility filtering hides
+         other apps' broadcast receivers even from a <queries> intent. -->
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+
     <application
         android:name=".CallAssistApp"
         android:allowBackup="true"

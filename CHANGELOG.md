@@ -1,5 +1,16 @@
 # Changelog
 
+## v3.62 — 2026-11-05
+
+Device codes typed on the keypad run on the phone instead of going to the
+carrier as USSD (which answered "Connection problem or invalid MMI code").
+`*#06#` shows the IMEI, or points to Settings → About phone where Android keeps
+it from third-party dialers. `*#*#…#*#*` codes go out as the system secret-code
+broadcast, and `*#…#` service codes do too when an installed app registered
+that exact code. Network requests such as `*#21#` and `*100#` are unchanged.
+Codes run as soon as they're complete, and only from the keypad, never from
+tel: links.
+
 ## v3.61 — 2026-10-08
 
 Tapping the battery-optimisation warning on the Gate tab opens the system's

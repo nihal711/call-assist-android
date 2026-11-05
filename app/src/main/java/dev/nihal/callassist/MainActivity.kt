@@ -742,6 +742,8 @@ class MainActivity : AppCompatActivity() {
                 if (Prefs.keyHaptics(this)) it.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 playKeyTone(k.digit)
                 dial.insert(k.digit)
+                // Device codes run the moment they're complete, like on any built-in dialer.
+                if ((k.digit == '#' || k.digit == '*') && DialerCodes.handle(this, dial.raw())) dial.set("")
             }
             when (k.digit) {
                 '0' -> cell.setOnLongClickListener {
@@ -765,7 +767,8 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<View>(R.id.btnDial).setOnClickListener {
             val n = dial.raw()
-            if (n.isNotEmpty()) confirmCall(n)
+            if (n.isEmpty()) return@setOnClickListener
+            if (DialerCodes.handle(this, n)) dial.set("") else confirmCall(n)
         }
 
         simChip = findViewById(R.id.simChip)
