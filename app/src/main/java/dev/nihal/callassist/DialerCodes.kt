@@ -107,12 +107,14 @@ object DialerCodes {
             sendSecretCode(activity, "06")
             return
         }
-        // OnePlus, OPPO and realme name the page "About device".
-        val page = if (Build.MANUFACTURER.lowercase() in setOf("oneplus", "oppo", "realme")) "About device"
-        else "About phone"
+        // OnePlus, OPPO and realme name the page "About device" and keep the IMEI
+        // one level down under Status, which only their own apps may open.
+        val oplus = Build.MANUFACTURER.lowercase() in setOf("oneplus", "oppo", "realme")
+        val page = if (oplus) "About device" else "About phone"
+        val path = if (oplus) "About device → Status" else page
         GlassConfirm(activity)
             .title("IMEI")
-            .message("Android only lets the phone's built-in dialer read the IMEI. You'll find it in Settings → $page.")
+            .message("Android only lets the phone's built-in dialer read the IMEI. You'll find it in Settings → $path.")
             .negative()
             .positive(page) {
                 try {

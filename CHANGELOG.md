@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.65 — 2026-11-06
+
+On OnePlus, OPPO and realme the `*#06#` dialog points to Settings → About
+device → Status, where those phones keep the IMEI (the Status page itself only
+opens from their own apps). Checked on a OnePlus 15: volume keys silence a
+ringing call and one power press declines it, with OxygenOS keeping the screen
+on after that press just like One UI.
+
 ## v3.64 — 2026-11-06
 
 The `*#06#` dialog names the Settings page the way the phone does: "About
