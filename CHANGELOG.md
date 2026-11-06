@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.63 — 2026-11-06
+
+Volume keys on the ringing screen silence the call again instead of declining
+it. The window manager silences the ringer on a volume key-down and never
+passes that key to the app, so Telecom reported it exactly like a power press.
+A silence now waits 0.8 s for the volume key-up before it counts as the power
+button, and the decline still goes through after power has turned the screen
+off. Power declines; volume silences, and the caller keeps hearing it ring.
+
 ## v3.62 — 2026-11-05
 
 Device codes typed on the keypad run on the phone instead of going to the

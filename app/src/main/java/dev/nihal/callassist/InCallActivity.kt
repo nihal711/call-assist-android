@@ -46,11 +46,14 @@ class InCallActivity : AppCompatActivity() {
         /** True while the call screen is resumed; the service uses it to skip heads-up banners. */
         @Volatile var visible = false
             private set
+
+        /** How long a silence waits for a volume key-up before it counts as power. */
+        private const val VOLUME_GRACE_MS = 800L
     }
 
     private val handler = Handler(Looper.getMainLooper())
-    /** When our own volume-key handler last silenced the ringer; that silence is not a decline. */
-    private var volumeSilencedAt = 0L
+    /** Last volume key seen while ringing; a silence near it is the volume key, not power. */
+    private var volumeKeyAt = 0L
     private var boundCall: Call? = null
     private var muted = false
     private var speaker = false
@@ -119,19 +122,34 @@ class InCallActivity : AppCompatActivity() {
 
     // Power button while ringing, first press: Samsung phones answer it by silencing
     // the ringer and keeping the screen on, which telecom reports as
-    // onSilenceRinger. With the ringing screen up that press is a decline —
-    // unless the silence came from our own volume-key handler.
+    // onSilenceRinger. With the ringing screen up that press is a decline.
+    //
+    // The volume keys reach onSilenceRinger the same way: the window manager
+    // silences the ringer on key-down and never hands that down to us. Only the
+    // key-up arrives, so the decline waits briefly and a volume key-up cancels
+    // it. Telecom repeats the silence while a volume key is held, which keeps
+    // pushing the decline back.
+    // The ringing screen had to be up when the press came (checked below); by the
+    // time this runs, power may already have turned the screen off.
+    private val declineRinging = Runnable {
+        val call = boundCall ?: return@Runnable
+        if (call.stateCompat() == Call.STATE_RINGING) {
+            haptic(findViewById(R.id.contentColumn))
+            try {
+                call.reject(false, null)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
     private val silenceListener: () -> Unit = {
         runOnUiThread {
             val call = boundCall
+            handler.removeCallbacks(declineRinging)
             if (visible && call != null && call.stateCompat() == Call.STATE_RINGING &&
-                SystemClock.elapsedRealtime() - volumeSilencedAt > 1_000
+                SystemClock.elapsedRealtime() - volumeKeyAt > VOLUME_GRACE_MS
             ) {
-                haptic(findViewById(R.id.contentColumn))
-                try {
-                    call.reject(false, null)
-                } catch (_: Exception) {
-                }
+                handler.postDelayed(declineRinging, VOLUME_GRACE_MS)
             }
         }
     }
@@ -350,27 +368,33 @@ class InCallActivity : AppCompatActivity() {
             if (receiverRegistered) unregisterReceiver(screenOffReceiver)
         } catch (_: Exception) {
         }
+        handler.removeCallbacks(declineRinging)
         OngoingCall.removeListener(ongoingListener)
         boundCall?.unregisterCallback(callback)
         super.onDestroy()
     }
 
-    // Telecom grants this operation to the active default dialer. Lint only
-    // understands the alternative signature-level MODIFY_PHONE_STATE grant.
+    // Volume keys while ringing silence only, like the system does on its own.
+    // Both halves are swallowed so the ring volume doesn't change; the key-up is
+    // usually all we get (see declineRinging). Telecom grants silenceRinger to the
+    // active default dialer; lint only knows the MODIFY_PHONE_STATE grant.
     @android.annotation.SuppressLint("MissingPermission")
-    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if ((keyCode == KeyEvent.KEYCODE_VOLUME_UP || keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) &&
-            boundCall?.stateCompat() == Call.STATE_RINGING
-        ) {
-            // Silence ring + vibration locally; the caller keeps hearing ringback.
-            volumeSilencedAt = SystemClock.elapsedRealtime()
-            try {
-                getSystemService(TelecomManager::class.java).silenceRinger()
-            } catch (_: Exception) {
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val volume = event.keyCode == KeyEvent.KEYCODE_VOLUME_UP ||
+            event.keyCode == KeyEvent.KEYCODE_VOLUME_DOWN ||
+            event.keyCode == KeyEvent.KEYCODE_VOLUME_MUTE
+        if (volume && boundCall?.stateCompat() == Call.STATE_RINGING) {
+            volumeKeyAt = SystemClock.elapsedRealtime()
+            handler.removeCallbacks(declineRinging)
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                try {
+                    getSystemService(TelecomManager::class.java).silenceRinger()
+                } catch (_: Exception) {
+                }
             }
             return true
         }
-        return super.onKeyDown(keyCode, event)
+        return super.dispatchKeyEvent(event)
     }
 
     private fun haptic(v: View) {
