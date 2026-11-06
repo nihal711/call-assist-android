@@ -1,5 +1,10 @@
 # Changelog
 
+## v3.64 — 2026-11-06
+
+The `*#06#` dialog names the Settings page the way the phone does: "About
+device" on OnePlus, OPPO and realme, "About phone" elsewhere.
+
 ## v3.63 — 2026-11-06
 
 Volume keys on the ringing screen silence the call again instead of declining

@@ -7,6 +7,7 @@ import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import android.telephony.TelephonyManager
 import android.widget.Toast
@@ -106,11 +107,14 @@ object DialerCodes {
             sendSecretCode(activity, "06")
             return
         }
+        // OnePlus, OPPO and realme name the page "About device".
+        val page = if (Build.MANUFACTURER.lowercase() in setOf("oneplus", "oppo", "realme")) "About device"
+        else "About phone"
         GlassConfirm(activity)
             .title("IMEI")
-            .message("Android only lets the phone's built-in dialer read the IMEI. You'll find it in Settings → About phone.")
+            .message("Android only lets the phone's built-in dialer read the IMEI. You'll find it in Settings → $page.")
             .negative()
-            .positive("About phone") {
+            .positive(page) {
                 try {
                     activity.startActivity(Intent(Settings.ACTION_DEVICE_INFO_SETTINGS))
                 } catch (_: Exception) {
